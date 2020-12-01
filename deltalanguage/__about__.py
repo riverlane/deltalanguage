@@ -48,7 +48,7 @@ __copyright__ = "2020, River Lane Research Ltd"
 # Source URL
 __url__ = "https://github.com/riverlane/deltalanguage"
 # Package Hosting URL
-__download_url__ = "https://test.pypi.org/project/deltalanguage/#files"
+__download_url__ = "https://pypi.org/project/deltalanguage/#files"
 # Docs Hosting Url
 __docs_url__ = "https://riverlane.github.io/deltalanguage"
 
@@ -71,7 +71,7 @@ __contributors__ = ", ".join(contributors)
 __contributors_lines__ = "\n".join(contributors)
 __email__ = "deltaflow@riverlane.com"
 
-version_info = (0, 2, 3)
+version_info = (0, 2, 4)
 """Tuple[int, int, int] : version information
 The three components of the version:
 ``major``, ``minor`` and ``micro``: Module level variable documented inline.

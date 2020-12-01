@@ -14,7 +14,8 @@ Prerequisites
 ^^^^^^^^^^^^^
 
 .. note::
-   Currently, we only support and test Deltalanguage on Ubuntu 20.04.
+   We primarily support and test Deltalanguage on Ubuntu 20.04 but have 
+   additionally tested our system on MacOS 10.15.
 
 You will require 
 `Python 3.8 <https://www.python.org/downloads/release/python-385/>`_.
@@ -51,7 +52,9 @@ use the following to install the additional dependencies.
 
     $ pip install deltalanguage[visualisation]
 
-Next, visit our :doc:`tutorials/tutorials` to get started with Deltalanguage.
+.. note::
+   You may receive errors about the :code:`pybind11` dependency. These errors
+   do not always mean that the package has failed to install, and running the
+   install a second time often solves these errors. 
 
-.. TODO::
-    Check PyPI org link works after release
+Next, visit our :doc:`tutorials/tutorials` to get started with Deltalanguage.

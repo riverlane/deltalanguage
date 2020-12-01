@@ -4,8 +4,6 @@ on:
   push:
     branches:    
       - dev
-    tags:        
-      - v*
 
 jobs: 
   build_docs_job:

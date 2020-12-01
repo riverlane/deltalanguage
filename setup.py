@@ -52,5 +52,5 @@ setuptools.setup(
     install_requires=read_requirements_txt(install_reqs_path),
     extras_require={'visualisation':
                     read_requirements_txt(visualisation_reqs_path)},
-    python_requires='>=3.8'
+    python_requires='==3.8'
 )
