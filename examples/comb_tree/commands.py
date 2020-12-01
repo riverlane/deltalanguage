@@ -1,0 +1,5 @@
+class Commands():
+    MIN = 0x01
+    MAX = 0x02
+    SUM = 0x03
+    AVG = 0x04

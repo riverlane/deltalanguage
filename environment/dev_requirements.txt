@@ -1,0 +1,29 @@
+# Each block is ordered alphabetically
+# These are dependencies that are not included in our package
+
+# Docs
+GitPython
+nbsphinx>=0.8
+pygments>=2.5.1
+recommonmark
+rinohtype
+sphinx~=3.3
+sphinx-copybutton
+sphinx-rtd-theme
+sphinx-toggleprompt
+
+## Development
+autopep8
+nose
+nosexcover
+pycodestyle
+pylint
+
+# Profiling
+snakeviz
+yappi
+
+# Packaging
+setuptools
+twine
+wheel

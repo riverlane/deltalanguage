@@ -1,0 +1,9 @@
+DeltaGraph[main] {
+    return_1_0:
+        out: (union_one_receiver_1.x, <DInt32>)
+    union_one_receiver_1:
+        in : (x, <DInt32>, 0, False)
+        out: (save_and_exit_2.val, DInt32)
+    save_and_exit_2:
+        in : (val, T, 0, False)
+}

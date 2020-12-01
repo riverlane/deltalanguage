@@ -1,0 +1,30 @@
+name: docs_pages_workflow
+
+on:
+  push:
+    branches:    
+      - dev
+    tags:        
+      - v*
+
+jobs: 
+  build_docs_job:
+    runs-on: ubuntu-latest
+
+    container: ubuntu:20.04
+
+    steps:
+      - name: Clone the repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          apt-get update
+          apt-get install -y git
+          git clone "https://token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .
+        shell: bash
+
+      - name: Execute script to build our documentation and update pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: "docs/build_docs.sh"
+        shell: bash

@@ -1,0 +1,72 @@
+# IDE specific things
+.idea/
+.mypy_cache
+.vscode/
+.devcontainer/devcontainer.json
+
+# Build artifacts
+build/
+*blinky*
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+
+# Local notes
+*notes.md
+*/todo.*
+
+# Tests / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+licenses.csv
+licenses.confluence
+pylint.log
+pycodestyle.log
+
+# Data generated from tests and examples
+*.vcd
+*.txt
+*.png
+
+# Docker container ID
+container
+
+# Misc
+untracked/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Docs
+docs/_build/
+docs/sphinx-build-*
+docs/tutorials/*py*
+docs/examples/
+
+# Packaging
+dist/
+*.egg-info
+.eggs/
