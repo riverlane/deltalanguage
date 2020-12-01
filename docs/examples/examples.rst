@@ -9,19 +9,19 @@ the Deltaflow language:
   which implements a Rabi cycle on a single qubit.
   This example will also provide a demonstration of programming nodes to
   run on both CPUs and FPGAs across different levels of the stack.
-  To run locally download these files:
-  :download:`rabi_demo <rabi_demo/rabi_oscillation_walkthrough.ipynb>`,
-  :download:`aggregator.py <rabi_demo/aggregator.py>`,
-  :download:`commander.py <rabi_demo/commander.py>`,
-  :download:`helper_functions.py <rabi_demo/helper_functions.py>`, and
-  :download:`exp_graph.py <rabi_demo/exp_graph.py>`.
+  You can download the code here:
+  :download:`rabi_demo.zip <rabi_demo/rabi_demo.zip>`.
 
 - `VQE <VQE/VQE_walkthrough.html>`_
   (:download:`VQE_walkthrough.ipynb <VQE/VQE_walkthrough.ipynb>`)
   will walk you through the process of writing this most well know example
   of a hybrid quantum-classical algorithm.
 
-- Micromotion
+- :doc:`micromotion/micromotion` is an example of
+  a micromotion compensation system in an ion trap implemented as 
+  in Deltaflow with CPU nodes and low latency FPGA nodes.
+  You can download the code here:
+  :download:`micromotion.zip <micromotion/micromotion.zip>`
 
 - `Sine Wave Generator <hardware/dds_sine_wave.html>`_
   (:download:`dds_sine_wave.ipynb <hardware/dds_sine_wave.ipynb>`)

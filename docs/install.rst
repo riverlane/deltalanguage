@@ -10,6 +10,8 @@ those who would like to use the package as it is and do not change it.
 For those who would like to get involved into development we suggest following
 steps in :doc:`development`.
 
+You can find the github repo corresponding to this manual `here <https://github.com/riverlane/deltalanguage>`_.
+
 Prerequisites
 ^^^^^^^^^^^^^
 

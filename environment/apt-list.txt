@@ -14,6 +14,7 @@ wget
 
 # Docs
 pandoc
+zip
 
 # Python tools
 python3

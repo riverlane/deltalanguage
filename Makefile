@@ -207,7 +207,7 @@ build-package: clean-package container ## Make the package
 	${DEXEC} ${CHECKPACKAGE}
 
 .PHONY: test-upload-package
-upload-package: build-package ## Make and upload the package to test.pypi.org
+test-upload-package: build-package ## Make and upload the package to test.pypi.org
 	${DEXEC} ${TESTUPLOADPACKAGE}
 
 .PHONY: upload-package
@@ -315,7 +315,7 @@ dev-upload-package: dev-build-package ## See non-dev version
 	${UPLOADPACKAGE}
 
 .PHONY: dev-test-upload-package
-dev-upload-package: dev-build-package ## See non-dev version
+dev-test-upload-package: dev-build-package ## See non-dev version
 	${TESTUPLOADPACKAGE}
 
 .PHONY: dev-test-package

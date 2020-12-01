@@ -9,15 +9,24 @@ clean:
 	rm -rf examples/hardware
 	rm -rf examples/rabi_demo
 	rm -rf examples/VQE
+	rm -rf examples/micromotion/micromotion.zip
 
 .PHONY: pre-build
 pre-build:
 	mkdir -p tutorials examples
+
 	cp ../examples/tutorials/*.py tutorials/
 	cp ../examples/tutorials/*.ipynb tutorials/
+
 	cp -r ../examples/hardware examples/
+
 	cp -r ../examples/rabi_demo examples/
+	cd examples/rabi_demo/ && zip -r rabi_demo.zip *.py *.ipynb
+
 	cp -r ../examples/VQE examples/
+
+	cd ../examples/demos/micromotion/migen/ && zip -r micromotion.zip *
+	mv ../examples/demos/micromotion/migen/micromotion.zip examples/micromotion/
 
 # --------------- DOCS -------------------------------------------------------#
 

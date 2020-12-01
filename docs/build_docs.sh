@@ -7,7 +7,7 @@ export DEBIAN_FRONTEND=noninteractive
 #################### INSTALLS #################################################
 
 apt-get update
-apt-get -y install pandoc python3 python3-pip rsync -y
+apt-get -y install pandoc python3 python3-pip rsync zip -y
 
 ln -s /usr/bin/python3 /usr/bin/python
 ln -s /usr/bin/pip3 /usr/bin/pip
@@ -27,7 +27,7 @@ echo ${PYTHONPATH}
 # add it to DOCSVERSIONS following a whitespace
 # Make sure dev is the last one as it has the latest version of conf.py
 # TODO: automate this process
-DOCSVERSIONS="v0.2.3 v0.2.4 dev"
+DOCSVERSIONS="v0.3.0 dev"
 export DOCSVERSIONS=${DOCSVERSIONS}
 # This variable is defined in docs/Makefile 
 # TODO: remover redundant repetition
