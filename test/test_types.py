@@ -12,24 +12,25 @@ from test._utils import TwoIntsT
 from deltalanguage._utils import NamespacedName
 from deltalanguage.data_types import (
     BaseDeltaType,
-    Top,
-    DSize,
+    DeltaTypeError,
+    DArray,
     DBool,
     DChar,
     DComplex,
-    DUInt,
-    DInt,
     DFloat,
-    DArray,
+    DInt,
+    DRaw,
     DRecord,
-    DUnion,
+    DSize,
     DStr,
     DTuple,
-    NoMessage,
-    as_delta_type,
-    delta_type,
+    DUInt,
+    DUnion,
     ForkedReturn,
-    DeltaTypeError
+    NoMessage,
+    Top,
+    as_delta_type,
+    delta_type
 )
 from deltalanguage.wiring import DeltaGraph
 
@@ -940,6 +941,239 @@ class DeltaTypesNumpyTest(unittest.TestCase):
         np_val = t.as_numpy_object(val)
         new_val = DStr().from_numpy_object(np_val[0][1])
         self.assertEqual(val, new_val)
+
+
+class DRawTest(unittest.TestCase):
+
+    def to_and_from_bits(self, val, base_type):
+        """Helper that converts a value to and from bits via given type."""
+        raw_type = DRaw(base_type)
+        return raw_type.from_bits(raw_type.as_bits(val))
+
+    def pack_unpack(self, val, base_type):
+        """Packs and unpacks a DRaw type."""
+        raw_type = DRaw(base_type)
+        packed = raw_type.pack(raw_type.as_bits(val))
+        return raw_type.from_bits(raw_type.unpack(packed))
+
+    def check_error(self, val, base_type):
+        if not isinstance(val, int):
+            with self.assertRaises(DeltaTypeError):
+                DRaw(base_type).pack(val)
+
+    def check(self, val, t):
+        """Test that to and from bits returns exactly the same message."""
+        val_new = self.to_and_from_bits(val, t)
+        self.assertEqual(val, val_new)
+        val_new = self.pack_unpack(val, t)
+        self.assertEqual(val, val_new)
+        self.check_error(val, t)
+
+    def check_float(self, val, t: DFloat):
+        """Test for floats."""
+        if not isinstance(t, DFloat):
+            raise DeltaTypeError
+
+        # TODO this check can be done on binary, then the number of places
+        # will be more reasonably explained
+        if t.size == DSize(32):
+            places = 7
+        elif t.size == DSize(64):
+            places = 15
+        else:
+            raise NotImplementedError('Unsupported format')
+
+        val_new = self.to_and_from_bits(val, t)
+        self.assertAlmostEqual(val, val_new, places=places)
+        val_new = self.pack_unpack(val, t)
+        self.assertAlmostEqual(val, val_new, places=places)
+        self.check_error(val, t)
+
+    def check_complex(self, val, t: DComplex):
+        """Test for complex numbers."""
+        if not isinstance(t, DComplex):
+            raise DeltaTypeError
+
+        # Using the same idea as check_float, but for real and imaginary parts
+        if t.size == DSize(64):
+            places = 7
+        elif t.size == DSize(128):
+            places = 15
+        else:
+            raise NotImplementedError('Unsupported format')
+
+        val_new = self.to_and_from_bits(val, t)
+        self.assertAlmostEqual(val.real, val_new.real, places=places)
+        self.assertAlmostEqual(val.imag, val_new.imag, places=places)
+        val_new = self.pack_unpack(val, t)
+        self.assertAlmostEqual(val.real, val_new.real, places=places)
+        self.assertAlmostEqual(val.imag, val_new.imag, places=places)
+        self.check_error(val, t)
+
+    def test_DInt(self):
+        """Only 8, 32 and 64 bits are supported."""
+        self.check(-2**7, DInt(DSize(8)))
+        self.check(2**7-1, DInt(DSize(8)))
+        for _ in range(1000):
+            self.check(random.randint(-2**7, 2**7-1), DInt(DSize(8)))
+
+        self.check(-2**31, DInt(DSize(32)))
+        self.check(2**31-1, DInt(DSize(32)))
+        for _ in range(1000):
+            self.check(random.randint(-2**31, 2**31-1), DInt(DSize(32)))
+
+        self.check(-2**63, DInt(DSize(64)))
+        self.check(2**63-1, DInt(DSize(64)))
+        for _ in range(1000):
+            self.check(random.randint(-2**63, 2**63-1), DInt(DSize(64)))
+
+        self.assertTrue(DeltaGraph.check_wire(DRaw(int), DRaw(int)))
+        with self.assertRaises(DeltaTypeError):
+            DeltaGraph.check_wire(DRaw(DInt(DSize(32))),
+                                  DRaw(DInt(DSize(64))))
+
+    def test_DUInt(self):
+        """Only 8, 32 and 64 bits are supported."""
+        self.check(0, DUInt(DSize(8)))
+        self.check(2**7-1, DUInt(DSize(8)))
+        for _ in range(1000):
+            self.check(random.randint(0, 2**7-1), DUInt(DSize(8)))
+
+        self.check(0, DUInt(DSize(32)))
+        self.check(2**32-1, DUInt(DSize(32)))
+        for _ in range(1000):
+            self.check(random.randint(0, 2**32-1), DUInt(DSize(32)))
+
+        self.check(0, DUInt(DSize(64)))
+        self.check(2**64-1, DUInt(DSize(64)))
+        for _ in range(1000):
+            self.check(random.randint(0, 2**64-1), DUInt(DSize(64)))
+
+        self.assertTrue(DeltaGraph.check_wire(DRaw(DUInt(DSize(32))),
+                                              DRaw(DUInt(DSize(32)))))
+        with self.assertRaises(DeltaTypeError):
+            DeltaGraph.check_wire(DRaw(DUInt(DSize(32))),
+                                  DRaw(DUInt(DSize(64))))
+
+    def test_DBool(self):
+        self.check(False, DBool())
+        self.check(0, DBool())
+        self.check(True, DBool())
+        self.check(1, DBool())
+        self.assertTrue(DeltaGraph.check_wire(DRaw(DBool()), DRaw(DBool())))
+
+    def test_DFloat(self):
+        for _ in range(1000):
+            self.check_float(random.uniform(-1, 1), DFloat(DSize(32)))
+
+        for _ in range(1000):
+            self.check_float(random.uniform(-1, 1), DFloat(DSize(64)))
+
+        self.check(1 + 2**-23, DFloat(DSize(32)))
+        self.check(1 + 2**-52, DFloat(DSize(64)))
+        self.assertTrue(DeltaGraph.check_wire(DRaw(float), DRaw(float)))
+        with self.assertRaises(DeltaTypeError):
+            DeltaGraph.check_wire(DRaw(DFloat(DSize(32))),
+                                  DRaw(DFloat(DSize(64))))
+
+    def test_DComplex(self):
+        for _ in range(1000):
+            self.check_complex(random.uniform(-1, 1) +
+                               random.uniform(-1, 1) * 1j, DComplex(DSize(64)))
+
+        for _ in range(1000):
+            self.check_complex(random.uniform(-1, 1) +
+                               random.uniform(-1, 1) * 1j, DComplex(DSize(128)))
+        self.assertTrue(DeltaGraph.check_wire(DRaw(complex), DRaw(complex)))
+        with self.assertRaises(DeltaTypeError):
+            DeltaGraph.check_wire(DRaw(DComplex(DSize(64))),
+                                  DRaw(DComplex(DSize(128))))
+
+    def test_DArray(self):
+        # primitive elements are poperly handled
+        # int are passed as DInt, not DUInt
+        self.check([1, 2, 3], DArray(DInt(), DSize(3)))
+
+        # for floats use a dot
+        # might be a potential problem, due to python silent type downcasting
+        self.check([1.0, 2.0, 3.0], DArray(DFloat(), DSize(3)))
+
+        # bool are passed as DBool, not DInt
+        self.check([True, False, False], DArray(DBool(), DSize(3)))
+
+        # incapsulation
+        self.check([[1, 2, 3], [4, 5, 6]],
+                   DArray(DArray(DInt(), DSize(3)), DSize(2)))
+
+        # mixed types
+        self.check([(1, 2, 3), (4, 5, 6)],
+                   DArray(DTuple([int, int, int]), DSize(2)))
+
+        self.check(["hello", "world"], DArray(DStr(DSize(5)), DSize(2)))
+        self.assertTrue(DeltaGraph.check_wire(DRaw(DArray(int, DSize(2))),
+                                              DRaw(DArray(int, DSize(2)))))
+        with self.assertRaises(DeltaTypeError):
+            DeltaGraph.check_wire(DRaw(DArray(int, DSize(2))),
+                                  DRaw(DArray(int, DSize(3))))
+
+    def test_DStr(self):
+        self.check('hello world', DStr())
+        self.check('A' * 1024, DStr())
+        self.check('check digits 14213', DStr())
+        self.check('check spaces in the end ', DStr())
+
+        self.check((-5, 'text'), DTuple([int, DStr()]))
+        self.check(['hello', 'world!'], DArray(DStr(), DSize(2)))
+        self.assertTrue(DeltaGraph.check_wire(DRaw(DStr()), DRaw(DStr())))
+
+    def test_DTuple(self):
+        # primitive elements are poperly handled
+        self.check((-5, True, 3.25), DTuple([int, bool, float]))
+
+        # incapsulation
+        self.check((-5, (1, 2)), DTuple([int, DTuple([int, int])]))
+
+        # mixed types
+        self.check(([1, 2, 3], [4.0, 5.0]),
+                   DTuple([DArray(int, DSize(3)), DArray(float, DSize(2))]))
+
+        self.check(("hello", "world"), DTuple([DStr(), DStr(DSize(6))]))
+        self.assertTrue(DeltaGraph.check_wire(DRaw(DTuple([DStr(), int])),
+                                              DRaw(DTuple([DStr(), int]))))
+
+    def test_DRecord(self):
+        # primitive
+        self.check(RecBI(True, 5), DRecord(RecBI))
+        self.check(-4, DInt())
+        self.check(RecBII(True, 5, -4), DRecord(RecBII))
+
+        # mixed
+        self.check(RecIT(-4.0, (1, 2)), DRecord(RecIT))
+        self.check(RecATI([1, 2], (3.0, 4), 5),
+                   DRecord(RecATI))
+
+        self.check((RecIT(-4.0, (1, 2)), 1),
+                   DTuple([DRecord(RecIT), int]))
+
+        self.check([RecIT(-4.0, (1, 2)), RecIT(5.0, (-3, -4))],
+                   DArray(DRecord(RecIT), DSize(2)))
+        self.assertTrue(DeltaGraph.check_wire(DRaw(DRecord(RecIT)),
+                                              DRaw(DRecord(RecIT))))
+
+    def test_DUnion(self):
+        # primitive
+        self.check(5, DUnion([int, bool]))
+        self.check(True, DUnion([int, bool]))
+
+        # compound
+        self.check(5, DUnion([int, DTuple([int, float])]))
+        self.check((4, 5), DUnion([int, DTuple([int, int])]))
+        self.check((4, 5),
+                   DUnion([DArray(int, DSize(2)), DTuple([int, int])]))
+        self.check([4, 5],
+                   DUnion([DArray(int, DSize(2)), DTuple([int, int])]))
+        self.assertTrue(DeltaGraph.check_wire(DRaw(DUnion([DStr(), int])),
+                                              DRaw(DUnion([DStr(), int]))))
 
 
 if __name__ == "__main__":

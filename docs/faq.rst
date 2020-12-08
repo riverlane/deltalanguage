@@ -1,6 +1,8 @@
 FAQ
 ===
 
+The main FAQ section can be found in |Deltaflow-on-ARTIQ|_.
+
 * **How can I contribute to Deltalanguage?** 
 
   * If you have a few minutes: It would be incredibly helpful to us if you
@@ -13,3 +15,7 @@ FAQ
     `tutorial <https://github.com/firstcontributions/first-contributions>`_.
     This is an early release of the project and we’re still figuring things
     out so please bear with us.
+
+
+.. |Deltaflow-on-ARTIQ| replace:: **Deltaflow-on-ARTIQ**
+.. _Deltaflow-on-ARTIQ: https://riverlane.github.io/deltaflow-on-artiq

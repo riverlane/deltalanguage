@@ -1235,6 +1235,101 @@ class DUnion(CompoundDeltaType):
         pass
 
 
+class DRaw(BaseDeltaType):
+    """Wrapper for converting objects of one data type into raw bits.
+
+    Note that :meth:`pack` and :meth:`unpack` assume that the value
+    has already been converted into raw bits. Use :meth:`as_bits`
+    to ensure this is the case when returning this type from a Python node,
+    and :meth:`from_bits` when receiving this type as input to a Python node
+    to guarantee you get the value rather than its raw binary representation.
+
+    Attributes
+    ----------
+    base_type : BaseDeltaType
+        The data type we are converting to bits.
+    """
+
+    def __init__(self, base_type: Union[Type, BaseDeltaType]):
+        self.base_type = as_delta_type(base_type)
+
+    def __eq__(self, other):
+        if type(other) is DRaw:
+            return self.base_type == other.base_type
+        else:
+            return False
+
+    def __hash__(self):
+        return hash(self.base_type)
+
+    def __getattr__(self, item):
+        return getattr(self.base_type, item)
+
+    def __str__(self):
+        return f"DRaw({str(self.base_type)})"
+
+    def as_numpy_object(self, val):
+        return self.base_type.as_numpy_object(val)
+
+    def from_numpy_object(self, val):
+        return self.base_type.from_numpy_object(val)
+
+    def as_numpy_type(self):
+        return self.base_type.as_numpy_type()
+
+    def as_python_type(self):
+        return self.base_type.as_python_type()
+
+    def is_packable(self, val):
+        return isinstance(val, int)
+
+    def set_pack_format(self):
+        self.base_type.set_pack_format()
+
+    def pack(self, val):
+        if not self.is_packable(val):
+            raise DeltaTypeError(
+                "DRaw.pack requires int input. Use DRaw.as_bits before pack.")
+        return format(val, f"0{self.size.val}b").encode("ascii")
+
+    def unpack(self, buffer):
+        return int(buffer, 2)
+
+    def as_bits(self, val: BaseDeltaType) -> int:
+        """Converts a given value into an integer containing its binary
+        representation. This is done using the base type's
+        :py:meth:`pack<deltalanguage.data_types.BaseDeltaType.pack>` method.
+
+        Parameters
+        ----------
+        val : BaseDeltaType
+            The value to convert to bits
+
+        Returns
+        -------
+        int
+            The binary representation of val
+        """
+        return self.unpack(self.base_type.pack(val))
+
+    def from_bits(self, bits: int) -> BaseDeltaType:
+        """Converts a bit sequence back to the object those bits represent.
+        This is done using the base type's
+        :py:meth:`unpack<deltalanguage.data_types.BaseDeltaType.unpack>` method.
+
+        Parameters
+        ----------
+        bits : int
+            The binary representation of the value
+
+        Returns
+        -------
+        BaseDeltaType
+            The original description of the value.
+        """
+        return self.base_type.unpack(self.pack(bits))
+
+
 class DOptional:
     """Wrapper class that is used to identify optional input for nodes.
 
