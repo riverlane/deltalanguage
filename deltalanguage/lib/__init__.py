@@ -14,9 +14,9 @@ from deltalanguage.lib.hal import (HardwareAbstractionLayerNode,
                                    Shifts,
                                    command_creator,
                                    measurement_unpacker)
-from deltalanguage.lib.primitives import (IntListSender,
-                                          StateSaver,
-                                          make_interactive_generator)
+from deltalanguage.lib.primitives import (make_generator,
+                                          make_splitter,
+                                          make_state_saver)
 from deltalanguage.lib.quantum_simulators import (IQuantumSimulator,
                                                   ProjectqQuantumSimulator,
                                                   QiskitQuantumSimulator)

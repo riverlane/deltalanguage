@@ -11,7 +11,7 @@ from test._utils import (TwoInts,
                          return_2)
 
 from deltalanguage.data_types import as_delta_type
-from deltalanguage.lib import StateSaver
+from deltalanguage.lib import make_state_saver
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage._utils import QueueMessage
 from deltalanguage.wiring import (DeltaBlock,
@@ -170,7 +170,7 @@ class ComplexGraph(unittest.TestCase):
                      2 --->|    |
                            +----+
         """
-        self.saver = StateSaver()
+        self.saver = make_state_saver(int)
 
         with DeltaGraph() as graph:
             add_ph = placeholder_node_factory()
@@ -215,7 +215,7 @@ class TestNoInputs(unittest.TestCase):
             |         +---> SAVE and Exit if > 10
             +---------+
         """
-        exit_if = StateSaver(condition=lambda x: x > 10)
+        exit_if = make_state_saver(object, condition=lambda x: x > 10)
         with DeltaGraph() as graph:
             exit_if.save_and_exit_if(no_inputs.call())
         self.graph = graph

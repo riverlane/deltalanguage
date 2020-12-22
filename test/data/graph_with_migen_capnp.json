@@ -1,0 +1,158 @@
+{
+    "name": "main",
+    "bodies": [
+        {
+            "python": {}
+        },
+        {
+            "python": {}
+        },
+        {
+            "migen": {
+                "verilog": "/* Machine-generated using Migen */\nmodule counter_2(\n\tinput [31:0] in1_in_data,\n\tinput in1_in_valid,\n\toutput reg in1_in_ready,\n\tinput [31:0] in2_in_data,\n\tinput in2_in_valid,\n\toutput reg in2_in_ready,\n\toutput reg [31:0] out1_out_data,\n\toutput reg out1_out_valid,\n\tinput out1_out_ready,\n\toutput reg [31:0] out2_out_data,\n\toutput reg out2_out_valid,\n\tinput out2_out_ready,\n\tinput sys_clk,\n\tinput sys_rst\n);\n\nreg [31:0] counter = 32'd0;\n\n// synthesis translate_off\nreg dummy_s;\ninitial dummy_s <= 1'd0;\n// synthesis translate_on\n\n\n// synthesis translate_off\nreg dummy_d;\n// synthesis translate_on\nalways @(*) begin\n\tin1_in_ready <= 1'd0;\n\tin2_in_ready <= 1'd0;\n\tif ((counter >= 2'd3)) begin\n\t\tin1_in_ready <= 1'd1;\n\t\tin2_in_ready <= 1'd1;\n\tend\n// synthesis translate_off\n\tdummy_d <= dummy_s;\n// synthesis translate_on\nend\n\n// synthesis translate_off\nreg dummy_d_1;\n// synthesis translate_on\nalways @(*) begin\n\tout1_out_data <= 32'd0;\n\tout1_out_valid <= 1'd0;\n\tout2_out_data <= 32'd0;\n\tout2_out_valid <= 1'd0;\n\tif (((out1_out_ready & out2_out_ready) == 1'd1)) begin\n\t\tif ((counter == 3'd5)) begin\n\t\t\tout1_out_data <= (in1_in_data + in2_in_data);\n\t\t\tout2_out_data <= counter;\n\t\t\tout1_out_valid <= (in1_in_valid & in2_in_valid);\n\t\t\tout2_out_valid <= (in1_in_valid & in2_in_valid);\n\t\tend else begin\n\t\t\tout1_out_valid <= 1'd0;\n\t\t\tout2_out_valid <= 1'd0;\n\t\tend\n\tend\n// synthesis translate_off\n\tdummy_d_1 <= dummy_s;\n// synthesis translate_on\nend\n\nalways @(posedge sys_clk) begin\n\tcounter <= (counter + 1'd1);\n\tif (sys_rst) begin\n\t\tcounter <= 32'd0;\n\tend\nend\n\nendmodule\n\n"
+            }
+        },
+        {
+            "python": {}
+        },
+        {
+            "python": {}
+        },
+        {
+            "python": {}
+        }
+    ],
+    "nodes": [
+        {
+            "name": "node_0",
+            "body": 0,
+            "inPorts": [],
+            "outPorts": [
+                {
+                    "name": ""
+                }
+            ]
+        },
+        {
+            "name": "node_1",
+            "body": 1,
+            "inPorts": [],
+            "outPorts": [
+                {
+                    "name": ""
+                }
+            ]
+        },
+        {
+            "name": "counter_2",
+            "body": 2,
+            "inPorts": [
+                {
+                    "name": "in1",
+                    "optional": true
+                },
+                {
+                    "name": "in2",
+                    "optional": true
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": "out2"
+                },
+                {
+                    "name": "out1"
+                }
+            ]
+        },
+        {
+            "name": "multiplier_3",
+            "body": 3,
+            "inPorts": [
+                {
+                    "name": "a",
+                    "optional": false
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": ""
+                }
+            ]
+        },
+        {
+            "name": "adder_4",
+            "body": 4,
+            "inPorts": [
+                {
+                    "name": "a",
+                    "optional": false
+                },
+                {
+                    "name": "b",
+                    "optional": false
+                }
+            ],
+            "outPorts": [
+                {
+                    "name": ""
+                }
+            ]
+        },
+        {
+            "name": "save_and_exit_5",
+            "body": 5,
+            "inPorts": [
+                {
+                    "name": "val",
+                    "optional": false
+                }
+            ],
+            "outPorts": []
+        }
+    ],
+    "graph": [
+        {
+            "srcNode": 0,
+            "srcOutPort": 0,
+            "destNode": 2,
+            "destInPort": 0,
+            "direct": false
+        },
+        {
+            "srcNode": 1,
+            "srcOutPort": 0,
+            "destNode": 2,
+            "destInPort": 1,
+            "direct": false
+        },
+        {
+            "srcNode": 2,
+            "srcOutPort": 0,
+            "destNode": 3,
+            "destInPort": 0,
+            "direct": false
+        },
+        {
+            "srcNode": 2,
+            "srcOutPort": 1,
+            "destNode": 4,
+            "destInPort": 0,
+            "direct": false
+        },
+        {
+            "srcNode": 3,
+            "srcOutPort": 0,
+            "destNode": 4,
+            "destInPort": 1,
+            "direct": false
+        },
+        {
+            "srcNode": 4,
+            "srcOutPort": 0,
+            "destNode": 5,
+            "destInPort": 0,
+            "direct": false
+        }
+    ]
+}

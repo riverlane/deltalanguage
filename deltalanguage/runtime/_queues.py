@@ -48,6 +48,7 @@ class DeltaQueue(Queue):
 
     def __init__(self, out_port: OutPort, maxsize=0):
         super().__init__(maxsize=maxsize)
+        self._src = out_port
         self.__log = make_logger(logging.WARNING,
                                  f"Queue {out_port.port_name}")
         self.optional = out_port.destination.is_optional
@@ -107,7 +108,7 @@ class DeltaQueue(Queue):
     def flush(self):
         """Unblock any thread waiting for this queue."""
         if self.empty():
-            Queue.put(self, QueueMessage(Flusher(), clk=0))
+            Queue.put(self, QueueMessage(Flusher(), clk=-1))
 
 
 class ConstQueue(DeltaQueue):

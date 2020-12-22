@@ -1,6 +1,6 @@
 from abc import ABC, abstractclassmethod
 
-from deltalanguage.data_types import DInt, DSize
+from deltalanguage.data_types import DUInt, DSize
 
 
 class IQuantumSimulator(ABC):
@@ -11,8 +11,8 @@ class IQuantumSimulator(ABC):
     @abstractclassmethod
     def accept_command(
         cls,
-        command: DInt(DSize(32))
-    ) -> DInt(DSize(32)):
+        command: DUInt(DSize(32))
+    ) -> DUInt(DSize(32)):
         """Performs required logic based on received commands, and returns
         results if command is a measurement.
 

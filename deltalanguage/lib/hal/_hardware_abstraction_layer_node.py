@@ -1,4 +1,4 @@
-from deltalanguage.data_types import DInt, DSize
+from deltalanguage.data_types import DUInt, DSize
 from deltalanguage.wiring import DeltaMethodBlock
 
 from ..quantum_simulators import IQuantumSimulator
@@ -22,7 +22,7 @@ class HardwareAbstractionLayerNode:
         self._quantum_simulator = quantum_simulator
 
     @DeltaMethodBlock(name="accept_command")
-    def accept_command(self, command: DInt(DSize(32))) -> DInt(DSize(32)):
+    def accept_command(self, command: DUInt(DSize(32))) -> DUInt(DSize(32)):
         result = self._quantum_simulator.accept_command(command)
 
         return result

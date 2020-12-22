@@ -15,7 +15,7 @@ from deltalanguage.data_types import (DArray,
                                       DUnion,
                                       NoMessage,
                                       DeltaIOError)
-from deltalanguage.lib import StateSaver
+from deltalanguage.lib import make_state_saver
 from deltalanguage.runtime import DeltaPySimulator
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
@@ -44,7 +44,7 @@ class ExplcitCastsTest(unittest.TestCase):
     """Tests to ensure the four explicit type casts work properly."""
 
     def setUp(self):
-        self.s = StateSaver()
+        self.s = make_state_saver(object)
 
     def test_union(self):
         with DeltaGraph() as graph:
@@ -78,18 +78,20 @@ class DeltaGraphTest(unittest.TestCase):
 
     def test_loose_output(self):
         """Loose output wire don't cause a problem"""
+        s = make_state_saver(int)
         with DeltaGraph() as graph:
-            StateSaver().pass_int(4)
+            s.transfer(4)
 
-        node = graph.find_node_by_name('pass_int')
+        node = graph.find_node_by_name('transfer')
         self.assertTrue(len(node.out_ports) == 0)
         self.assertTrue(graph.check())
 
     def test_loose_input(self):
         """Loose input wire is bad."""
+        s = make_state_saver(int)
         with DeltaGraph() as graph:
             p = placeholder_node_factory()
-            StateSaver().pass_int(p)
+            s.transfer(p)
 
         with self.assertRaises(DeltaIOError):
             graph.check()
@@ -114,7 +116,7 @@ class DeltaGraphStrTest(unittest.TestCase):
         """Stringify a pre-defined graph and compare output to test data"""
 
         DeltaGraph.clean_stack()
-        s = StateSaver()
+        s = make_state_saver(object)
 
         with DeltaGraph() as graph:
             s.save_and_exit(union_one_receiver(

@@ -1,5 +1,6 @@
 """Testing serialization of DeltaGraph and its componenents."""
 
+import json
 import unittest
 from unittest.mock import Mock
 
@@ -9,7 +10,11 @@ import dill
 import deltalanguage.data_types.dotdf_capnp \
     as dotdf_capnp  # pylint: disable=E0401, disable=E0611
 from deltalanguage._utils import NamespacedName
-from deltalanguage.data_types import DOptional, DInt, NoMessage, as_delta_type
+from deltalanguage.data_types import (BaseDeltaType,
+                                      DOptional,
+                                      DInt,
+                                      NoMessage,
+                                      as_delta_type)
 from deltalanguage.runtime import (DeltaRuntimeExit,
                                    deserialize_graph,
                                    serialize_graph)
@@ -18,8 +23,13 @@ from deltalanguage.wiring import (DeltaBlock,
                                   InPort,
                                   Interactive,
                                   OutPort,
+                                  PythonBody,
                                   PySplitterBody,
                                   template_node_factory)
+
+from deltalanguage.lib.hal import HardwareAbstractionLayerNode
+from deltalanguage.lib.quantum_simulators import (ProjectqQuantumSimulator,
+                                                  QiskitQuantumSimulator)
 
 
 class PortSerialisationTest(unittest.TestCase):
@@ -209,6 +219,46 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         interactive_body = prog.bodies[0].interactive.dillImpl
         self.assertEqual(interactive_body, a.get_serialised_body())
 
+    def test_projectQ_serialisation(self):
+        """Test ProjectQ nodes serialization/deserialization.
+
+        ProjectQ can't be fully serialized, we need to exclude from dill the
+        engine (c++ libraries). This test is to guarantee that when we deserialize
+        everything works as expected.
+        """
+
+        with DeltaGraph() as test_graph:
+            projectQ = HardwareAbstractionLayerNode(
+                ProjectqQuantumSimulator(register_size=2)).accept_command(command=0x4000000)
+
+        data, prog = serialize_graph(test_graph)
+        g_capnp = deserialize_graph(data)
+
+        # Checking that we are investigating the right node.
+        self.assertEqual(g_capnp.nodes[1].name.split("_")[0], "accept")
+        body = g_capnp.bodies[1].python.dillImpl
+
+        node = dill.loads(body)
+        node.eval(command=0x4000000)
+
+    def test_qiskit_serialisation(self):
+        """Test Qiskit nodes serialization/deserialization.
+
+        """
+
+        with DeltaGraph() as test_graph:
+            qiskit = HardwareAbstractionLayerNode(
+                QiskitQuantumSimulator(register_size=2)).accept_command(command=0x4000000)
+
+        data, prog = serialize_graph(test_graph)
+        g_capnp = deserialize_graph(data)
+
+        # Checking that we are investigating the right node.
+        self.assertEqual(g_capnp.nodes[1].name.split("_")[0], "accept")
+        body = g_capnp.bodies[1].python.dillImpl
+        node = dill.loads(body)
+        node.eval(command=0x4000000)
+
     def test_template_node_capnp(self):
         """Test TemplateNode.
 
@@ -242,17 +292,20 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             self.func(40, 2)
 
         data, _ = serialize_graph(graph)
-        g_capnp = deserialize_graph(data)
-        g_capnp_list = str(g_capnp).split('\n')
-
-        with open('test/data/graph.df', 'r') as file:
-            g_str_list = file.read().split('\n')
-
         self.assertEqual(type(data), bytes)
-        self.assertEqual(len(g_capnp_list), len(g_str_list))
-        for l1, l2 in zip(g_capnp_list, g_str_list):
-            if not 'dillImpl' in l1:
-                self.assertEqual(l1, l2)
+        g_capnp = deserialize_graph(data).to_dict()
+        for body in g_capnp['bodies']:
+            if 'python' in body:
+                self.assertTrue(isinstance(dill.loads(
+                    body['python']['dillImpl']), PythonBody))
+                del body['python']['dillImpl']
+        for node in g_capnp['nodes']:
+            for port in node['inPorts'] + node['outPorts']:
+                self.assertTrue(isinstance(
+                    dill.loads(port['type']), BaseDeltaType))
+                del port['type']
+        with open('test/data/graph_capnp.json', 'r') as file:
+            self.assertEqual(g_capnp, json.load(file))
 
 
 if __name__ == "__main__":

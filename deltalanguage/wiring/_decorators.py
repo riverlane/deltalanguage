@@ -158,6 +158,10 @@ def DeltaBlock(
 
     .. code-block:: python
 
+        >>> from deltalanguage.lib import make_state_saver
+        >>> from deltalanguage.runtime import DeltaPySimulator
+        >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
+
         >>> @DeltaBlock()
         ... def foo(a: int) -> int:
         ...     return a + 5
@@ -170,13 +174,11 @@ def DeltaBlock(
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib.primitives import StateSaver
-        >>> from deltalanguage.runtime import DeltaPySimulator
-
-        >>> s = StateSaver(verbose=True) # helper node that saves the result
+        >>> s = make_state_saver(object, verbose=True)
 
         >>> with DeltaGraph() as graph:
-        ...     s.save_and_exit(foo(5)) # doctest:+ELLIPSIS
+        ...     foo_out = foo(5)
+        ...     s.save_and_exit(foo_out) # doctest:+ELLIPSIS
         save_and_exit...
 
         >>> rt = DeltaPySimulator(graph)
@@ -213,7 +215,7 @@ def DeltaBlock(
             a_func, False, node_key
         )
 
-        @ wraps(a_func)
+        @wraps(a_func)
         def decorated(*args, **kwargs):
             """If there is currently an active :py:class:`DeltaGraph`,
             return a node constructed using the node factory.
@@ -309,6 +311,10 @@ def DeltaMethodBlock(
 
     .. code-block:: python
 
+        >>> from deltalanguage.lib import make_state_saver
+        >>> from deltalanguage.runtime import DeltaPySimulator
+        >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
+
         >>> class MyClass:
         ...
         ...     def __init__(self, x):
@@ -327,10 +333,7 @@ def DeltaMethodBlock(
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib.primitives import StateSaver
-        >>> from deltalanguage.runtime import DeltaPySimulator
-
-        >>> s = StateSaver(verbose=True) # helper node that saves the result
+        >>> s = make_state_saver(object, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     s.save_and_exit(my_obj.bar(5)) # doctest:+ELLIPSIS
@@ -363,7 +366,7 @@ def DeltaMethodBlock(
             a_func, True, node_key
         )
 
-        @ wraps(a_func)
+        @wraps(a_func)
         def decorated(obj, *args, **kwargs):
             """If there is currently an active DeltaGraph, return a node
             constructed using the node factory.
@@ -499,6 +502,10 @@ def Interactive(in_params: Dict[str, Type],
 
     .. code-block:: python
 
+        >>> from deltalanguage.lib.primitives import make_state_saver
+        >>> from deltalanguage.runtime import DeltaPySimulator
+        >>> from deltalanguage.wiring import Interactive, PyInteractiveNode
+
         >>> @Interactive(in_params={"a": int, "b": int}, out_type=int)
         ... def foo(node: PyInteractiveNode):
         ...     internal_memory = 0
@@ -517,10 +524,7 @@ def Interactive(in_params: Dict[str, Type],
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib.primitives import StateSaver
-        >>> from deltalanguage.runtime import DeltaPySimulator
-
-        >>> s = StateSaver(verbose=True) # helper node that saves the result
+        >>> s = make_state_saver(int, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     s.save_and_exit(foo.call(a=4, b=5)) # doctest:+ELLIPSIS

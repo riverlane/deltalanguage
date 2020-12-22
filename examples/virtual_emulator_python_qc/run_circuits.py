@@ -5,7 +5,7 @@ from typing import List
 
 import numpy as np
 
-from deltalanguage.data_types import DArray, DInt, DSize
+from deltalanguage.data_types import DArray, DUInt, DSize
 from deltalanguage.lib.hal import (command_creator,
                                    HardwareAbstractionLayerNode,
                                    measurement_unpacker)
@@ -26,7 +26,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 
 @Interactive(
-    {"input_params": DArray(int, DSize(2)), "repeat": bool}, DInt(DSize(32))
+    {"input_params": DArray(int, DSize(2)), "repeat": bool}, DUInt(DSize(32))
 )
 def send_gate_sequence(node: PyInteractiveNode):
     """Interactive node to define the circuit.
@@ -81,7 +81,7 @@ class Aggregator:
         self._results = []
 
     @DeltaMethodBlock(name="result_collector")
-    def result_collector(self, result: DInt(DSize(32))) -> bool:
+    def result_collector(self, result: DUInt(DSize(32))) -> bool:
         """Method to receive the results and update state.
 
         Parameters
@@ -130,7 +130,7 @@ with DeltaGraph() as graph:
     sender_node = send_gate_sequence.call(input_params=params, repeat=ph)
     hal_node = template_node_factory(
         command=sender_node,
-        return_type=int
+        return_type=DUInt(DSize(32))
     )
     agg = aggregator.result_collector(result=hal_node)
     ph.specify_by_node(agg)

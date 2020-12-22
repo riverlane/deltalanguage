@@ -37,6 +37,10 @@ times to plot a sine wave. Once well compensated, the histogram will
 show a near-uniform distribution for the relative time between PMT and
 RF triggers.
 
+It is worth noting that for this example we are assuming the laser is 
+parallel along 1 axis of ion motion and therefore micromotion in the 
+other 2 axes is ignored.
+
 Main components
 ---------------
 
@@ -127,7 +131,7 @@ model. A model for the HPTDC chip that performs the timestamping.
 Pulser
 """"""
 
-This module increments a counter and fires an RF trigger whenever the
+This module increments a counter and sends an RF trigger whenever the
 counter reaches maximum value, and a PMT trigger based on photon time
 input (provided by the accumulator). The reason this is not a separate
 node from the timestamper module is to keep synchronisation between the
@@ -161,8 +165,7 @@ Results
 
 As the measurements reflect a statistical behaviour, a minimal number of
 samples (~1000 per compensation step) is necessary to get meaningful
-results out of the histograms. To produce the following results the
-total simulation time was around 40 minutes. In this example a five-step
+results out of the histograms. In this example a five-step
 compensation was applied with a target voltage of 5V and initial value
 at 1V with a tuning of +/- 1V per step and 1000 samples per step
 (arbitrary selection of the tuning step as well as the initial and

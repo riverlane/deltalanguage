@@ -57,10 +57,9 @@ class PyInteractiveNode(PythonNode):
             self.body.eval(self)
         except NoMessage:
             self.log.error("Interactive nodes cannot raise NoMessage")
-            self.err.put(sys.exc_info())
-        except Exception:
-            self.err.put(sys.exc_info())
-        self.log.info(f"Stopped {repr(self)}.")
+            raise
+        except:
+            raise
 
     def capnp(self, capnp_node, capnp_bodies):
         """Generate capnp form of this node.

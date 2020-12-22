@@ -24,20 +24,22 @@ class NamespacedName(NamedTuple):
 
 class QueueMessage():
     """Wrapper that carries messages between nodes in
-    :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>`.
+    :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>` and
+    for logging with :py:class:`MessageLog<deltalanguage.logging.MessageLog>`.
 
     Parameters
     ----------
     msg : object
         The message.
     clk : int
-        The logical clock value when this message was created.
+        The logical clock value when this message was created. See
+        :py:class:`MessageLog<deltalanguage.logging.MessageLog>` for detail.
 
 
     .. note:: This is not a user-facing class.
 
 
-    .. todo:: Move to ``deltalanguage.runtime``.
+    .. todo:: This class belongs to the domain of `DeltaPySimulator`.
     """
 
     def __init__(self, msg: object, clk: int = 0):

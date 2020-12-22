@@ -1,5 +1,6 @@
 """Test the functioning of the Delta runtime."""
 
+import logging
 import time
 import unittest
 
@@ -14,7 +15,7 @@ from test._utils import (OtherClass,
                          return_4)
 
 from deltalanguage.data_types import DOptional
-from deltalanguage.lib.primitives import StateSaver
+from deltalanguage.lib import make_state_saver
 from deltalanguage.runtime import (ConstQueue,
                                    DeltaQueue,
                                    DeltaPySimulator,
@@ -40,7 +41,7 @@ class RuntimeTest(unittest.TestCase):
                    increment ----------> saver
         ```
         """
-        self.saver = StateSaver()
+        self.saver = make_state_saver(int)
         with DeltaGraph() as my_graph:
             add_1_placeholder = placeholder_node_factory()
             incr_node = opt_increment.call(n=add_1_placeholder)
@@ -89,7 +90,7 @@ class DeltaMethodBlockTest(unittest.TestCase):
 
     def setUp(self):
         self.inst = SomeClass()
-        self.saver = StateSaver()
+        self.saver = make_state_saver(int)
         with DeltaGraph() as my_graph:
             method_node = self.inst.method()
             self.saver.save_and_exit(method_node)
@@ -124,7 +125,7 @@ class MixedGraphTest(unittest.TestCase):
                   /
         return_2 /
         """
-        self.saver = StateSaver()
+        self.saver = make_state_saver(int)
 
         with DeltaGraph() as my_graph:
             inst = OtherClass(2)
@@ -180,14 +181,14 @@ class ExceptionHandlingTest(unittest.TestCase):
         with DeltaGraph() as graph:
             n = SomeClass().method()
             async_err_if_4(n)
-        rt = DeltaPySimulator(graph)
+        rt = DeltaPySimulator(graph, lvl=logging.FATAL)
         with self.assertRaises(RuntimeError):
             rt.run()
         self.assertFalse(rt.running)
 
     def test_exit_(self):
         """Test that an DeltaRuntimeExit does not cause an error."""
-        s = StateSaver(condition=lambda x: x == 4)
+        s = make_state_saver(int, condition=lambda x: x == 4)
 
         with DeltaGraph() as graph:
             n = SomeClass().method()
@@ -286,7 +287,7 @@ class RuntimeConstantNodeAndDOptionalTest(unittest.TestCase):
 
     def test_one(self):
         n_iter = 1000
-        saver = StateSaver()
+        saver = make_state_saver(int)
 
         @Interactive({}, int)
         def generator(node: PyInteractiveNode):

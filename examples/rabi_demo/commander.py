@@ -1,6 +1,6 @@
 from migen import FSM, If, NextState, NextValue, Signal
 
-from deltalanguage.data_types import DInt, DOptional, DSize
+from deltalanguage.data_types import DUInt, DOptional, DSize
 from deltalanguage.lib import command_creator
 from deltalanguage.wiring import MigenNodeTemplate
 
@@ -23,10 +23,10 @@ class Commander(MigenNodeTemplate):
         # creation of input/output ports
         angle = template.add_pa_in_port(
             'angle',
-            DOptional(DInt(DSize(ANGLE_MEMORY_WIDTH)))
+            DOptional(DUInt(DSize(ANGLE_MEMORY_WIDTH)))
         )
 
-        hal_command = template.add_pa_out_port('hal_command', DInt(DSize(32)))
+        hal_command = template.add_pa_out_port('hal_command', DUInt(DSize(32)))
 
         # set up  internal signals
         _rotation_command = Signal(32)

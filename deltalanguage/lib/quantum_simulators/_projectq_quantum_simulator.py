@@ -9,7 +9,7 @@ from projectq.ops import (All, C, DaggeredGate, H, Measure, R,
                           Rx, Ry, Rz, S, SqrtX, T, X, Y, Z)
 from projectq.ops._basics import BasicGate, BasicRotationGate
 
-from deltalanguage.data_types import DInt, DSize
+from deltalanguage.data_types import DUInt, DSize
 
 from . import IQuantumSimulator
 from ..hal import Masks, Opcode, Shifts
@@ -103,6 +103,8 @@ class ProjectqQuantumSimulator(IQuantumSimulator):
 
         else:
             self._engine = MainEngine(backend=backend())
+        self.backend = backend
+        self.seed = seed
 
         # if random numbers are needed to simulate quantum noise use this
         # state in the following way self._random_state.rand()
@@ -142,6 +144,25 @@ class ProjectqQuantumSimulator(IQuantumSimulator):
             Opcode['SY'].value: Sy,  # consecutive S and Y gate, needed for RC
         }
         atexit.register(self.cleanup)
+
+    def __getstate__(self):
+        # Copy the object's state from self.__dict__ which contains
+        # all our instance attributes. Always use the dict.copy()
+        # method to avoid modifying the original state.
+        state = self.__dict__.copy()
+        # Remove the engine has it generally unpickable.
+        del state['_engine']
+        return state
+
+    def __setstate__(self, state):
+        # Restore instance attributes (i.e., filename and lineno).
+        self.__dict__.update(state)
+        # Restore the engine
+        if self.backend == Simulator and self.seed is not None:
+            self._engine = MainEngine(backend=Simulator(rnd_seed=self.seed))
+        else:
+            self._engine = MainEngine(backend=self.backend())
+
 
     def cleanup(self):
         """Release all the qubits that haven't been handled yet."""
@@ -222,8 +243,8 @@ class ProjectqQuantumSimulator(IQuantumSimulator):
 
     def accept_command(
         self,
-        command: DInt(DSize(32))
-    ) -> DInt(DSize(32)):
+        command: DUInt(DSize(32))
+    ) -> DUInt(DSize(32)):
 
         op = command >> Shifts.OPCODE.value
         qubit_index = (command & Masks.QUBIT_INDEX.value)

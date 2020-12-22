@@ -42,7 +42,6 @@ class TestVirtualEmulator(unittest.TestCase):
             stderr=subprocess.PIPE
         )
         output, errors = pipes.communicate()
-
         output_val = float(output.decode("UTF-8").split(": ")[1])
 
         self.assertEqual(output_val, 0.1)

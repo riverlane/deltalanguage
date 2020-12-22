@@ -18,13 +18,15 @@ Below we present tutorials to help users get a grip on the Deltaflow language.
 While we do recommend going through these in the specified order, once
 familiar with the Basics users may read just the examples relevant to
 what they need.
-  
-.. TODO::
-  Think about this as a single file that will we shown
-  to 99% people asking: "What is Deltalanguage?"
-  Make this example complex, but yet simple enough to explain quickly.
 
-  Quite a tricky task to be honest...
+Quick start
+-----------
+
+`Quick Start <quick_start.html>`_
+(:download:`quick_start.ipynb`)
+is a tutorial designed to overview main components of the language
+and show the workflow in case of designing program in Deltalanguage.
+This tuturial can be skipped and revised at any point of time af a refresher.
 
 Main tutorial
 -------------

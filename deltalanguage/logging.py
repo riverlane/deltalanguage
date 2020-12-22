@@ -83,8 +83,17 @@ def clear_loggers():
 
 
 class MessageLog:
-    """Records messages received by each node. At the end of the runtime these
-    messages are logged in order of their logical clock time.
+    """Record of messages sent during graph simulation.
+
+    In order to track messages, we associate a logical clock with each
+    node and each message. This starts at 0 and gets updated in 2 cases:
+
+    - When an input is received the node's clock is reset to the maximum
+      clock value of all inputs and the internal clock.
+
+    - When an output is sent the node's clock is incremented by 1 and
+      the output message gets assigned the same value.
+      This ensures that the internal state of the node is taken in account.
 
     Parameters
     ----------
@@ -95,6 +104,9 @@ class MessageLog:
     ----------
     messages : List[QueueMessage]
         Log of messages.
+
+
+    .. todo :: This class belongs to the domain of `DeltaPySimulator`.
     """
 
     def __init__(self, lvl: int = logging.ERROR):
@@ -103,6 +115,9 @@ class MessageLog:
 
     def add_message(self, sender: str, port: str, msg: QueueMessage):
         """Add a message to the log.
+
+        Note, only messages with non-negative clock are added.
+        Negative clock messages are used for flushing.
 
         Examples
         --------
@@ -124,7 +139,9 @@ class MessageLog:
         if not isinstance(msg, QueueMessage):
             raise TypeError("Message logged that was not of"
                             + f"type QueueMessage: {msg}")
-        if self.lvl <= logging.INFO and msg.msg is not None:
+        if (self.lvl <= logging.INFO
+                and msg.msg is not None
+                and msg.clk >= 0):
             self.messages.append((sender, port, msg))
 
     def log_messages(self):

@@ -1,22 +1,25 @@
 """Testing nodes with migen, a.k.a. PyMigenNodes."""
 
 import io
+import json
 import logging
 import unittest
 import unittest.mock
 
 from test._utils import InputCheckerWithExit, add_non_const
 
+import dill
 import migen
 
-from deltalanguage.data_types import DOptional
-from deltalanguage.lib.primitives import StateSaver
+from deltalanguage.data_types import BaseDeltaType, DOptional
+from deltalanguage.lib import make_state_saver
 from deltalanguage.runtime import (DeltaPySimulator,
                                    deserialize_graph,
                                    serialize_graph)
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
-                                  MigenNodeTemplate)
+                                  MigenNodeTemplate,
+                                  PythonBody)
 
 from examples.tutorials.migen_hardware_examples import (
     generate_graph_constant_input,
@@ -141,7 +144,7 @@ class MigenNodeSerialisationTest(unittest.TestCase):
         is executed. For this reason we just compare the structure of the graph
         here.
         """
-        s = StateSaver()
+        s = make_state_saver(int)
 
         example_migen = TestMigen(tb_num_iter=2000,
                                   name='counter',
@@ -154,21 +157,24 @@ class MigenNodeSerialisationTest(unittest.TestCase):
                                   multiplier(example_migen_out.out2)))
 
         data, _ = serialize_graph(graph)
-        g_capnp = deserialize_graph(data)
-        g_capnp_list = str(g_capnp).split('\n')
-
-        with open('test/data/graph_with_migen.df', 'r') as file:
-            g_str_list = file.read().split('\n')
-
         self.assertEqual(type(data), bytes)
-        self.assertEqual(len(g_capnp_list), len(g_str_list))
-        for l1, l2 in zip(g_capnp_list, g_str_list):
-            if not 'dillImpl' in l1 and not 'type' in l1:
-                self.assertEqual(l1, l2)
+        g_capnp = deserialize_graph(data).to_dict()
+        for body in g_capnp['bodies']:
+            if 'python' in body:
+                self.assertTrue(isinstance(dill.loads(
+                    body['python']['dillImpl']), PythonBody))
+                del body['python']['dillImpl']
+        for node in g_capnp['nodes']:
+            for port in node['inPorts'] + node['outPorts']:
+                self.assertTrue(isinstance(
+                    dill.loads(port['type']), BaseDeltaType))
+                del port['type']
+        with open('test/data/graph_with_migen_capnp.json', 'r') as file:
+            self.assertEqual(g_capnp, json.load(file))
 
     def test_one_migen_node_with_2_outs(self):
         """One PyMigenNode with 2 out ports produces what we expect."""
-        s = StateSaver(verbose=True)
+        s = make_state_saver(int, verbose=True)
 
         with DeltaGraph() as graph:
             counter = TestMigen(tb_num_iter=2000,

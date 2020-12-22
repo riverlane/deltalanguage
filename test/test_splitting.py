@@ -6,7 +6,7 @@ import unittest
 
 from test._utils import return_1, return_12
 
-from deltalanguage.lib.primitives import StateSaver
+from deltalanguage.lib import make_state_saver
 from deltalanguage.runtime import DeltaPySimulator, DeltaQueue
 from deltalanguage.wiring import DeltaGraph, placeholder_node_factory
 
@@ -25,9 +25,9 @@ class SplittingTest(unittest.TestCase):
         ```
         """
         with DeltaGraph() as my_graph:
-            saver1 = StateSaver()
-            saver2 = StateSaver()
-            saver3 = StateSaver()
+            saver1 = make_state_saver(int)
+            saver2 = make_state_saver(int)
+            saver3 = make_state_saver(int)
 
             val = return_1()
             saver1.save(val)
@@ -76,9 +76,9 @@ class SplittingWithPlaceholderNodeTest(unittest.TestCase):
         ```
         """
         with DeltaGraph() as my_graph:
-            saver1 = StateSaver()
-            saver2 = StateSaver()
-            saver3 = StateSaver()
+            saver1 = make_state_saver(bool)
+            saver2 = make_state_saver(bool)
+            saver3 = make_state_saver(bool)
 
             val = placeholder_node_factory()
             saver1.save(val)
@@ -132,9 +132,9 @@ class SplittingForkedTest(unittest.TestCase):
         ```
         """
         with DeltaGraph() as my_graph:
-            saver1 = StateSaver()
-            saver2 = StateSaver()
-            saver3 = StateSaver()
+            saver1 = make_state_saver(int)
+            saver2 = make_state_saver(int)
+            saver3 = make_state_saver(int)
 
             val = return_12()
             saver1.save(val=val.x)

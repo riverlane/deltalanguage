@@ -1,5 +1,5 @@
-from deltalanguage.data_types import DBool, DInt, DSize, NoMessage
-from deltalanguage.lib import StateSaver, IntListSender
+from deltalanguage.data_types import DBool, DInt, DUInt, DSize, NoMessage
+from deltalanguage.lib import make_state_saver
 from deltalanguage.runtime import DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
@@ -17,7 +17,7 @@ def experiment_stopper(completed: DInt(DSize(8))) -> NoMessage:
         if completed == 1:
             raise DeltaRuntimeExit
         else:
-            print (f"The experiment returned error code: {completed}")
+            print(f"The experiment returned error code: {completed}")
             raise RuntimeError("Experiment returned an error", completed)
 
 
@@ -28,7 +28,7 @@ def get_graph():
     `vcd_name` which will lead to saving VCD of all signals for further
     debugging.
     """
-    store = StateSaver()
+    store = make_state_saver(int)
 
     with DeltaGraph() as graph:
         ph_hal_result = placeholder_node_factory()
@@ -52,11 +52,11 @@ def get_graph():
         hal_result = template_node_factory(
             name='QSim',
             command=command_sender.hal_command,
-            return_type=DInt(DSize(32))
+            return_type=DUInt(DSize(32))
         )
 
         # local store for experiment results
-        store.pass_int(result_aggregator.agg_result)
+        store.save(result_aggregator.agg_result)
 
         # tie up placeholders
         ph_hal_result.specify_by_node(hal_result)

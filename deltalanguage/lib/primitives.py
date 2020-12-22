@@ -2,251 +2,404 @@
 Primitives for examples, tests, and just general use.
 """
 from copy import deepcopy
-from typing import Callable, List
+from typing import Callable, Iterable, Type, Union
 
-from ..data_types import delta_type, NoMessage
+from ..data_types import (BaseDeltaType, NoMessage,
+                          delta_type, make_forked_return)
 from ..runtime import DeltaRuntimeExit
-from ..wiring import (DeltaMethodBlock,
+from ..wiring import (DeltaBlock,
+                      DeltaMethodBlock,
                       Interactive,
-                      PyInteractiveNode)
+                      PyInteractiveNode,
+                      InteractiveProcess)
 
 
-def make_interactive_generator(val, reps=1, verbose=False):
-    """Returns a state generator implemented via
-    :py:class:`PyInteractiveNode<deltalanguage.wiring.PyInteractiveNode>`.
+def make_generator(val: Union[object, Iterable],
+                   reps: int = None,
+                   verbose: bool = False) -> InteractiveProcess:
+    """Returns a generator implemented via
+    :py:class:`PyInteractiveNode<deltalanguage.wiring.PyInteractiveNode>` that
+    produces a series of messages of the same data type.
 
     This generator is useful for checking the robustness of the graph vs
     multiple messages and soak testing in general. Also used for making a
     testbench for a node under design.
 
-    .. todo:: Add an example with a testbench.
-
     Parameters
     ----------
-    val : object
-        The output value of the generator. Its Deltaflow type is recognized
-        automatically by
+    val : Union[object, Iterable]
+        The output value(s) of the generator.
+        Its Deltaflow type is recognized automatically by
         :py:class:`delta_type<deltalanguage.data_types.delta_type>`.
+        See ``reps`` for explanation.
     reps : int
-        Number of emitted messenger.
+        Number of repeated messages.
+        If ``reps`` is ``None`` then ``val`` must be iterable.
+        If ``reps`` is an integer then `val` is sent out this number of times.
+        
+        are sent out one by one.
     verbose : bool
         If ``True`` prints the status.
 
     Examples
     --------
-    In this example the created generator produces 10 messages containing
-    ``True``. Note that the generator should be used in the same way as an
+    In this example you can find a basic use of this function.
+    Note that the generator should be used in the same way as an
     interactive node:
 
     .. code-block:: python
 
-        generator = make_interactive_generator(True, 10)
-        with DeltaGraph() as graph:
-            gen_bools = generator.call()
-            ...
+        >>> from deltalanguage.lib import make_state_saver, make_generator
+        >>> from deltalanguage.wiring import DeltaGraph, Interactive
+        >>> from deltalanguage.runtime import DeltaPySimulator
+
+        # Generate 5 integers
+        >>> generator = make_generator(10, reps=5)
+
+        # Receive 5 integers and send their sum
+        >>> @Interactive({"a": int}, int)
+        ... def accumulator(node):
+        ...     memory = []
+        ...     for _ in range(5):
+        ...         input = node.receive("a")
+        ...         memory.append(input)
+        ...     node.send(sum(memory))
+
+        # Save the result
+        >>> s = make_state_saver(int, verbose=True)
+
+        >>> with DeltaGraph() as graph:
+        ...     generator_out = generator.call()
+        ...     accumulator_out = accumulator.call(a=generator_out)
+        ...     s.save_and_exit(accumulator_out) # doctest:+ELLIPSIS
+        save_and_exit...
+
+        >>> rt = DeltaPySimulator(graph)
+        >>> rt.run()
+        saving 50
+
+    Also see this alternative usage:
+
+    .. code-block:: python
+
+        >>> generator = make_generator([1, 2, 3, 4, 5])
+
+        >>> with DeltaGraph() as graph:
+        ...     generator_out = generator.call()
+        ...     accumulator_out = accumulator.call(a=generator_out)
+        ...     s.save_and_exit(accumulator_out) # doctest:+ELLIPSIS
+        save_and_exit...
+
+        >>> rt = DeltaPySimulator(graph)
+        >>> rt.run()
+        saving 15
     """
-    @Interactive({}, delta_type(val))
+    if reps is None:
+        if not isinstance(val, Iterable):
+            raise ValueError('If reps is None, then val must be iterable')
+
+        elem_type = delta_type(val[0])
+        if not all(elem_type == delta_type(e) for e in val):
+            raise TypeError('Elements of val should be of the same type')
+
+        vals_to_send = val
+    else:
+        elem_type = delta_type(val)
+        vals_to_send = (deepcopy(val) for _ in range(reps))
+
+    @Interactive({}, elem_type)
     def generator(node: PyInteractiveNode):
-        for _ in range(reps):
+        for v in vals_to_send:
             if verbose:
                 print(f"sending {val}")
 
-            node.send(val)
+            node.send(v)
 
     return generator
 
 
-class IntListSender:
-    """Sends a list of integers as individual messages.
+def make_splitter(t: Union[Type, BaseDeltaType],
+                  reps: int,
+                  allow_const=True) -> Callable:
+    """Returns a splitter node, which returns multiple copies of incoming
+    messages via individual outputs.
 
-    This generator is useful for checking the robustness of the graph vs
-    multiple messages and soak testing in general. Also used for making a
-    testbench for a node under design.
-
-    Parameters
-    ----------
-    to_send : List[int]
-        Integers to send.
-
-
-    .. todo:: Add an example with a testbench.
-
+    Names of outputs go as `out0`, `out1`, `out2`, ...
 
     Examples
     --------
-    In this example the following integers send as individual messages:
+    In this example you can find a basic use of this function:
 
     .. code-block:: python
 
-        sender = IntListSender([1, 3, 4, 9, 0, -1, 8])
-        with DeltaGraph() as graph:
-            gen_ints = sender.send_all()
-            ...
+        >>> from deltalanguage.lib import make_state_saver, make_splitter
+        >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
+        >>> from deltalanguage.runtime import DeltaPySimulator
+
+        >>> @DeltaBlock()
+        ... def adder(a: int, b: int) -> int:
+        ...     return a + b
+
+        >>> state_saver = make_state_saver(int, verbose=True)
+
+        >>> splitter = make_splitter(int, 2)
+
+        >>> with DeltaGraph() as graph:
+        ...     splitter_out = splitter(10)
+        ...     adder_out = adder(splitter_out.out0, splitter_out.out1)
+        ...     state_saver.save_and_exit(adder_out) # doctest:+ELLIPSIS
+        save_and_exit...
+
+        >>> rt = DeltaPySimulator(graph)
+        >>> rt.run()
+        saving 20
+    """
+    _SplitterT, _SplitterC = make_forked_return(
+        {'out' + str(i): t for i in range(reps)}
+    )
+
+    @DeltaBlock(allow_const=allow_const)
+    def _splitter(val: t) -> _SplitterT:
+        return _SplitterC(*(deepcopy(val) for _ in range(reps)))
+
+    return _splitter
+
+
+class _StateSaver:
+    """State saving class dummy declaration is done outside of
+    :py:func:`make_state_saver` so as to created nodes are serializable.
+
+    Please use :py:func:`make_state_saver` factory.
     """
 
-    def __init__(self, to_send: List[int]):
-        self.my_list = deepcopy(to_send)
-        self.my_list.reverse()
-
-    @DeltaMethodBlock()
-    def send_all(self) -> int:
-        """Sender method.
-
-        Returns
-        -------
-        int
-        """
-        if self.my_list:
-            return self.my_list.pop()
+    pass
 
 
-class StateSaver:
-    """Stores all input state via various methods.
+def make_state_saver(t: Union[Type, BaseDeltaType],
+                     condition=None,
+                     verbose: bool = False):
+    """Returns class used for saving states via various methods.
 
     This is useful for debugging and testing purposes, in particular
     users can store and benchmark data transmitted between nodes.
     Also used for making a testbench for a node under design.
 
-
     Parameters
     ----------
+    t : Union[Type, BaseDeltaType]
+        Type of messages.
     condition : Callable
         Used for the conditional blocks, see examples.
     verbose : bool
         If ``True`` prints a status on node's activation.
 
 
-    .. todo:: Add an example with a testbench and ``pass_*`` methods.
-
-
     Examples
     --------
-    In this graph a single message is saved via :py:meth:`StateSaver.save`:
+    In this graph a single message is saved via ``save``:
 
     .. code-block:: python
 
-        s = StateSaver()
-        with DeltaGraph() as graph:
-            s.save(42)
+        >>> from deltalanguage.lib import make_generator, make_state_saver
+        >>> from deltalanguage.wiring import DeltaGraph
+        >>> from deltalanguage.runtime import DeltaPySimulator
 
-    Same as :py:meth:`StateSaver.save` but followed by the formal graph exit:
+        >>> s = make_state_saver(int, verbose=True)
+
+        >>> with DeltaGraph() as graph:
+        ...     s.save(42) # doctest:+ELLIPSIS
+        save...
+
+    Same as ``save`` but followed by the formal graph exit:
 
     .. code-block:: python
 
-        s = StateSaver()
-        with DeltaGraph() as graph:
-            s.save_and_exit(42)
+        >>> with DeltaGraph() as graph:
+        ...     s.save_and_exit(42) # doctest:+ELLIPSIS
+        save_and_exit...
 
-    Same as :py:meth:`StateSaver.save_and_exit` but if a condition is
+        >>> rt = DeltaPySimulator(graph)
+        >>> rt.run()
+        saving 42
+
+    Same as ``save_and_exit`` but if a condition is
     fulfilled (in this case it is):
 
     .. code-block:: python
 
-        s = StateSaver(condition=lambda x: x>10)
-        with DeltaGraph() as graph:
-            s.save_and_exit_if(42)
+        >>> s = make_state_saver(int, condition=lambda x: x>10, verbose=True)
 
-    Same as :py:meth:`StateSaver.save` but also returns a status, which
+        >>> with DeltaGraph() as graph:
+        ...     s.save_and_exit_if(42) # doctest:+ELLIPSIS
+        save_and_exit_if...
+
+        >>> rt = DeltaPySimulator(graph)
+        >>> rt.run()
+        saving 42
+
+    Same as ``save`` but also returns a status, which
     can be used to trigger futher actions in the graph:
 
     .. code-block:: python
 
-        s = StateSaver()
-        with DeltaGraph() as graph:
-            status = s.save_and_ack(42)
-            ...
+        >>> gen = make_generator([42])
+        >>> s0 = make_state_saver(int, verbose=True)
+        >>> s1 = make_state_saver(bool, verbose=True)
+
+        >>> with DeltaGraph() as graph:
+        ...     status = s0.save_and_ack(gen.call())
+        ...     s1.save_and_exit(status) # doctest:+ELLIPSIS
+        save_and_exit...
+
+        >>> rt = DeltaPySimulator(graph)
+        >>> rt.run()
+        saving 42
+        saving True
+
+    Also we can just save a message on passing:
+
+    .. code-block:: python
+
+        >>> gen = make_generator([42])
+        >>> s0 = make_state_saver(int, verbose=True)
+        >>> s1 = make_state_saver(int, verbose=True)
+
+        >>> with DeltaGraph() as graph:
+        ...     message = s0.transfer(gen.call())
+        ...     s1.save_and_exit(message) # doctest:+ELLIPSIS
+        save_and_exit...
+
+        >>> rt = DeltaPySimulator(graph)
+        >>> rt.run()
+        saving 42
+        saving 42
+
+    And add a condition:
+
+    .. code-block:: python
+
+        >>> gen = make_generator([3, 8])
+        >>> s0 = make_state_saver(int, condition=lambda x: x%2==0, verbose=True)
+        >>> s1 = make_state_saver(int, verbose=True)
+
+        >>> with DeltaGraph() as graph:
+        ...     message = s0.transfer_if(gen.call())
+        ...     s1.save_and_exit(message) # doctest:+ELLIPSIS
+        save_and_exit...
+
+        >>> rt = DeltaPySimulator(graph)
+        >>> rt.run()
+        saving 3
+        saving 8
+        saving 8
     """
 
-    def __init__(self,
-                 condition=None,
-                 verbose=False):
-        self.reset()
-        self.condition = condition
-        self.verbose = verbose
+    # See _StateSaver
+    global _StateSaver
 
-    def reset(self):
-        """Remove all stored states."""
-        self.saved = []
+    class _StateSaver:
 
-    def store(self, val):
-        """Helper method used for storing."""
-        if self.verbose:
-            print(f"saving {val}")
-        self.saved.append(val)
+        def __init__(self):
+            self.saved = []
+            self.condition = condition
+            self.verbose = verbose
 
-    @DeltaMethodBlock()
-    def save(self, val: object) -> NoMessage:
-        """Saves input of any type.
+        def reset(self):
+            """Remove all stored states."""
+            self.saved = []
 
-        Parameters
-        ----------
-        val : object
-            Incoming message.
-        """
-        self.store(val)
+        def store(self, val):
+            """Helper method used for storing."""
+            if self.verbose:
+                print(f"saving {val}")
+            self.saved.append(val)
 
-    @DeltaMethodBlock()
-    def save_and_exit(self, val: object) -> NoMessage:
-        """Saves input of any type and exit.
+        @DeltaMethodBlock()
+        def save(self, val: t) -> NoMessage:
+            """Save input of any type.
 
-        Parameters
-        ----------
-        val : object
-            Incoming message.
-        """
-        self.store(val)
-        raise DeltaRuntimeExit
+            Parameters
+            ----------
+            val : object
+                Incoming message.
+            """
+            self.store(val)
 
-    @DeltaMethodBlock()
-    def save_and_exit_if(self, val: object) -> NoMessage:
-        """Saves input of any type and exit if a condition is fulfilled.
+        @DeltaMethodBlock()
+        def save_and_exit(self, val: t) -> NoMessage:
+            """Save input of any type and exit.
 
-        Parameters
-        ----------
-        val : object
-            Incoming message.
-        """
-        self.store(val)
-        assert self.condition is not None, "Undefined condition"
-        if self.condition(val):
+            Parameters
+            ----------
+            val : object
+                Incoming message.
+            """
+            self.store(val)
             raise DeltaRuntimeExit
 
-    @DeltaMethodBlock()
-    def save_and_ack(self, val: object) -> bool:
-        """Saves input of any type and return an acknowledgement.
+        @DeltaMethodBlock()
+        def save_and_exit_if(self, val: t) -> NoMessage:
+            """Save input of any type and exit if the condition is fulfilled.
 
-        Parameters
-        ----------
-        val : object
-            Incoming message.
+            Parameters
+            ----------
+            val : object
+                Incoming message.
+            """
+            self.store(val)
+            assert self.condition is not None, "Undefined condition"
+            if self.condition(val):
+                raise DeltaRuntimeExit
 
-        Returns
-        -------
-        bool
-        """
-        self.store(val)
-        return True
+        @DeltaMethodBlock()
+        def save_and_ack(self, val: t) -> bool:
+            """Save input of any type and return an acknowledgement.
 
-    @DeltaMethodBlock()
-    def pass_object(self, val: object) -> object:
-        self.store(val)
-        return val
+            Parameters
+            ----------
+            val : object
+                Incoming message.
 
-    @DeltaMethodBlock()
-    def pass_int(self, val: int) -> int:
-        self.store(val)
-        return val
+            Returns
+            -------
+            bool
+            """
+            self.store(val)
+            return True
 
-    @DeltaMethodBlock()
-    def pass_int_if(self, val: int) -> int:
-        self.store(val)
-        assert self.condition is not None, "Undefined condition"
-        if self.condition(val):
+        @DeltaMethodBlock()
+        def transfer(self, val: t) -> t:
+            """Save input of any type and return it.
+
+            Parameters
+            ----------
+            val : object
+                Incoming message.
+
+            Returns
+            -------
+            object
+            """
+            self.store(val)
             return val
-        else:
-            raise NoMessage
 
-    @DeltaMethodBlock()
-    def pass_bool(self, val: bool) -> bool:
-        self.store(val)
-        return val
+        @DeltaMethodBlock()
+        def transfer_if(self, val: t) -> t:
+            """Save input of any type and return it if the contition
+            is fulfilled.
+
+            Parameters
+            ----------
+            val : object
+                Incoming message.
+
+            Returns
+            -------
+            object
+            """
+            self.store(val)
+            assert self.condition is not None, "Undefined condition"
+            if self.condition(val):
+                return val
+
+    return _StateSaver()

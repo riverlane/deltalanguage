@@ -1,6 +1,8 @@
 import logging
 from queue import Empty, Queue
-from threading import Event, Thread, active_count
+import sys
+import threading
+from time import sleep
 from typing import Dict, Tuple, Type, Union
 
 from deltalanguage.wiring import (DeltaGraph,
@@ -56,8 +58,49 @@ class DeltaRuntimeExit(Exception):
     pass
 
 
+class DeltaThread(threading.Thread):
+    """Extension of :py:class:`threading.Thread`, which
+    handles Deltaflow exit strategy via exceptions.
+
+    Re-thrown exceptions are directed to `threading.excepthook`, which will
+
+    Attributes
+    ----------
+    bad_exc : BaseException
+        All bad exceptions, which include everything except:
+        - `SystemExit` - good thread exit.
+        - `DeltaRuntimeExit` - good thread exit that also signals stop
+          other threads via `SystemExit`.
+    """
+
+    def run(self):
+        self.bad_exc = None
+
+        try:
+            if self._target:
+                self._target(*self._args, **self._kwargs)
+        except SystemExit:
+            raise
+        except DeltaRuntimeExit:
+            raise
+        except BaseException as e:
+            self.bad_exc = e
+            raise
+        finally:
+            del self._target, self._args, self._kwargs
+
+
 class DeltaPySimulator:
-    """Python Simulator of Deltaruntime.
+    """Python Simulator for running :py:class:`DeltaGraph`.
+
+    The main purpose of this simulator is debugging of the graph and basic
+    testing. Please note that this implementation is not
+    optimized for high performance, thus do not try to run big graphs in it,
+    instead use Deltasimulator package.
+
+    The advantage of this implementation is that you can debug nodes in
+    Python ecosystem without need to verilate Migen code and compile any
+    SystemC libraries.
 
     At initialization it spins out an individual ``threading.Thread``
     for each node's body. Inputs and outputs to which are managed by
@@ -76,6 +119,17 @@ class DeltaPySimulator:
         The level at which logs from messages between nodes are displayed.
         These are the same levels as in Python's :py:mod:`logging` package.
         By default only error logs are displayed.
+    tickinterval : float
+        Time in seconds that the simulator waits before splitting outpouts.
+        If this is 0, the simulator does not wait and the main thread might
+        lock the CPython GIL and block child threads with nodes.
+        This argument is provided for speed optimization of this simulator
+        implementation.
+    switchinterval : float
+        Passed to `sys.setswitchinterval`, which
+        sets the interpreter’s thread switch interval (in seconds).
+        This argument is provided for speed optimization of this simulator
+        implementation.
 
 
     .. note::
@@ -89,10 +143,10 @@ class DeltaPySimulator:
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib.primitives import StateSaver
+        >>> from deltalanguage.lib import make_state_saver
         >>> from deltalanguage.runtime import DeltaPySimulator
 
-        >>> s = StateSaver(verbose=True) # helper node that saves the result
+        >>> s = make_state_saver(int, verbose=True) # helper node that saves the result
 
         >>> with DeltaGraph() as graph:
         ...     s.save_and_exit(5) # doctest:+ELLIPSIS
@@ -123,9 +177,18 @@ class DeltaPySimulator:
     def __init__(self,
                  graph: DeltaGraph,
                  lvl: int = logging.ERROR,
-                 msg_lvl: int = logging.ERROR):
+                 msg_lvl: int = logging.ERROR,
+                 tickinterval=1e-3,
+                 switchinterval=None):
         self.log = make_logger(lvl, "DeltaPySimulator")
         self.msg_log = MessageLog(msg_lvl)
+        self.set_excepthook()
+
+        # speed optimization
+        self._tickinterval = tickinterval
+        self._tick_counter = 0
+        if switchinterval is not None:
+            sys.setswitchinterval(switchinterval)
 
         # the graph
         self.graph = graph
@@ -133,7 +196,7 @@ class DeltaPySimulator:
         self.graph.check()
         self.add_message_log()
 
-        # stores for the i/o queues
+        # i/o queues
         self.in_queues: Dict[str, Dict[str, DeltaQueue]] = {
             node.name: {}
             for node in self.graph.nodes
@@ -142,31 +205,15 @@ class DeltaPySimulator:
             node.name: {}
             for node in self.graph.nodes
         }
-
-        # utility signals
-        self.sig_stop: Dict[str, Event] = {}
-        self.sig_err: Dict[str, Queue] = {}
-
-        # for internal control flow needs
-        self.threads: Dict[str, Thread] = {}
-        self.cycle_counter = 0
-        self.running = False
-
-        # look at the ports and make the queues
         for node in self.graph.nodes:
-            self._create_util_events(node)
             self._create_io_queues(node)
 
-    def _create_util_events(self, node):
-        """Create the system communication events to the given node.
+        # Signal to stop child threads
+        self.sig_stop = threading.Event()
 
-        Instantiate a stop and err signal for every node that will spawn a
-        thread_worker.
-        """
-        if isinstance(node, self.running_node_cls) \
-                or (isinstance(node, TemplateNode) and not node.is_const()):
-            self.sig_stop[node.name] = Event()
-            self.sig_err[node.name] = Queue()
+        # child threads for node's workers
+        self.threads: Dict[str, threading.Thread] = {}
+        self.running = False
 
     def _create_io_queues(self, node):
         """Create inter-node communication queues starting from the given node.
@@ -216,7 +263,10 @@ class DeltaPySimulator:
         return DeltaQueue(out_port, maxsize=out_port.destination.in_port_size)
 
     def all_queues(self):
-        """An iterator through all the in/out queues."""
+        """An iterator through all the queues.
+
+        To avoid doublecounting iteration is done via input queues.
+        """
         for queue_store in self.in_queues.values():
             for qu in queue_store.values():
                 yield qu
@@ -238,7 +288,11 @@ class DeltaPySimulator:
         begins listening for input. The nodes in the run-once categories get
         run now, but only if they output to a running node type.
         """
-        self.running = True
+        if self.running:
+            raise RuntimeError('DeltaPySimulator is already running')
+        else:
+            self.running = True
+
         try:
             for node in self.graph.nodes:
                 if isinstance(node, TemplateNode):
@@ -261,7 +315,6 @@ class DeltaPySimulator:
                 "Error occurred in constant node during program start."
                 + "Exiting runtime.") from exc
 
-        thread_count = 1  # main thread is always present
         for node in self.graph.nodes:
             if isinstance(node, self.run_once_node_cls) \
                     or (isinstance(node, TemplateNode) and node.is_const()):
@@ -272,60 +325,58 @@ class DeltaPySimulator:
 
             elif isinstance(node, self.running_node_cls) \
                     or (isinstance(node, TemplateNode) and not node.is_const()):
-                self.log.info("Starting node %s", node.name)
-                th = Thread(target=node.thread_worker,
-                            args=(self,),
-                            name=f"Thread_{node.name}")
-                th.start()
-                self.threads[node.name] = th
-                thread_count += 1
+                self.log.info(f"Starting node {node.name}")
+                self.threads[node.name] = DeltaThread(
+                    target=node.thread_worker,
+                    args=(self,),
+                    name=f"Thread_{node.name}"
+                )
+                self.threads[node.name].start()
 
             else:
-                self.log.warning(f"node {node.name} is not of a recognised " +
-                                 f"class {type(node)}")
+                self.log.error(f"node {node.name} is not of a recognised " +
+                               f"class {type(node)}")
 
-        self.log.info(f"Total number of threads = {thread_count}")
+        if len(self.threads) == 0:
+            raise RuntimeError("Graph cannot consist of only constant nodes.")
+
+        # main thread is always present
+        self.log.info(f"Total number of threads = {len(self.threads) + 1}")
 
     def test_run(self):
-        """Iterate one clock cycle at a time, waiting for keyboard input."""
-        if not self.running:
-            self.start()
-        if self.threads:
-            try:
-                while True:
-                    ans = input("Advance? (q to stop) ")
-                    if ans in ("q", "Q"):
-                        break
-                    self.tick()
-            except DeltaRuntimeExit:
-                pass
-            except Exception as exc:
-                raise RuntimeError(self.__quit_msg) from exc
-            finally:
-                self.stop()
+        """Iterate one clock cycle at a time, waiting for keyboard input.
+
+        .. deprecated::
+            Use :py:meth:`run`.
+            Functionality of this method is recreated in VSCode debugger
+            for multithreaded simulations.
+        """
+        self.start()
+
+        while True:
+            ans = input("Advance? (q to stop) ")
+            if ans in ("q", "Q"):
+                break
+            self.tick()
+
+        self.stop()
 
     def run(self, num=None):
         """Run continuously. If the optional argument `num` is passed, run only
         for that many clock cycles and then exit.
         """
-        if not self.running:
-            self.start()
-        if self.threads:
-            try:
-                if num is None:
-                    while True:
-                        self.tick()
-                else:
-                    for _ in range(num):
-                        self.tick()
-            except DeltaRuntimeExit:
-                pass
-            except Exception as exc:
-                raise RuntimeError(self.__quit_msg) from exc
-            finally:
-                self.stop()
+        self.start()
+
+        if num is None:
+            while True:
+                self.tick()
+                if not any(th.is_alive() for th in self.threads.values()):
+                    break
         else:
-            raise RuntimeError("Graph cannot consist of only constant nodes.")
+            for _ in range(num):
+                self.tick()
+
+        self.stop()
 
     def tick(self):
         """This is the ticking clock, which trigger the following events
@@ -337,56 +388,70 @@ class DeltaPySimulator:
             Data splitting will lead to clogging of queues and slowing
             down of this runtime. Revisit this step at the optimization stage.
         """
-        self.cycle_counter += 1
-        self.log.info("=" * 10 + f" TICK {self.cycle_counter} " + "=" * 10)
-        self.log.info(f"Number of active threads = {active_count()}")
-
-        self._check_exceptions()  # might raise
+        self._tick_counter += 1
+        self.log.info("=" * 10 + f" TICK {self._tick_counter} " + "=" * 10)
+        self.log.info(f"Number of active threads = {threading.active_count()}")
 
         # perform any potential output splitting
         for node in self.graph.nodes:
             if isinstance(node, self.splitter_node_cls):
                 node.split()
 
-    def _check_exceptions(self):
-        """Check if any of the nodes has thrown an exception.
+        # Release CPython GIL
+        if self._tickinterval > 0:
+            sleep(self._tickinterval)
 
-        If so, log it in the main thread.
+    def set_excepthook(self):
+        """Overwrite `threading.excepthook` with Deltalanguage exiting strategy.
 
-        If there has been an exception, the output of `sys.exc_info()`
-        on the given thread.
+        Strategy:
+
+        - Raising `SystemExit` will lead to silent exit of the node's worker
+          and will not signal to other workers to stop.
+        - Raising :py:class:`DeltaRuntimeExit` stops the caller node's
+          worker and signal to other workers to stop via `SystemExit`.
+        - All other exceptions will will shut other workers via `SystemExit`,
+          but the exception will be re-thrown by the simulator as a failure.
         """
-        for node_name, sig in self.sig_err.items():
-            try:
-                exc_type, exc_inst, _ = sig.get(block=False)
-            except Empty:
-                pass
+        def excepthook(args):
+            if args.exc_type == SystemExit:
+                self.log.log(logging.INFO, f"Thread stopped: {args}")
+
+            elif args.exc_type == DeltaRuntimeExit:
+                self.log.log(logging.INFO, f"Thread stopped: {args}")
+                self._stop_workers()
+
             else:
-                if issubclass(exc_type, DeltaRuntimeExit):
-                    lvl = logging.INFO
-                else:
-                    lvl = logging.ERROR
-                self.log.log(lvl,
-                             f"{exc_type.__name__} occurred in " +
-                             f"node {node_name}. " +
-                             f"Error message: {exc_inst}. Stopping runtime.")
-                raise exc_inst
+                self.log.log(logging.ERROR, f"Thread stopped: {args}")
+                self._stop_workers()
+
+            return
+
+        threading.excepthook = excepthook
+
+    def _stop_workers(self):
+        if not self.sig_stop.is_set():
+            self.sig_stop.set()
+
+            # flush potential blocking queues
+            for qu in self.all_queues():
+                qu.flush()
 
     def stop(self):
-        """Send a stop signal to all the threads and wait for them to join."""
-        for sig in self.sig_stop.values():
-            sig.set()
-
-        # now flush potential blocking waits in the thread_workers
-        # put flushers into all i/o queues
-        for qu in self.all_queues():
-            qu.flush()
+        """Wait for all threads to join to join and do logging."""
+        self._stop_workers()
 
         for th in self.threads.values():
-            if not th.daemon and th.is_alive():
-                th.join()
+            th.join()
 
-        # finally tidy up the logs
+        # tidy up the logs
         self.msg_log.log_messages()
         clear_loggers()
         self.running = False
+
+        # check for bad exceptions
+        for th in self.threads.values():
+            if th.bad_exc:
+                raise RuntimeError(
+                    'At lease one exception is raised in a child thread'
+                ) from th.bad_exc

@@ -1,6 +1,6 @@
 from migen import Signal, FSM, If, Memory, NextValue, NextState
 
-from deltalanguage.data_types import DBool, DInt, DOptional, DSize
+from deltalanguage.data_types import DBool, DInt, DUInt, DOptional, DSize
 from deltalanguage.lib.hal import Masks
 from deltalanguage.wiring import MigenNodeTemplate
 
@@ -28,7 +28,7 @@ class Aggregator(MigenNodeTemplate):
         # creation of input/output ports
         hal_result = template.add_pa_in_port(
             'hal_result',
-            DOptional(DInt(DSize(32)))
+            DOptional(DUInt(DSize(32)))
         )
 
         agg_result = template.add_pa_out_port('agg_result', DInt(DSize(32)))
@@ -38,7 +38,7 @@ class Aggregator(MigenNodeTemplate):
         completed = template.add_pa_out_port('completed', DInt(DSize(8)))
         next_angle = template.add_pa_out_port(
             'next_angle',
-            DInt(DSize(ANGLE_MEMORY_WIDTH))
+            DUInt(DSize(ANGLE_MEMORY_WIDTH))
         )
 
         # generate a ROM of 10-bit angle values

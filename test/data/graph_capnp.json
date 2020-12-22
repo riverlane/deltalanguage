@@ -1,0 +1,67 @@
+{
+    "name": "main",
+    "bodies": [
+        {
+            "python": {}
+        },
+        {
+            "python": {}
+        },
+        {
+            "python": {}
+        }
+    ],
+    "nodes": [
+        {
+            "name": "node_0",
+            "body": 0,
+            "inPorts": [],
+            "outPorts": [
+                {
+                    "name": ""
+                }
+            ]
+        },
+        {
+            "name": "node_1",
+            "body": 1,
+            "inPorts": [],
+            "outPorts": [
+                {
+                    "name": ""
+                }
+            ]
+        },
+        {
+            "name": "add_print_exit_2",
+            "body": 2,
+            "inPorts": [
+                {
+                    "name": "a",
+                    "optional": false
+                },
+                {
+                    "name": "b",
+                    "optional": false
+                }
+            ],
+            "outPorts": []
+        }
+    ],
+    "graph": [
+        {
+            "srcNode": 0,
+            "srcOutPort": 0,
+            "destNode": 2,
+            "destInPort": 0,
+            "direct": false
+        },
+        {
+            "srcNode": 1,
+            "srcOutPort": 0,
+            "destNode": 2,
+            "destInPort": 1,
+            "direct": false
+        }
+    ]
+}

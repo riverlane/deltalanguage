@@ -190,8 +190,6 @@ def main(simple):
 
     rt = DeltaPySimulator(graph, lvl=logging.ERROR)
     rt.run()
-    if verbose:
-        print(f"Run took {rt.cycle_counter} ticks to complete")
 
 
 if __name__ == "__main__":

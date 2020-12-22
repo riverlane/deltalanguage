@@ -5,7 +5,7 @@ import unittest
 
 from test._utils import printer
 
-from deltalanguage.lib.primitives import IntListSender, StateSaver
+from deltalanguage.lib import make_state_saver, make_generator
 from deltalanguage.runtime import DeltaPySimulator
 from deltalanguage.wiring import DeltaGraph
 
@@ -16,13 +16,13 @@ class NoMessageTestSimple(unittest.TestCase):
     """
 
     def test_correct_result(self):
-        s1 = StateSaver(condition=lambda x: x % 2 == 0)
-        s2 = StateSaver(condition=lambda x: x == 0)
+        s1 = make_state_saver(int, condition=lambda x: x % 2 == 0)
+        s2 = make_state_saver(int, condition=lambda x: x == 0)
         l = [1, 3, 7, 2, 5, 4, 9, 0, -1, 8]
-        sender = IntListSender(l)
+        sender = make_generator(l)
 
         with DeltaGraph() as graph:
-            only_even = s1.pass_int_if(sender.send_all())
+            only_even = s1.transfer_if(sender.call())
             s2.save_and_exit_if(only_even)
 
         rt = DeltaPySimulator(graph)

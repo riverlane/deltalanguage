@@ -71,7 +71,7 @@ __contributors__ = ", ".join(contributors)
 __contributors_lines__ = "\n".join(contributors)
 __email__ = "deltaflow@riverlane.com"
 
-version_info = (0, 3, 2)
+version_info = (0, 3, 4)
 """Tuple[int, int, int] : version information
 The three components of the version:
 ``major``, ``minor`` and ``micro``: Module level variable documented inline.
@@ -87,7 +87,7 @@ __doc__ = """
     type of hardware a part of the program is running on, the nodes of this
     graph get filled with python (for the CPU) or migen (for the FPGAs).
     A hardware abstraction layer is built into the language, that standardises
-    which operations can be triggered on qubits. 
+    which operations can be triggered on qubits.
     This makes Deltaflow portable across technologies.
     """
 

@@ -10,7 +10,7 @@ from test._utils import (printer,
                          add_non_const,
                          return_2)
 
-from deltalanguage.lib.primitives import StateSaver
+from deltalanguage.lib import make_state_saver
 from deltalanguage.wiring import (DeltaGraph,
                                   PyConstNode,
                                   PyFuncNode,
@@ -47,7 +47,7 @@ class IsNeededTest(unittest.TestCase):
 
     def test_is_useful_simple(self):
         """One branch is not const -> source must be useful."""
-        saver = StateSaver()
+        saver = make_state_saver(int)
 
         with DeltaGraph():
             nums = return_12()
@@ -75,7 +75,7 @@ class IsNeededTest(unittest.TestCase):
 
     def test_is_useful_complex(self):
         """One of the branches is a Method Node, making the source useful."""
-        saver = StateSaver()
+        saver = make_state_saver(int)
 
         with DeltaGraph():
             nums = return_12()
