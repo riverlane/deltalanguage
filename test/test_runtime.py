@@ -15,7 +15,7 @@ from test._utils import (OtherClass,
                          return_4)
 
 from deltalanguage.data_types import DOptional
-from deltalanguage.lib import make_state_saver
+from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import (ConstQueue,
                                    DeltaQueue,
                                    DeltaPySimulator,
@@ -41,7 +41,7 @@ class RuntimeTest(unittest.TestCase):
                    increment ----------> saver
         ```
         """
-        self.saver = make_state_saver(int)
+        self.saver = StateSaver(int)
         with DeltaGraph() as my_graph:
             add_1_placeholder = placeholder_node_factory()
             incr_node = opt_increment.call(n=add_1_placeholder)
@@ -90,7 +90,7 @@ class DeltaMethodBlockTest(unittest.TestCase):
 
     def setUp(self):
         self.inst = SomeClass()
-        self.saver = make_state_saver(int)
+        self.saver = StateSaver(int)
         with DeltaGraph() as my_graph:
             method_node = self.inst.method()
             self.saver.save_and_exit(method_node)
@@ -125,7 +125,7 @@ class MixedGraphTest(unittest.TestCase):
                   /
         return_2 /
         """
-        self.saver = make_state_saver(int)
+        self.saver = StateSaver(int)
 
         with DeltaGraph() as my_graph:
             inst = OtherClass(2)
@@ -188,7 +188,7 @@ class ExceptionHandlingTest(unittest.TestCase):
 
     def test_exit_(self):
         """Test that an DeltaRuntimeExit does not cause an error."""
-        s = make_state_saver(int, condition=lambda x: x == 4)
+        s = StateSaver(int, condition=lambda x: x == 4)
 
         with DeltaGraph() as graph:
             n = SomeClass().method()
@@ -287,7 +287,7 @@ class RuntimeConstantNodeAndDOptionalTest(unittest.TestCase):
 
     def test_one(self):
         n_iter = 1000
-        saver = make_state_saver(int)
+        saver = StateSaver(int)
 
         @Interactive({}, int)
         def generator(node: PyInteractiveNode):

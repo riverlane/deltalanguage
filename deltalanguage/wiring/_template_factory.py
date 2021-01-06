@@ -47,7 +47,7 @@ def template_node_factory(
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_state_saver
+        >>> from deltalanguage.lib import StateSaver
         >>> from deltalanguage.runtime import DeltaPySimulator
         >>> from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
         ...                                   template_node_factory)
@@ -56,7 +56,7 @@ def template_node_factory(
         ... def foo(a: int, b: int) -> int:
         ...     return a + b
 
-        >>> s = make_state_saver(int, verbose=True)
+        >>> s = StateSaver(int, verbose=True)
 
         # programming stage: define a graph with a template node
         >>> with DeltaGraph() as graph:

@@ -1,5 +1,5 @@
 from deltalanguage.data_types import DBool, DInt, DUInt, DSize, NoMessage
-from deltalanguage.lib import make_state_saver
+from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
@@ -28,7 +28,7 @@ def get_graph():
     `vcd_name` which will lead to saving VCD of all signals for further
     debugging.
     """
-    store = make_state_saver(int)
+    store = StateSaver(int)
 
     with DeltaGraph() as graph:
         ph_hal_result = placeholder_node_factory()

@@ -12,7 +12,7 @@ import dill
 import migen
 
 from deltalanguage.data_types import BaseDeltaType, DOptional
-from deltalanguage.lib import make_state_saver
+from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import (DeltaPySimulator,
                                    deserialize_graph,
                                    serialize_graph)
@@ -144,7 +144,7 @@ class MigenNodeSerialisationTest(unittest.TestCase):
         is executed. For this reason we just compare the structure of the graph
         here.
         """
-        s = make_state_saver(int)
+        s = StateSaver(int)
 
         example_migen = TestMigen(tb_num_iter=2000,
                                   name='counter',
@@ -174,7 +174,7 @@ class MigenNodeSerialisationTest(unittest.TestCase):
 
     def test_one_migen_node_with_2_outs(self):
         """One PyMigenNode with 2 out ports produces what we expect."""
-        s = make_state_saver(int, verbose=True)
+        s = StateSaver(int, verbose=True)
 
         with DeltaGraph() as graph:
             counter = TestMigen(tb_num_iter=2000,

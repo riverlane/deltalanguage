@@ -10,7 +10,7 @@ from migen import FSM, If, NextState, NextValue
 from deltalanguage.data_types import (DInt,
                                       DOptional,
                                       make_forked_return)
-from deltalanguage.lib import make_state_saver
+from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator
 from deltalanguage.wiring import (DeltaGraph,
                                   Interactive,
@@ -99,7 +99,7 @@ class MigenInteractiveCommsTest(unittest.TestCase):
 
     def setUp(self):
 
-        self.saver = make_state_saver(int)
+        self.saver = StateSaver(int)
 
     def test_migen_trigger_fails(self):
         """Assert that when the `test_bench_no_trigger` node sends data, the

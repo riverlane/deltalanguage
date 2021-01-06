@@ -16,7 +16,7 @@ from deltalanguage.lib.hal import (HardwareAbstractionLayerNode,
                                    measurement_unpacker)
 from deltalanguage.lib.primitives import (make_generator,
                                           make_splitter,
-                                          make_state_saver)
+                                          StateSaver)
 from deltalanguage.lib.quantum_simulators import (IQuantumSimulator,
                                                   ProjectqQuantumSimulator,
                                                   QiskitQuantumSimulator)

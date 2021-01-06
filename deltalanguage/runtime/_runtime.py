@@ -143,10 +143,10 @@ class DeltaPySimulator:
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_state_saver
+        >>> from deltalanguage.lib import StateSaver
         >>> from deltalanguage.runtime import DeltaPySimulator
 
-        >>> s = make_state_saver(int, verbose=True) # helper node that saves the result
+        >>> s = StateSaver(int, verbose=True) # helper node that saves the result
 
         >>> with DeltaGraph() as graph:
         ...     s.save_and_exit(5) # doctest:+ELLIPSIS

@@ -49,7 +49,7 @@ def make_generator(val: Union[object, Iterable],
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_state_saver, make_generator
+        >>> from deltalanguage.lib import StateSaver, make_generator
         >>> from deltalanguage.wiring import DeltaGraph, Interactive
         >>> from deltalanguage.runtime import DeltaPySimulator
 
@@ -66,7 +66,7 @@ def make_generator(val: Union[object, Iterable],
         ...     node.send(sum(memory))
 
         # Save the result
-        >>> s = make_state_saver(int, verbose=True)
+        >>> s = StateSaver(int, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     generator_out = generator.call()
@@ -132,7 +132,7 @@ def make_splitter(t: Union[Type, BaseDeltaType],
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_state_saver, make_splitter
+        >>> from deltalanguage.lib import StateSaver, make_splitter
         >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
         >>> from deltalanguage.runtime import DeltaPySimulator
 
@@ -140,7 +140,7 @@ def make_splitter(t: Union[Type, BaseDeltaType],
         ... def adder(a: int, b: int) -> int:
         ...     return a + b
 
-        >>> state_saver = make_state_saver(int, verbose=True)
+        >>> state_saver = StateSaver(int, verbose=True)
 
         >>> splitter = make_splitter(int, 2)
 
@@ -165,20 +165,8 @@ def make_splitter(t: Union[Type, BaseDeltaType],
     return _splitter
 
 
-class _StateSaver:
-    """State saving class dummy declaration is done outside of
-    :py:func:`make_state_saver` so as to created nodes are serializable.
-
-    Please use :py:func:`make_state_saver` factory.
-    """
-
-    pass
-
-
-def make_state_saver(t: Union[Type, BaseDeltaType],
-                     condition=None,
-                     verbose: bool = False):
-    """Returns class used for saving states via various methods.
+class StateSaver:
+    """Class used for saving states via various methods.
 
     This is useful for debugging and testing purposes, in particular
     users can store and benchmark data transmitted between nodes.
@@ -187,12 +175,11 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
     Parameters
     ----------
     t : Union[Type, BaseDeltaType]
-        Type of messages.
+        Type of messages, by default object.
     condition : Callable
         Used for the conditional blocks, see examples.
     verbose : bool
         If ``True`` prints a status on node's activation.
-
 
     Examples
     --------
@@ -200,11 +187,11 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_generator, make_state_saver
+        >>> from deltalanguage.lib import make_generator, StateSaver
         >>> from deltalanguage.wiring import DeltaGraph
         >>> from deltalanguage.runtime import DeltaPySimulator
 
-        >>> s = make_state_saver(int, verbose=True)
+        >>> s = StateSaver(int, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     s.save(42) # doctest:+ELLIPSIS
@@ -227,7 +214,7 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
 
     .. code-block:: python
 
-        >>> s = make_state_saver(int, condition=lambda x: x>10, verbose=True)
+        >>> s = StateSaver(int, condition=lambda x: x>10, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     s.save_and_exit_if(42) # doctest:+ELLIPSIS
@@ -243,8 +230,8 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
     .. code-block:: python
 
         >>> gen = make_generator([42])
-        >>> s0 = make_state_saver(int, verbose=True)
-        >>> s1 = make_state_saver(bool, verbose=True)
+        >>> s0 = StateSaver(int, verbose=True)
+        >>> s1 = StateSaver(bool, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     status = s0.save_and_ack(gen.call())
@@ -261,8 +248,8 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
     .. code-block:: python
 
         >>> gen = make_generator([42])
-        >>> s0 = make_state_saver(int, verbose=True)
-        >>> s1 = make_state_saver(int, verbose=True)
+        >>> s0 = StateSaver(int, verbose=True)
+        >>> s1 = StateSaver(int, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     message = s0.transfer(gen.call())
@@ -279,8 +266,8 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
     .. code-block:: python
 
         >>> gen = make_generator([3, 8])
-        >>> s0 = make_state_saver(int, condition=lambda x: x%2==0, verbose=True)
-        >>> s1 = make_state_saver(int, verbose=True)
+        >>> s0 = StateSaver(int, condition=lambda x: x%2==0, verbose=True)
+        >>> s1 = StateSaver(int, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     message = s0.transfer_if(gen.call())
@@ -292,30 +279,22 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
         saving 3
         saving 8
         saving 8
+
+    .. warning::
+        While ``t`` is optional, the default value of ``object`` should only
+        be used for debugging in the Python simulator. Not specifying a type
+        will cause execution in Deltasimulator to fail.
     """
 
-    # See _StateSaver
-    global _StateSaver
+    def __init__(self, t: Union[Type, BaseDeltaType] = object,
+                 condition=None,
+                 verbose=False):
+        self.saved = []
+        self.condition = condition
+        self.verbose = verbose
 
-    class _StateSaver:
-
-        def __init__(self):
-            self.saved = []
-            self.condition = condition
-            self.verbose = verbose
-
-        def reset(self):
-            """Remove all stored states."""
-            self.saved = []
-
-        def store(self, val):
-            """Helper method used for storing."""
-            if self.verbose:
-                print(f"saving {val}")
-            self.saved.append(val)
-
-        @DeltaMethodBlock()
-        def save(self, val: t) -> NoMessage:
+        @DeltaBlock(allow_const=False)
+        def save(val: t) -> NoMessage:
             """Save input of any type.
 
             Parameters
@@ -324,9 +303,10 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
                 Incoming message.
             """
             self.store(val)
+        self.save = save
 
-        @DeltaMethodBlock()
-        def save_and_exit(self, val: t) -> NoMessage:
+        @DeltaBlock(allow_const=False)
+        def save_and_exit(val: t) -> NoMessage:
             """Save input of any type and exit.
 
             Parameters
@@ -336,9 +316,10 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
             """
             self.store(val)
             raise DeltaRuntimeExit
+        self.save_and_exit = save_and_exit
 
-        @DeltaMethodBlock()
-        def save_and_exit_if(self, val: t) -> NoMessage:
+        @DeltaBlock(allow_const=False)
+        def save_and_exit_if(val: t) -> NoMessage:
             """Save input of any type and exit if the condition is fulfilled.
 
             Parameters
@@ -350,9 +331,10 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
             assert self.condition is not None, "Undefined condition"
             if self.condition(val):
                 raise DeltaRuntimeExit
+        self.save_and_exit_if = save_and_exit_if
 
-        @DeltaMethodBlock()
-        def save_and_ack(self, val: t) -> bool:
+        @DeltaBlock(allow_const=False)
+        def save_and_ack(val: t) -> bool:
             """Save input of any type and return an acknowledgement.
 
             Parameters
@@ -366,9 +348,10 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
             """
             self.store(val)
             return True
+        self.save_and_ack = save_and_ack
 
-        @DeltaMethodBlock()
-        def transfer(self, val: t) -> t:
+        @DeltaBlock(allow_const=False)
+        def transfer(val: t) -> t:
             """Save input of any type and return it.
 
             Parameters
@@ -382,9 +365,10 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
             """
             self.store(val)
             return val
+        self.transfer = transfer
 
-        @DeltaMethodBlock()
-        def transfer_if(self, val: t) -> t:
+        @DeltaBlock(allow_const=False)
+        def transfer_if(val: t) -> t:
             """Save input of any type and return it if the contition
             is fulfilled.
 
@@ -401,5 +385,14 @@ def make_state_saver(t: Union[Type, BaseDeltaType],
             assert self.condition is not None, "Undefined condition"
             if self.condition(val):
                 return val
+        self.transfer_if = transfer_if
 
-    return _StateSaver()
+    def reset(self):
+        """Remove all stored states."""
+        self.saved = []
+
+    def store(self, val):
+        """Helper method used for storing."""
+        if self.verbose:
+            print(f"saving {val}")
+        self.saved.append(val)

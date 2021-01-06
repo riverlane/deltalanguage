@@ -158,7 +158,7 @@ def DeltaBlock(
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_state_saver
+        >>> from deltalanguage.lib import StateSaver
         >>> from deltalanguage.runtime import DeltaPySimulator
         >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
 
@@ -174,7 +174,7 @@ def DeltaBlock(
 
     .. code-block:: python
 
-        >>> s = make_state_saver(object, verbose=True)
+        >>> s = StateSaver(object, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     foo_out = foo(5)
@@ -311,7 +311,7 @@ def DeltaMethodBlock(
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_state_saver
+        >>> from deltalanguage.lib import StateSaver
         >>> from deltalanguage.runtime import DeltaPySimulator
         >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
 
@@ -333,7 +333,7 @@ def DeltaMethodBlock(
 
     .. code-block:: python
 
-        >>> s = make_state_saver(object, verbose=True)
+        >>> s = StateSaver(object, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     s.save_and_exit(my_obj.bar(5)) # doctest:+ELLIPSIS
@@ -502,7 +502,7 @@ def Interactive(in_params: Dict[str, Type],
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib.primitives import make_state_saver
+        >>> from deltalanguage.lib.primitives import StateSaver
         >>> from deltalanguage.runtime import DeltaPySimulator
         >>> from deltalanguage.wiring import Interactive, PyInteractiveNode
 
@@ -524,7 +524,7 @@ def Interactive(in_params: Dict[str, Type],
 
     .. code-block:: python
 
-        >>> s = make_state_saver(int, verbose=True)
+        >>> s = StateSaver(int, verbose=True)
 
         >>> with DeltaGraph() as graph:
         ...     s.save_and_exit(foo.call(a=4, b=5)) # doctest:+ELLIPSIS

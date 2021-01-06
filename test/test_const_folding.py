@@ -10,7 +10,7 @@ from test._utils import (printer,
                          add_non_const,
                          return_2)
 
-from deltalanguage.lib import make_state_saver
+from deltalanguage.lib import StateSaver
 from deltalanguage.wiring import (DeltaGraph,
                                   PyConstNode,
                                   PyFuncNode,
@@ -47,7 +47,7 @@ class IsNeededTest(unittest.TestCase):
 
     def test_is_useful_simple(self):
         """One branch is not const -> source must be useful."""
-        saver = make_state_saver(int)
+        saver = StateSaver(int)
 
         with DeltaGraph():
             nums = return_12()
@@ -55,7 +55,7 @@ class IsNeededTest(unittest.TestCase):
             p1 = printer(nums.y)
 
         self.assertIsInstance(nums, PyConstNode)
-        self.assertIsInstance(s1, PyMethodNode)
+        self.assertIsInstance(s1, PyFuncNode)
         self.assertIsInstance(p1, PyFuncNode)
 
         self.assertTrue(is_needed(nums, (PyFuncNode, PyMethodNode)))
@@ -75,7 +75,7 @@ class IsNeededTest(unittest.TestCase):
 
     def test_is_useful_complex(self):
         """One of the branches is a Method Node, making the source useful."""
-        saver = make_state_saver(int)
+        saver = StateSaver(int)
 
         with DeltaGraph():
             nums = return_12()
@@ -88,7 +88,7 @@ class IsNeededTest(unittest.TestCase):
 
         with self.subTest(msg="Test correct instancing"):
             self.assertIsInstance(p1, PyFuncNode)
-            self.assertIsInstance(s1, PyMethodNode)
+            self.assertIsInstance(s1, PyFuncNode)
 
         with self.subTest(msg="Test source is needed"):
             self.assertTrue(is_needed(nums, (PyFuncNode, PyMethodNode)))

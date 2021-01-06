@@ -69,7 +69,7 @@ class MigenNodeTemplate(abc.ABC):
     .. code-block:: python
 
         >>> from deltalanguage.data_types import DOptional
-        >>> from deltalanguage.lib import make_state_saver
+        >>> from deltalanguage.lib import StateSaver
         >>> from deltalanguage.runtime import DeltaPySimulator
         >>> from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
         ...                                   MigenNodeTemplate)
@@ -105,7 +105,7 @@ class MigenNodeTemplate(abc.ABC):
     .. code-block:: python
 
         >>> foo = Foo()
-        >>> s = make_state_saver(int, verbose=True)
+        >>> s = StateSaver(int, verbose=True)
 
         # note how I/O is handled
         >>> with DeltaGraph() as graph:

@@ -5,6 +5,7 @@ import unittest
 import dill
 
 from deltalanguage.data_types import NoMessage
+from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
@@ -12,6 +13,8 @@ from deltalanguage.wiring import (DeltaBlock,
                                   PyConstBody,
                                   PyFuncBody,
                                   PyMethodBody)
+
+from test._utils import return_2
 
 
 class Adder:
@@ -310,6 +313,31 @@ rt.run()
         output = p.stdout.decode()
 
         self.assertEqual(5, int(output))
+
+
+class StateSaverSerialisationTest(unittest.TestCase):
+
+    def test_serialise_state_saver(self):
+        """Serialise a state saver and load it in a new instance."""
+        saver = StateSaver(t=int, verbose=True)
+        with DeltaGraph() as test_graph:
+            saver_node = saver.save(return_2())
+        saver_body = saver_node.get_serialised_body()
+        python_string = f"""
+import dill
+saver_body = dill.loads({saver_body})
+saver_body.eval(5)
+"""
+        p = subprocess.run(
+            [r"python"],
+            input=str.encode(python_string),
+            stdout=subprocess.PIPE,
+            check=False
+        )
+        output = p.stdout.decode()
+
+        self.assertEqual(output, "saving 5\n")
+
 
 
 if __name__ == "__main__":

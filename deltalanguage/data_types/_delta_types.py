@@ -1344,7 +1344,7 @@ class DOptional:
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_state_saver
+        >>> from deltalanguage.lib import StateSaver
         >>> from deltalanguage.runtime import DeltaPySimulator
         >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
 
@@ -1375,7 +1375,7 @@ class DOptional:
         ...     # this node will imitate an absence of input
         ...     pass
 
-        >>> s = make_state_saver(int, verbose=True) # helper node that saves the result
+        >>> s = StateSaver(int, verbose=True) # helper node that saves the result
 
         >>> with DeltaGraph() as graph:
         ...     foo_out = foo(42, bar())
