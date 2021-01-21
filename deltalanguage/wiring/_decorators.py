@@ -108,6 +108,7 @@ def DeltaBlock(
     name: str = None,
     allow_const: bool = True,
     node_key: Optional[str] = None,
+    in_port_size: int = 0,
     latency: Latency = None,
     lvl: int = logging.ERROR
 ):
@@ -141,6 +142,9 @@ def DeltaBlock(
         console. Note that this should only be used for debugging; for
         Deltaflow programs in production it should be sufficient to use the
         inputs and return values of a block for communications.
+    in_port_size : int
+        The maximum size of the node's in ports.
+        If 0 then unlimited size.
     latency : Latency
         The estimated latency for running the body.
     lvl : int
@@ -244,6 +248,7 @@ def DeltaBlock(
                                        *args,
                                        name=name or a_func.__name__,
                                        node_key=node_key,
+                                       in_port_size=in_port_size,
                                        latency=latency,
                                        lvl=lvl,
                                        **kwargs)
@@ -259,6 +264,7 @@ def DeltaBlock(
 def DeltaMethodBlock(
     name: str = None,
     node_key: Optional[str] = None,
+    in_port_size: int = 0,
     latency: Latency = None,
     lvl: int = logging.ERROR
 ):
@@ -294,6 +300,9 @@ def DeltaMethodBlock(
         console. Note that this should only be used for debugging; for
         Deltaflow programs in production it should be sufficient to use the
         inputs and return values of a block for communications.
+    in_port_size : int
+        The maximum size of the node's in ports.
+        If 0 then unlimited size.
     latency : Latency
         The estimated latency for running the body.
     lvl : int
@@ -397,6 +406,7 @@ def DeltaMethodBlock(
                                               *args,
                                               name=name or a_func.__name__,
                                               node_key=node_key,
+                                              in_port_size=in_port_size,
                                               latency=latency,
                                               lvl=lvl,
                                               **kwargs)
@@ -409,7 +419,7 @@ def DeltaMethodBlock(
     return decorator
 
 
-@ attr.s
+@attr.s
 class InteractiveProcess:
     """The type of block running inside an interactive node, manually
     annotated with input and output type.

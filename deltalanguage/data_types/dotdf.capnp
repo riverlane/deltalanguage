@@ -6,6 +6,7 @@ struct Program {
   nodes @2 :List(Node);
   # Adjacency list from (NodeIdx, OutPortIdx) to (NodeIdx, InPortIdx).
   graph @3 :List(Wire);
+  files @4 :List(File);
 }
 
 struct Wire {
@@ -50,4 +51,9 @@ struct InPort {
 struct OutPort {
   name @0 :Text; # Lookip id for the port: kwarg in Pynodes, signal name in Migen
   type @1 :Data; # Delta Type as serialsed by dill
+}
+
+struct File {
+  name @0 :Text; # Filename has to be a string
+  content @1 :Data; # File content could be arbitrary
 }

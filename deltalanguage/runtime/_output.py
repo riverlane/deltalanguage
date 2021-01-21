@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import capnp
 
@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 
 def serialize_graph(
     graph: DeltaGraph,
-    name: str = None
+    name: str = None,
+    files: List[str] = []
 ) -> Tuple[bytes, capnp.lib.capnp._DynamicStructBuilder]:
     """Converts a complete representation of the Deltaflow program stored as
     a :py:class:`DeltaGraph` to bytecode.
@@ -22,6 +23,12 @@ def serialize_graph(
     ----------
     graph : DeltaGraph
         Deltaflow graph.
+    name : str
+        Name of the program. If no name is provided then this is the same
+        as the name of the graph.
+    files : List[str]
+        Additional files required for the program to run, such as user-defined
+        packages or data.
 
     Returns
     -------
@@ -35,6 +42,12 @@ def serialize_graph(
         schema.name = name
     elif graph.name:
         schema.name = graph.name
+
+    capnp_files = schema.init("files", len(files))
+    for capnp_file, prog_file in zip(capnp_files, files):
+        capnp_file.name = prog_file
+        with open(prog_file, "rb") as file_content:
+            capnp_file.content = file_content.read()
 
     graph.do_automatic_splitting()
 

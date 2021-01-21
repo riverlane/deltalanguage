@@ -27,6 +27,9 @@ class SplitterNode(RealNode):
     destinations : List[InPort]
         As a list of InPorts, these are the destinations this node will
         output to.
+    
+    .. deprecated:: 0.5
+        Use ``DeltaGraph.do_automatic_splitting``.
     """
 
     def __init__(self,
@@ -76,7 +79,8 @@ class PySplitterNode(SplitterNode, PythonNode):
         output to.
 
 
-    .. TODO:: ``if num_dests == 1`` do not do anything.
+    .. deprecated:: 0.5
+        Use ``DeltaGraph.do_automatic_splitting``.
     """
 
     def __init__(self, graph, split_val_type, destinations: List[InPort]):

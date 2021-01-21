@@ -143,8 +143,14 @@ This section has an unsorted collection of tutorial on various topics
   (:download:`state_history.ipynb`) may be a significant issue
   while working with Deltaflow language.
 
-- `Logging within Deltaflow <logging.html>`_ (:download:`logging.ipynb`) covers
+- `Logging and tracing within Deltaflow <logging.html>`_
+  (:download:`logging.ipynb`) covers
   how to log computation within different aspects of a Deltaflow graph.
+  Additionally we show how the external tool
+  `VizTracer <https://github.com/gaogaotiantian/viztracer>`_ can be used to
+  produce performance reports like this one
+  (:download:`viztracer_example.html`)
+  that visualize the multithreaded simulation of the graph.
 
 .. TODO::
   Add a tutorial on node testing in a testbench graph.

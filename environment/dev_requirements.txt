@@ -15,12 +15,13 @@ sphinx-toggleprompt
 ## Development
 autopep8
 nose
+nose-randomly
 nosexcover
 pycodestyle
 pylint
 
 # Profiling
-viztracer
+viztracer>=0.11
 
 # Packaging
 setuptools

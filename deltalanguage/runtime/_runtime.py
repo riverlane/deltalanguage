@@ -59,18 +59,19 @@ class DeltaRuntimeExit(Exception):
 
 
 class DeltaThread(threading.Thread):
-    """Extension of :py:class:`threading.Thread`, which
+    """Extension of ``threading.Thread``, which
     handles Deltaflow exit strategy via exceptions.
 
-    Re-thrown exceptions are directed to `threading.excepthook`, which will
+    Re-thrown exceptions are directed to ``threading.excepthook``, which will
 
     Attributes
     ----------
     bad_exc : BaseException
         All bad exceptions, which include everything except:
-        - `SystemExit` - good thread exit.
-        - `DeltaRuntimeExit` - good thread exit that also signals stop
-          other threads via `SystemExit`.
+
+        - ``SystemExit`` - good thread exit.
+        - :py:class:`DeltaRuntimeExit` - good thread exit that also signals
+          to stop the other threads via ``SystemExit``.
     """
 
     def run(self):
@@ -119,17 +120,22 @@ class DeltaPySimulator:
         The level at which logs from messages between nodes are displayed.
         These are the same levels as in Python's :py:mod:`logging` package.
         By default only error logs are displayed.
-    tickinterval : float
-        Time in seconds that the simulator waits before splitting outpouts.
-        If this is 0, the simulator does not wait and the main thread might
-        lock the CPython GIL and block child threads with nodes.
-        This argument is provided for speed optimization of this simulator
-        implementation.
     switchinterval : float
         Passed to `sys.setswitchinterval`, which
         sets the interpreter’s thread switch interval (in seconds).
         This argument is provided for speed optimization of this simulator
         implementation.
+    queue_size : int
+        This is a global parameter for all instances of :py:class:`DeltaQueue`
+        created by the simulator.
+        The default value 16 is chosen in analogy with ``sc_fifo`` in SystemC,
+        this means that the Python GIL will be forced to run another node's
+        thread once the queue is full, thus it will prevent blockage.
+    queue_interval : float
+        When the simulation is called to stop, some of the queues might be
+        blocking nodes at ``put`` methods as they are full. The simulator
+        interrupts this at this periodicity (in seconds) and checks if
+        stopping is needed.
 
 
     .. note::
@@ -178,17 +184,18 @@ class DeltaPySimulator:
                  graph: DeltaGraph,
                  lvl: int = logging.ERROR,
                  msg_lvl: int = logging.ERROR,
-                 tickinterval=1e-3,
-                 switchinterval=None):
+                 switchinterval: float = None,
+                 queue_size: int = 16,
+                 queue_interval: float = 1.0):
         self.log = make_logger(lvl, "DeltaPySimulator")
         self.msg_log = MessageLog(msg_lvl)
         self.set_excepthook()
 
         # speed optimization
-        self._tickinterval = tickinterval
-        self._tick_counter = 0
         if switchinterval is not None:
             sys.setswitchinterval(switchinterval)
+        self.queue_size = queue_size
+        self.queue_interval = queue_interval
 
         # the graph
         self.graph = graph
@@ -260,7 +267,15 @@ class DeltaPySimulator:
                 return None
             return ConstQueue(out_port)
 
-        return DeltaQueue(out_port, maxsize=out_port.destination.in_port_size)
+        if out_port.destination.in_port_size > 0 and self.queue_size > 0:
+            maxsize = min(out_port.destination.in_port_size, self.queue_size)
+        else:
+            # one or both queues is 0, choose largest size
+            maxsize = max(out_port.destination.in_port_size, self.queue_size)
+
+        return DeltaQueue(out_port,
+                          maxsize=maxsize,
+                          queue_interval=self.queue_interval)
 
     def all_queues(self):
         """An iterator through all the queues.
@@ -343,63 +358,18 @@ class DeltaPySimulator:
         # main thread is always present
         self.log.info(f"Total number of threads = {len(self.threads) + 1}")
 
-    def test_run(self):
-        """Iterate one clock cycle at a time, waiting for keyboard input.
+    def run(self, timeout=None):
+        """Run the simulation of the graph.
 
-        .. deprecated::
-            Use :py:meth:`run`.
-            Functionality of this method is recreated in VSCode debugger
-            for multithreaded simulations.
+        If ``timeout`` is ``None`` runs continually until the graph calls
+        :py:class:`DeltaRuntimeExit` or an error occurs.
+        Otherwise it should be a floating point number specifying a timeout
+        for the simulation in seconds. Note that providing the same timeout
+        does not guarantee that simulation stops at the same point.
         """
         self.start()
-
-        while True:
-            ans = input("Advance? (q to stop) ")
-            if ans in ("q", "Q"):
-                break
-            self.tick()
-
+        self.sig_stop.wait(timeout=timeout)
         self.stop()
-
-    def run(self, num=None):
-        """Run continuously. If the optional argument `num` is passed, run only
-        for that many clock cycles and then exit.
-        """
-        self.start()
-
-        if num is None:
-            while True:
-                self.tick()
-                if not any(th.is_alive() for th in self.threads.values()):
-                    break
-        else:
-            for _ in range(num):
-                self.tick()
-
-        self.stop()
-
-    def tick(self):
-        """This is the ticking clock, which trigger the following events
-
-        - check all nodes for raised exceptions
-        - performs data splitting
-
-        .. todo::
-            Data splitting will lead to clogging of queues and slowing
-            down of this runtime. Revisit this step at the optimization stage.
-        """
-        self._tick_counter += 1
-        self.log.info("=" * 10 + f" TICK {self._tick_counter} " + "=" * 10)
-        self.log.info(f"Number of active threads = {threading.active_count()}")
-
-        # perform any potential output splitting
-        for node in self.graph.nodes:
-            if isinstance(node, self.splitter_node_cls):
-                node.split()
-
-        # Release CPython GIL
-        if self._tickinterval > 0:
-            sleep(self._tickinterval)
 
     def set_excepthook(self):
         """Overwrite `threading.excepthook` with Deltalanguage exiting strategy.
@@ -415,10 +385,10 @@ class DeltaPySimulator:
         """
         def excepthook(args):
             if args.exc_type == SystemExit:
-                self.log.log(logging.INFO, f"Thread stopped: {args}")
+                self.log.log(logging.DEBUG, f"Thread stopped: {args}")
 
             elif args.exc_type == DeltaRuntimeExit:
-                self.log.log(logging.INFO, f"Thread stopped: {args}")
+                self.log.log(logging.DEBUG, f"Thread stopped: {args}")
                 self._stop_workers()
 
             else:

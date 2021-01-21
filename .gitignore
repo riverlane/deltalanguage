@@ -36,6 +36,7 @@ licenses.csv
 licenses.confluence
 pylint.log
 pycodestyle.log
+*.html
 
 # Data generated from tests and examples
 *.vcd

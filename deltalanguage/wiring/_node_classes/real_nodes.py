@@ -1,7 +1,7 @@
 """Module defining Real Node types, which can be run using our DeltaPySimulator."""
 from __future__ import annotations
 import logging
-from queue import Queue
+from queue import Full, Queue
 import sys
 from threading import Event
 from collections import OrderedDict
@@ -107,13 +107,17 @@ class RealNode(AbstractNode):
         self.log = make_logger(lvl,
                                f"{self.__class__.__name__} {self._name}")
 
-        if isinstance(self.return_type, ForkedReturn):
-            self.fork_names = self.return_type.keys
-        else:
-            self.fork_names = None
-
         # See MessageLog for detail
         self._clock = 0
+
+        self.fork_names = None
+        if isinstance(self.return_type, ForkedReturn):
+            self.fork_names = self.return_type.keys
+
+            for fork_name in self.fork_names:
+                if fork_name in dir(self):
+                    raise NameError("Invalid fork name: " +
+                                    fork_name + " for node " + self.name)
 
     def __str__(self) -> str:
         ret = f"{self.name}:"
@@ -341,45 +345,6 @@ class PythonNode(RealNode):
         self.out_queues = runtime.out_queues[self.name]
         self.sig_stop = runtime.sig_stop
 
-    def _get_input(self, *args: str) -> Tuple[Union[Dict[str, Any], Any], bool]:
-        """Collect input from the in queues and the stop event and return them.
-
-        Parameters
-        ----------
-        args : str
-            Optionally filter inputs. Only the specified ones will be received.
-        """
-        # filter the in_queues based on the names given
-        if args:
-            queues = {name: in_q for name, in_q in self.in_queues.items()
-                      if name in args}
-        else:
-            queues = self.in_queues
-        values: Dict[str, Any] = {}
-
-        # go through the mandatory in queues and block until input is present
-        for name, in_q in queues.items():
-            if not in_q.optional:
-                values[name] = in_q.get(block=True)
-                assert isinstance(values[name], QueueMessage)
-                self.msg_log.add_message(self.name, name, values[name])
-
-        # go through the optional ones and retrieve without blocking
-        for name, in_q in queues.items():
-            if in_q.optional:
-                values[name] = in_q.get_or_none()
-                assert isinstance(values[name], QueueMessage)
-                self.msg_log.add_message(self.name, name, values[name])
-
-        # update our internal clock to the most recent logical time seen
-        self._clock = max([self._clock] + [v.clk for v in values.values()])
-        # unpack the inner msg
-        values = {k: v.msg for k, v in values.items()}
-
-        self.check_stop()
-
-        return values
-
     def check_stop(self):
         """Check the stop signal, which can be set by the simulator or other
         threads. If set, stop the current thread.
@@ -388,21 +353,54 @@ class PythonNode(RealNode):
             self.log.info(f"Stopped {repr(self)}.")
             sys.exit()
 
-    def receive(self, *args: str):
+    def receive(self, *args: str) -> Union[Dict[str, Any], Any]:
         """Retrieve inputs from the input queues.
 
-        If a compulsory input is not provided it block the further execution.
+        Compulsory inputs block the further execution if not provided,
+        whereas optional inputs do not block.
 
-        If a stop signal is received from the runtime, the thread will
-        terminate with `sys.exit()`.
-        Otherwise, the inputs are returned as a dict.
+        Check if the node should stop.
 
         Parameters
         ----------
         args : str
             Optionally filter inputs. Only the specified ones will be received.
+
+        Returns
+        -------
+        Union[Dict[str, Any], Any]
+            If there is one input is specified via ``args`` it is received as
+            an object, overwise the input values are returned as a dictionary.
         """
-        val = self._get_input(*args)
+        if args:
+            queues = {name: in_q for name, in_q in self.in_queues.items()
+                      if name in args}
+        else:
+            queues = self.in_queues
+
+        values = {}
+
+        # mandatory inputs are blocking
+        for name, in_q in queues.items():
+            if not in_q.optional:
+                values[name] = in_q.get(block=True)
+                assert isinstance(values[name], QueueMessage)
+                self.msg_log.add_message(self.name, name, values[name])
+
+        # optional inputs are not blocking
+        for name, in_q in queues.items():
+            if in_q.optional:
+                values[name] = in_q.get_or_none()
+                assert isinstance(values[name], QueueMessage)
+                self.msg_log.add_message(self.name, name, values[name])
+
+        # logical clock update
+        self._clock = max([self._clock] + [v.clk for v in values.values()])
+
+        # unpack the inner msg
+        val = {k: v.msg for k, v in values.items()}
+
+        self.check_stop()
 
         # if there is just one value to return, unpack it from the dict
         if len(val) == 1 and args:
@@ -410,21 +408,15 @@ class PythonNode(RealNode):
 
         if val:
             self.log.info(f"<- {val}")
+
         return val
-
-    def _send_output(self, ret):
-        """Write output to all the `out_queues` of the node
-        and check if we should stop.
-        """
-        self.check_stop()
-
-        self._clock += 1
-
-        for out_q in self.out_queues.values():
-            out_q.put(QueueMessage(ret, clk=self._clock))
 
     def send(self, ret: Union[object, NamedTuple]):
         """Sends out the node's output(s).
+
+        Check if the node should stop.
+
+        If the queue is blocked it regularly checks for
 
         Parameters
         ----------
@@ -436,7 +428,21 @@ class PythonNode(RealNode):
         """
         if ret:
             self.log.info(f"-> {ret}")
-        self._send_output(ret)
+
+        self._clock += 1
+
+        for out_q in self.out_queues.values():
+            message = QueueMessage(ret, clk=self._clock)
+
+            while True:
+                try:
+                    out_q.put(message)
+                    self.check_stop()
+                    break
+                except Full:
+                    self.check_stop()
+                except:
+                    raise
 
     def thread_worker(self, runtime: DeltaPySimulator):
         """Run a regular Python node.
@@ -453,7 +459,7 @@ class PythonNode(RealNode):
         self.set_communications(runtime)
 
         while True:
-            values = self._get_input()
+            values = self.receive()
 
             # If a node keyword has been specified for debugging then add
             # the node to the arguments.
@@ -469,7 +475,7 @@ class PythonNode(RealNode):
             except:
                 raise
 
-            self._send_output(ret)
+            self.send(ret)
 
     def run_once(self, runtime: DeltaPySimulator):
         """Compute the value of the node and pass it to the output queues.
@@ -484,16 +490,9 @@ class PythonNode(RealNode):
         runtime : DeltaPySimulator
             A runtime instance.
         """
-        out_queues = runtime.out_queues[self.name]
-
-        ret_msg = self.body.eval()
-
-        # this part repeats self._send_output
-        # TODO merge them together
-        self._clock += 1
-        ret = QueueMessage(ret_msg, self._clock)
-        for out_q in out_queues.values():
-            out_q.put(ret)
+        self.set_communications(runtime)
+        ret = self.body.eval()
+        self.send(ret)
 
     def get_serialised_body(self):
         """Returns serialised node's body.

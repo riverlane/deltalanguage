@@ -3,7 +3,8 @@ nodes and placeholders.
 """
 
 from __future__ import annotations
-from collections import deque
+from collections import deque, OrderedDict
+from copy import deepcopy
 from typing import TYPE_CHECKING, Deque, Dict, List, Set, Tuple, Type, Union
 import logging
 import textwrap
@@ -12,6 +13,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
+from deltalanguage.data_types import make_forked_return
 from deltalanguage.logging import make_logger
 from ..data_types import (BaseDeltaType,
                           DeltaIOError,
@@ -19,8 +21,10 @@ from ..data_types import (BaseDeltaType,
                           DUnion,
                           Top)
 from ._node_classes.abstract_node import AbstractNode
-from ._node_classes.real_nodes import OutPort
+from ._node_classes.node_bodies import Latency
+from ._node_classes.real_nodes import OutPort, PyConstNode
 from ._node_classes.splitter_nodes import PySplitterNode
+from ._node_factories import py_node_factory
 
 if TYPE_CHECKING:
     from ._node_classes.placeholder_node import PlaceholderNode
@@ -227,9 +231,45 @@ class DeltaGraph:
                                      f"{str(out_port.node)}" +
                                      f"do not match.")
             all_destinations = [x.destination for x in out_ports]
-            merged_destination = PySplitterNode(self,
-                                                merged_type,
-                                                all_destinations).get_in_port
+
+            # create a body of the splitter node
+            _reps = len(all_destinations)
+            _SplitterT, _SplitterC = make_forked_return(
+                {'out' + str(i): merged_type for i in range(_reps)}
+            )
+
+            def _splitter(to_split: merged_type) -> _SplitterT:
+                return _SplitterC(*(deepcopy(to_split) for _ in range(_reps)))
+
+            # If merged_node has forked output only get the relevant argument
+            # TODO This duplicates PyConstBody.eval and should be refactored
+            if out_ports[0].index is None:
+                merged_node_output = merged_node
+            else:
+                merged_node_output = getattr(merged_node, out_ports[0].index)
+
+            # create a const splitter node if merged_node is const
+            new_node = py_node_factory(
+                self,
+                isinstance(merged_node, PyConstNode),
+                _splitter,
+                OrderedDict([('to_split', merged_type)]),
+                _SplitterT,
+                merged_node_output,
+                name='splitter',
+                latency=Latency(time=100),
+                lvl=merged_node.log.level
+            )
+
+            # send splitters outputs to the original destinations
+            for i, dest in enumerate(all_destinations):
+                new_node.add_out_port(dest, 'out' + str(i))
+
+            # get in port of the splitter
+            _in_port_name = list(new_node.in_ports.keys())[0]
+            merged_destination = new_node.in_ports[_in_port_name]
+
+            # return a new out port instead of original out_ports
             return OutPort(merged_name,
                            merged_type,
                            merged_destination,
@@ -580,7 +620,9 @@ def _get_neighbours_of_type(
         this_node: RealNode,
         types: Union[Type[RealNode], Tuple[Type[RealNode], ...]]
 ) -> List[RealNode]:
-    """Find the neighbours of a node that have the required type or types."""
+    """Checks all destination nodes of ``this_node`` and returns a list of
+    those that are in ``types``.
+    """
     return [port.destination.node
             for port in this_node.out_ports
             if isinstance(port.destination.node, types)]
@@ -589,11 +631,15 @@ def _get_neighbours_of_type(
 def is_needed(source_node: RealNode,
               useful_node_cls: Tuple[Type[RealNode], ...],
               forwarding_node_cls: Type[RealNode] = PySplitterNode) -> bool:
-    """Determine if a run-once node needs to run.
+    """Determine if ``source_node`` needs to run.
 
-    Performs a breadth-first traversal from the source node through
-    forwarding nodes until it finds a destination of a useful type,
-    or until the tree of forwarding nodes has been exhausted.
+    If a single node of ``useful_node_cls`` is found return ``True``,
+    otherwise ``False``.
+
+    The current condition of search:
+    - check if any of destination nodes is in ``useful_node_cls``
+    - if any of destination nodes is in ``forwarding_node_cls``, use them
+      to search for its destination nodes
 
     Parameters
     ----------

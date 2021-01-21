@@ -1,14 +1,36 @@
-"""Testing various funtionality of output splitting and how DeltaPySimulator
+"""Testing various functionality of output splitting and how DeltaPySimulator
 adds splitter nodes if needed.
 """
 
 import unittest
 
-from test._utils import return_1, return_12
+from test._utils import (add_non_const, add1_or0,
+                         return_12, return_12_non_const)
 
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator, DeltaQueue
-from deltalanguage.wiring import DeltaGraph, placeholder_node_factory
+from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
+                                  placeholder_node_factory)
+
+
+@DeltaBlock(allow_const=True)
+def return_1() -> int:
+    return 1
+
+
+@DeltaBlock(allow_const=False)
+def return_1_non_const() -> int:
+    return 1
+
+
+@DeltaBlock(allow_const=True)
+def increment(val: int) -> int:
+    return val + 1
+
+
+@DeltaBlock(allow_const=False)
+def increment_non_const(val: int) -> int:
+    return val + 1
 
 
 class SplittingTest(unittest.TestCase):
@@ -65,6 +87,9 @@ class SplittingTest(unittest.TestCase):
 
 
 class SplittingWithPlaceholderNodeTest(unittest.TestCase):
+    """Testing how DeltaPySimulator adds splitter nodes if the graph is
+    created with placeholders."""
+
     def setUp(self):
         r"""Build the graph
         ```
@@ -121,6 +146,9 @@ class SplittingWithPlaceholderNodeTest(unittest.TestCase):
 
 
 class SplittingForkedTest(unittest.TestCase):
+    """Testing how DeltaPySimulator adds splitter nodes for a graph with
+    forked return."""
+
     def setUp(self):
         r"""Build the graph
         ```
@@ -169,6 +197,137 @@ class SplittingForkedTest(unittest.TestCase):
         self.graph.check()
         self.graph.do_automatic_splitting()
         self.graph.check()
+
+
+class ForkedReturnIntegratedTest(unittest.TestCase):
+    """Run graphs with a forked return node in constant and non-constant mode.
+    """
+
+    def test_forked_return_const_to_const(self):
+        """Constant node w/ forked return -> constant -> exit."""
+        s = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_12()
+            s.save_and_exit(increment(val.x))
+
+        DeltaPySimulator(graph).run()
+        self.assertEqual(s.saved, [2])
+
+    def test_forked_return_const_to_non_const(self):
+        """Constant node w/ forked return -> non-constant -> exit."""
+        s = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_12()
+            s.save_and_exit(increment_non_const(val.x))
+
+        DeltaPySimulator(graph).run()
+        self.assertEqual(s.saved, [2])
+
+    def test_forked_return_non_const_to_non_const(self):
+        """Non-constant node w/ forked return -> non-constant -> exit."""
+        s = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_12_non_const()
+            s.save_and_exit(increment_non_const(val.x))
+
+        DeltaPySimulator(graph).run()
+        self.assertEqual(s.saved, [2])
+
+
+class SplittingIntegratedTest(unittest.TestCase):
+    """Run graphs with various configuration of splitting of
+    constant and non-constant nodes.
+    """
+
+    def test_splitting_to_one_node_const(self):
+        """Splitted output of a constant node and sent to another node's
+        different inputs."""
+        s = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_1()
+            s.save_and_exit(add_non_const(val, val))
+
+        DeltaPySimulator(graph).run()
+        self.assertEqual(s.saved, [2])
+
+    def test_splitting_to_one_node_non_const(self):
+        """Splitted output of a non-constant node and sent to another node's
+        different inputs."""
+        s = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_1_non_const()
+            s.save_and_exit(add_non_const(val, val))
+
+        DeltaPySimulator(graph).run()
+        self.assertEqual(s.saved, [2])
+
+    def test_splitting_of_one_forked_const(self):
+        """One of forked outputs of a constant node is splitted."""
+        s1 = StateSaver(int)
+        s2 = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_12()
+            val_x = val.x
+            s1.save(val_x)
+            s2.save_and_exit(val_x)
+
+        rt = DeltaPySimulator(graph)
+        rt.run()
+        self.assertEqual(s2.saved, [1])
+
+    def test_splitting_of_one_forked_non_const(self):
+        """One of forked outputs of a non-constant node is splitted."""
+        s1 = StateSaver(int)
+        s2 = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_12_non_const()
+            val_x = val.x
+            s1.save(val_x)
+            s2.save_and_exit(val_x)
+
+        rt = DeltaPySimulator(graph)
+        rt.run()
+        self.assertEqual(s2.saved, [1])
+
+    def test_splitting_of_multiple_forked_const(self):
+        """Multiple forked outputs of a constant node are splitted."""
+        s = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_12()
+            s.save_and_exit(
+                add_non_const(
+                    add_non_const(
+                        add_non_const(
+                            val.x,
+                            val.x
+                        ),
+                        val.y),
+                    val.y
+                )
+            )
+
+        DeltaPySimulator(graph).run()
+        self.assertEqual(s.saved, [6])
+
+    def test_splitting_of_multiple_forked_non_const(self):
+        """Multiple forked outputs of a non-constant node are splitted."""
+        s = StateSaver(int)
+        with DeltaGraph() as graph:
+            val = return_12_non_const()
+            s.save_and_exit(
+                add_non_const(
+                    add_non_const(
+                        add_non_const(
+                            val.x,
+                            val.x
+                        ),
+                        val.y),
+                    val.y
+                )
+            )
+
+        DeltaPySimulator(graph).run()
+        self.assertEqual(s.saved, [6])
 
 
 if __name__ == "__main__":

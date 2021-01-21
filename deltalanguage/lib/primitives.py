@@ -158,9 +158,9 @@ def make_splitter(t: Union[Type, BaseDeltaType],
         {'out' + str(i): t for i in range(reps)}
     )
 
-    @DeltaBlock(allow_const=allow_const)
-    def _splitter(val: t) -> _SplitterT:
-        return _SplitterC(*(deepcopy(val) for _ in range(reps)))
+    @DeltaBlock(name="splitter", allow_const=allow_const)
+    def _splitter(to_split: t) -> _SplitterT:
+        return _SplitterC(*(deepcopy(to_split) for _ in range(reps)))
 
     return _splitter
 

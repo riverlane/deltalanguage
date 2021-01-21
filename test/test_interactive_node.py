@@ -118,7 +118,7 @@ class SimpleGraph(unittest.TestCase):
 
         runtime = DeltaPySimulator(self.graph)
         # run for a short time - just enough for the processing to end
-        runtime.run(num=3)
+        runtime.run(0.1)
         # check that the interactive node has terminated
         self.assertFalse(runtime.threads[interactive_node.name].is_alive())
         runtime.stop()

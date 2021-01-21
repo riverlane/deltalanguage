@@ -1,6 +1,7 @@
 """Testing serialization of DeltaGraph and its componenents."""
 
 import json
+import os
 import unittest
 from unittest.mock import Mock
 
@@ -15,6 +16,7 @@ from deltalanguage.data_types import (BaseDeltaType,
                                       DInt,
                                       NoMessage,
                                       as_delta_type)
+from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import (DeltaRuntimeExit,
                                    deserialize_graph,
                                    serialize_graph)
@@ -24,12 +26,13 @@ from deltalanguage.wiring import (DeltaBlock,
                                   Interactive,
                                   OutPort,
                                   PythonBody,
-                                  PySplitterBody,
+                                  PyFuncBody,
                                   template_node_factory)
 
 from deltalanguage.lib.hal import HardwareAbstractionLayerNode
 from deltalanguage.lib.quantum_simulators import (ProjectqQuantumSimulator,
                                                   QiskitQuantumSimulator)
+from test._utils import return_1
 
 
 class PortSerialisationTest(unittest.TestCase):
@@ -195,7 +198,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         _, prog = serialize_graph(test_graph)
 
         splitter_body = dill.loads(prog.bodies[-1].python.dillImpl)
-        self.assertEqual(type(splitter_body), PySplitterBody)
+        self.assertEqual(type(splitter_body), PyFuncBody)
         self.assertEqual(len(prog.nodes), 8)
 
     def test_interactive_serialisation(self):
@@ -306,6 +309,55 @@ class PythonNodeSerialisationTest(unittest.TestCase):
                 del port['type']
         with open('test/data/graph_capnp.json', 'r') as file:
             self.assertEqual(g_capnp, json.load(file))
+
+
+class FileSerialisationTest(unittest.TestCase):
+    """Tests of serialised files."""
+
+    def setUp(self):
+        """Set up a simple graph"""
+        saver = StateSaver()
+        with DeltaGraph() as test_graph:
+            saver.save_and_exit(return_1())
+        self.graph = test_graph
+
+    def assert_correct_serialisation(self, prog, files):
+        self.assertEqual(len(prog.files), len(files))
+        for capnp_file, file in zip(prog.files, files):
+            self.assertEqual(capnp_file.name, file)
+            with open(file, "rb") as test_file:
+                self.assertEqual(capnp_file.content, test_file.read())
+
+    def test_serialisation_no_file(self):
+        """Generate serialisation without file attached."""
+        _, prog = serialize_graph(self.graph)
+        self.assert_correct_serialisation(prog, [])
+
+    def test_serialisation_with_file(self):
+        """Generate serialisation with file attached."""
+        files = [os.path.join("deltalanguage", "lib", "primitives.py")]
+        _, prog = serialize_graph(self.graph,
+                                  files=files)
+        self.assert_correct_serialisation(prog, files)
+
+    def test_serialisation_multiple_files(self):
+        """Generate serialisation with several files attached."""
+        files = [os.path.join("deltalanguage", "lib", "primitives.py"),
+                 os.path.join("deltalanguage", "runtime", "_output.py"),
+                 os.path.join("deltalanguage", "__about__.py")]
+        _, prog = serialize_graph(self.graph,
+                                  files=files)
+        self.assert_correct_serialisation(prog, files)
+
+    def test_serialisation_nonpy_files(self):
+        """Generate serialisation with non-Python files attached."""
+        files = [os.path.join("deltalanguage", "DeltaStyle.xml"),
+                 os.path.join("test", "data", "graph_capnp.json"),
+                 os.path.join("examples", "tutorials", "const_nodes.ipynb"),
+                 os.path.join("docs", "figs", "blocks.png")]
+        _, prog = serialize_graph(self.graph,
+                                  files=files)
+        self.assert_correct_serialisation(prog, files)
 
 
 if __name__ == "__main__":

@@ -67,7 +67,8 @@ PYTHONNOSE=python -m nose \
 	--cover-erase \
 	--cover-package=deltalanguage \
 	--verbose \
-	--detailed-errors
+	--detailed-errors \
+	--with-randomly
 
 LICENSES=pip-licenses --format=confluence --output-file licenses.confluence && \
 	echo -e '\n' >> licenses.confluence && \
@@ -268,7 +269,7 @@ clean-logs: ## Clean logs
 
 .PHONY: clean-package
 clean-package: ## Clean packaging artifacts
-	rm -rf dist *.egg-info .eggs
+	rm -rf dist *.egg-info .eggs build
 
 
 # --------------- DEVELOPMENT ------------------------------------------------#

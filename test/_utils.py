@@ -161,6 +161,11 @@ def return_12() -> TwoIntsT:
     return TwoInts(1, 2)
 
 
+@DeltaBlock(allow_const=False)
+def return_12_non_const() -> TwoIntsT:
+    return TwoInts(1, 2)
+
+
 @DeltaBlock()
 def return_4() -> int:
     return 4

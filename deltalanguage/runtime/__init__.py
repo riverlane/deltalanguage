@@ -7,4 +7,4 @@
 
 from ._output import deserialize_graph, serialize_graph
 from ._queues import ConstQueue, DeltaQueue
-from ._runtime import DeltaPySimulator, DeltaRuntimeExit
+from ._runtime import DeltaPySimulator, DeltaRuntimeExit, DeltaThread

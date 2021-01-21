@@ -180,6 +180,9 @@ class SplitterBody(Body):
     ----------
     repeat_num : int
         Number of repetitions.
+
+    .. deprecated:: 0.5
+        Use ``DeltaGraph.do_automatic_splitting``.
     """
 
     def __init__(self, repeat_num: int):
@@ -196,6 +199,9 @@ class PySplitterBody(SplitterBody, PythonBody):
         Number of repetitions.
     return_tuple : NamedTuple
         Constructor for return forking.
+
+    .. deprecated:: 0.5
+        Use ``DeltaGraph.do_automatic_splitting``.
     """
 
     def __init__(self, repeat_num: int, return_tuple: NamedTuple):
@@ -205,6 +211,7 @@ class PySplitterBody(SplitterBody, PythonBody):
     def eval(self, to_copy: Any):
         ret_vals = [copy(to_copy) for _ in range(0, self.repeat_num)]
         return self.return_tuple._make(ret_vals)
+
 
 class PyInteractiveBody(PyFuncBody):
     """Body class to represent bodies that expose queues to the designer.

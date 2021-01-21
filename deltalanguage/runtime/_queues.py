@@ -24,13 +24,21 @@ class DeltaQueue(Queue):
         Output port for which this queue is created.
     maxsize : int
         If maxsize is <= 0, the queue size is infinite.
-
+        The default value 16 is chosen in analogy with ``sc_fifo`` in SystemC,
+        this means that the Python GIL will be forced to run another node's
+        thread once the queue is full, thus it will prevent blockage.
+    queue_interval : float
+        When the simulation is called to stop, some of the queues might be
+        blocking nodes at ``put`` methods as they are full. The simulator
+        interrupts this at this periodicity (in seconds) and checks if
+        stopping is needed.
 
     .. note::
-        :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>` performs all
-        required splitting of data on the background (if required). This is not
-        a user-facing class and we leave further comments away from the
-        documentation.
+        :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>`
+        performs all required splitting of data on the background
+        (if required).
+        This is not a user-facing class and we leave further comments away
+        from the documentation.
 
     Attributes
     ----------
@@ -46,11 +54,15 @@ class DeltaQueue(Queue):
         messages for this queue. Otherwise it's ``None``.
     """
 
-    def __init__(self, out_port: OutPort, maxsize=0):
+    def __init__(self,
+                 out_port: OutPort,
+                 maxsize: int = 16,
+                 queue_interval: float = 1.0):
         super().__init__(maxsize=maxsize)
         self._src = out_port
-        self.__log = make_logger(logging.WARNING,
-                                 f"Queue {out_port.port_name}")
+        self._log = make_logger(logging.WARNING,
+                                f"Queue {out_port.port_name}")
+        self.queue_interval = queue_interval
         self.optional = out_port.destination.is_optional
 
         self.index = None
@@ -91,7 +103,10 @@ class DeltaQueue(Queue):
                             f"sent in a df queue.\nitem: {item}")
         to_put = self.index_item(item)
         if to_put.msg is not None:
-            Queue.put(self, to_put, block, timeout)
+            if timeout is None:
+                Queue.put(self, to_put, block, timeout=self.queue_interval)
+            else:
+                Queue.put(self, to_put, block, timeout)
 
     def get_or_none(self):
         """If there is no item in the queue, return None."""
