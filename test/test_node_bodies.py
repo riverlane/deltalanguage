@@ -8,7 +8,6 @@ from deltalanguage.wiring import (PyConstBody,
                                   PyFuncBody,
                                   PyListOneCast,
                                   PyMethodBody,
-                                  PySplitterBody,
                                   PyTupleOneCast)
 
 
@@ -213,21 +212,6 @@ class TestPyMethodBody(unittest.TestCase):
         node_body = PyMethodBody(
             TestClass.add_5, test_object)
         self.assertEqual(17, node_body.eval())
-
-
-class TestPySplitterBody(unittest.TestCase):
-
-    def test_splitter(self):
-        """Splitter should take value and duplicate it for each destination."""
-        num_dests = 5
-        TestSplitterTupleT, TestSplitterTuple = make_forked_return(
-            {f'out{i}': int for i in range(num_dests)}
-        )
-        node_body = PySplitterBody(num_dests, TestSplitterTuple)
-        self.assertEqual(
-            node_body.eval(1),
-            TestSplitterTuple(out0=1, out1=1, out2=1, out3=1, out4=1)
-        )
 
 
 class TestPyTupleOneCast(unittest.TestCase):

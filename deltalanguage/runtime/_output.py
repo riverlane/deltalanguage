@@ -1,5 +1,9 @@
 from __future__ import annotations
+import glob
+import os
+import tempfile
 from typing import TYPE_CHECKING, List, Tuple, Union
+import zipfile
 
 import capnp
 
@@ -14,7 +18,8 @@ if TYPE_CHECKING:
 def serialize_graph(
     graph: DeltaGraph,
     name: str = None,
-    files: List[str] = []
+    files: List[str] = [],
+    requirements: List[str] = []
 ) -> Tuple[bytes, capnp.lib.capnp._DynamicStructBuilder]:
     """Converts a complete representation of the Deltaflow program stored as
     a :py:class:`DeltaGraph` to bytecode.
@@ -28,7 +33,12 @@ def serialize_graph(
         as the name of the graph.
     files : List[str]
         Additional files required for the program to run, such as user-defined
-        packages or data.
+        packages or data. Each list item can be a fixed string or a pattern.
+        Duplicate filenames will only be serialised once.
+    requirements : List[str]
+        Additional Python packages required to execute the program. These
+        packages should be freely available on PyPI and provided using their
+        pip installation identifiers.
 
     Returns
     -------
@@ -43,11 +53,22 @@ def serialize_graph(
     elif graph.name:
         schema.name = graph.name
 
-    capnp_files = schema.init("files", len(files))
-    for capnp_file, prog_file in zip(capnp_files, files):
-        capnp_file.name = prog_file
-        with open(prog_file, "rb") as file_content:
-            capnp_file.content = file_content.read()
+    # Gather filenames, removing duplicates
+    file_list = set([file for pattern in files for file in glob.glob(pattern)])
+    if file_list:
+        # Create zip file in temporary directory and add it to the .df file
+        with tempfile.TemporaryDirectory() as zipdir:
+            filename = os.path.join(zipdir, "df_zip.zip")
+            with zipfile.ZipFile(filename, "w") as df_zip:
+                for file in file_list:
+                    df_zip.write(file)
+            with open(filename, "rb") as df_zip:
+                schema.files = df_zip.read()
+
+    requirements = set(requirements)
+    req_list = schema.init("requirements", len(requirements))
+    for i, req in enumerate(requirements):
+        req_list[i] = req
 
     graph.do_automatic_splitting()
 

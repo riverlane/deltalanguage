@@ -82,9 +82,10 @@ def placeholder_node_factory(*args, name=None, **kwargs) -> PlaceholderNode:
         In case if nodes have non-determinism, the designer of the graph
         might need to think about a backup exit plan, such as timeout or a
         maximum number of iterations.
-        For instance, the python runtime's method
-        :py:meth:`DeltaPySimulator.run<deltalanguage.runtime.DeltaPySimulator.run>`
-        can be provided with the maximum number of iteration cycles.
+        For instance, runtime simulators can be provided with the timeout
+        value, which will shut down the simulation regardless of the obtained
+        result, e.g. see
+        :py:meth:`DeltaPySimulator.run<deltalanguage.runtime.DeltaPySimulator.run>`.
 
     Also users can define placeholders by a usual python functions
     of class methods via :py:meth:`PlaceholderNode.specify_by_func` and

@@ -14,9 +14,10 @@ class Flusher:
 
 
 class DeltaQueue(Queue):
-    """Queue that communicate messages between a sending
-    :py:class:`OutPort<deltalanguage.wiring.OutPort>` and a receiving
-    :py:class:`InPort<deltalanguage.wiring.InPort>`.
+    """Queue class that communicate messages between nodes in
+    :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>`.
+
+    The object connects corresponding I/O ports.
 
     Parameters
     ----------
@@ -29,7 +30,8 @@ class DeltaQueue(Queue):
         thread once the queue is full, thus it will prevent blockage.
     queue_interval : float
         When the simulation is called to stop, some of the queues might be
-        blocking nodes at ``put`` methods as they are full. The simulator
+        blocking nodes at ``put`` methods as they are full.
+        :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>`
         interrupts this at this periodicity (in seconds) and checks if
         stopping is needed.
 

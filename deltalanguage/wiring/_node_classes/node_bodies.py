@@ -172,47 +172,6 @@ class PyMigenBody(PyMethodBody):
                 return ret
 
 
-class SplitterBody(Body):
-    """Body class to represent bodies that duplicate a given input and return
-    it to multiple output ports.
-
-    Parameters
-    ----------
-    repeat_num : int
-        Number of repetitions.
-
-    .. deprecated:: 0.5
-        Use ``DeltaGraph.do_automatic_splitting``.
-    """
-
-    def __init__(self, repeat_num: int):
-        self.repeat_num = repeat_num
-
-
-class PySplitterBody(SplitterBody, PythonBody):
-    """Body class to represent bodies that duplicate a given input and return
-    it to multiple output ports in Python.
-
-    Parameters
-    ----------
-    repeat_num : int
-        Number of repetitions.
-    return_tuple : NamedTuple
-        Constructor for return forking.
-
-    .. deprecated:: 0.5
-        Use ``DeltaGraph.do_automatic_splitting``.
-    """
-
-    def __init__(self, repeat_num: int, return_tuple: NamedTuple):
-        super().__init__(repeat_num)
-        self.return_tuple = return_tuple
-
-    def eval(self, to_copy: Any):
-        ret_vals = [copy(to_copy) for _ in range(0, self.repeat_num)]
-        return self.return_tuple._make(ret_vals)
-
-
 class PyInteractiveBody(PyFuncBody):
     """Body class to represent bodies that expose queues to the designer.
     We explicitily define this class to enable custom-code creation in the
@@ -261,7 +220,7 @@ class Latency:
     ..
         This is not used currently. Use cases:
 
-        - latencies can be used by runtime to optimise the emulation process
+        - latencies can be used to optimise the emulation process
         - latencies can be used for cost estimation of the algorithm; this
           requires latency estimation of inter-node connections as well.
     """

@@ -41,9 +41,11 @@ def template_node_factory(
     Examples
     --------
     This superficial example illustrates the power of templates, which
-    lies in the fact that the running stage can be done one any runtime system
-    and that the implementation of template nodes is completely isolated from
-    application developers who work only at the programming stage:
+    lies in the fact that the running stage can be done on any runtime
+    simulator or runtime system and that the implementation of template nodes
+    is can be added later.
+    This is handy if commercial drivers are not accessible for an application
+    developer:
 
     .. code-block:: python
 

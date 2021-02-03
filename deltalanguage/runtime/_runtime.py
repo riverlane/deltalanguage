@@ -12,11 +12,9 @@ from deltalanguage.wiring import (DeltaGraph,
                                   PyInteractiveNode,
                                   PyMethodNode,
                                   PyMigenNode,
-                                  PySplitterNode,
                                   PythonNode,
                                   RealNode,
-                                  TemplateNode,
-                                  is_needed)
+                                  TemplateNode)
 from deltalanguage.logging import MessageLog, clear_loggers, make_logger
 
 from ._queues import ConstQueue, DeltaQueue
@@ -24,17 +22,18 @@ from ._queues import ConstQueue, DeltaQueue
 
 class DeltaRuntimeExit(Exception):
     """Formal exit of
-    :py:class:`DeltaGraph<deltalanguage.wiring.DeltaGraph>` will lead to a normal
-    termination of _any_ runtime.
+    :py:class:`DeltaGraph<deltalanguage.wiring.DeltaGraph>` will lead to a
+    normal termination of _any_ runtime or runtime simulator.
 
     It should be raised by any of the running nodes *after* a required
-    result of simulation is achieved. After raise the runtime will terminate
-    all all involved processes in _unspecified_ order, thus the result of
+    result is achieved.
+    After being raised a runtime or runtime simulator will terminate
+    all the processes and threads in _unspecified_ order, thus the result of
     Deltaflow program should not rely on these steps.
 
     Examples
     --------
-    This node will stop the runtime execution on receiving an input:
+    This node will stop the runtime simulator execution on receiving an input:
 
     .. code-block:: python
 
@@ -92,7 +91,7 @@ class DeltaThread(threading.Thread):
 
 
 class DeltaPySimulator:
-    """Python Simulator for running :py:class:`DeltaGraph`.
+    """Python runtime simulator for running :py:class:`DeltaGraph`.
 
     The main purpose of this simulator is debugging of the graph and basic
     testing. Please note that this implementation is not
@@ -145,7 +144,7 @@ class DeltaPySimulator:
 
     Examples
     --------
-    After a graph is defined it is handled to the runtime:
+    After a graph is defined it is handed to this simulator:
 
     .. code-block:: python
 
@@ -162,10 +161,8 @@ class DeltaPySimulator:
         >>> rt.run()
         saving 5
 
-    The main purpose of this runtime is to allow users to prototype,
-    test, and debug graphs before using them on more sophisticated systems.
     Please refer to the tutorial :file:`logging_and_debugging.ipynb`
-    for interactive use cases. (TODO)
+    for interactive use cases.
     """
 
     __quit_msg = "Quitting Delta Runtime due to error in node."
@@ -177,8 +174,6 @@ class DeltaPySimulator:
                                                     PyMigenNode)
     # nodes that only run once
     run_once_node_cls: Tuple[Type[RealNode], ...] = (PyConstNode,)
-    # splitter nodes
-    splitter_node_cls: Tuple[Type[RealNode], ...] = (PySplitterNode,)
 
     def __init__(self,
                  graph: DeltaGraph,
@@ -318,25 +313,20 @@ class DeltaPySimulator:
 
                 if isinstance(node, self.run_once_node_cls) \
                         or (isinstance(node, TemplateNode) and node.is_const()):
-                    if is_needed(node,
-                                 (self.running_node_cls, TemplateNode),
-                                 self.splitter_node_cls):
-                        node.run_once(self)
+                    node.run_once(self)
+
         except DeltaRuntimeExit:
             raise RuntimeError(
                 "Constant nodes cannot raise a DeltaRuntimeExit.")
         except Exception as exc:
             raise RuntimeError(
                 "Error occurred in constant node during program start."
-                + "Exiting runtime.") from exc
+                + "Exiting simulator.") from exc
 
         for node in self.graph.nodes:
             if isinstance(node, self.run_once_node_cls) \
                     or (isinstance(node, TemplateNode) and node.is_const()):
                 continue
-
-            elif isinstance(node, self.splitter_node_cls):
-                node.assign_runtime(self)
 
             elif isinstance(node, self.running_node_cls) \
                     or (isinstance(node, TemplateNode) and not node.is_const()):

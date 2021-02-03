@@ -91,7 +91,7 @@ class ProjectqQuantumSimulator(IQuantumSimulator):
 
 
     .. TODO::
-        Add and example how to use it in a graph (without any runtime).
+        Add and example how to use it in a graph (without any simulator).
     """
 
     def __init__(self,

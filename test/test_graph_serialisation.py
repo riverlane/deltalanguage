@@ -1,9 +1,12 @@
 """Testing serialization of DeltaGraph and its componenents."""
 
+import glob
 import json
 import os
+import tempfile
 import unittest
 from unittest.mock import Mock
+import zipfile
 
 import capnp
 import dill
@@ -321,33 +324,47 @@ class FileSerialisationTest(unittest.TestCase):
             saver.save_and_exit(return_1())
         self.graph = test_graph
 
-    def assert_correct_serialisation(self, prog, files):
-        self.assertEqual(len(prog.files), len(files))
-        for capnp_file, file in zip(prog.files, files):
-            self.assertEqual(capnp_file.name, file)
-            with open(file, "rb") as test_file:
-                self.assertEqual(capnp_file.content, test_file.read())
+    def assert_correct_file_serialisation(self, files):
+        _, prog = serialize_graph(self.graph, files=files)
+        if len(files) == 0:
+            self.assertEqual(prog.files, b'')
+        else:
+            with tempfile.TemporaryDirectory() as zip_dir:
+                filename = os.path.join(zip_dir, "df_zip.zip")
+                with open(filename, "wb") as df_zip:
+                    df_zip.write(prog.files)
+                with zipfile.ZipFile(filename, "r") as df_zip:
+                    file_list = set([file
+                                     for pattern in files
+                                     for file in glob.glob(pattern)])
+                    self.assertEqual(len(file_list), len(df_zip.namelist()))
+                    for file in file_list:
+                        self.assertIn(file, df_zip.namelist())
+                        with open(file, "rb") as content:
+                            self.assertEqual(content.read(), df_zip.read(file))
+
+    def assert_correct_reqs_serialisation(self, reqs):
+        _, prog = serialize_graph(self.graph, requirements=reqs)
+        reqs = set(reqs)
+        self.assertEqual(len(prog.requirements), len(reqs))
+        for requirement in reqs:
+            self.assertIn(requirement, prog.requirements)
 
     def test_serialisation_no_file(self):
         """Generate serialisation without file attached."""
-        _, prog = serialize_graph(self.graph)
-        self.assert_correct_serialisation(prog, [])
+        self.assert_correct_file_serialisation([])
 
     def test_serialisation_with_file(self):
         """Generate serialisation with file attached."""
         files = [os.path.join("deltalanguage", "lib", "primitives.py")]
-        _, prog = serialize_graph(self.graph,
-                                  files=files)
-        self.assert_correct_serialisation(prog, files)
+        self.assert_correct_file_serialisation(files)
 
     def test_serialisation_multiple_files(self):
         """Generate serialisation with several files attached."""
         files = [os.path.join("deltalanguage", "lib", "primitives.py"),
                  os.path.join("deltalanguage", "runtime", "_output.py"),
                  os.path.join("deltalanguage", "__about__.py")]
-        _, prog = serialize_graph(self.graph,
-                                  files=files)
-        self.assert_correct_serialisation(prog, files)
+        self.assert_correct_file_serialisation(files)
 
     def test_serialisation_nonpy_files(self):
         """Generate serialisation with non-Python files attached."""
@@ -355,9 +372,40 @@ class FileSerialisationTest(unittest.TestCase):
                  os.path.join("test", "data", "graph_capnp.json"),
                  os.path.join("examples", "tutorials", "const_nodes.ipynb"),
                  os.path.join("docs", "figs", "blocks.png")]
-        _, prog = serialize_graph(self.graph,
-                                  files=files)
-        self.assert_correct_serialisation(prog, files)
+        self.assert_correct_file_serialisation(files)
+
+    def test_serialisation_duplicate_files(self):
+        """Remove duplicate files from serialisation."""
+        files = [os.path.join("deltalanguage", "DeltaStyle.xml"),
+                 os.path.join("deltalanguage", "DeltaStyle.xml")]
+        self.assert_correct_file_serialisation(files)
+
+    def test_serialisation_pattern(self):
+        """Generate serialisation with file patterns."""
+        files = [os.path.join("deltalanguage", "*", "__init__.py")]
+        self.assert_correct_file_serialisation(files)
+
+    def test_serialisation_no_reqs(self):
+        """Generate serialisation without requirements."""
+        self.assert_correct_reqs_serialisation([])
+
+    def test_serialisation_one_reqs(self):
+        """Generate serialisation with one requirement."""
+        self.assert_correct_reqs_serialisation(["numpy"])
+
+    def test_serialisation_several_reqs(self):
+        """Generate serialisation with multiple requirements."""
+        self.assert_correct_reqs_serialisation(
+            ["numpy", "matplotlib", "pandas"])
+
+    def test_serialisation_duplicate_reqs(self):
+        """Each requirement only included once."""
+        self.assert_correct_reqs_serialisation(["numpy", "numpy", "pandas"])
+
+    def test_serialisation_version_reqs(self):
+        """Version numbers can be included in requirements."""
+        self.assert_correct_reqs_serialisation(
+            ["numpy==1.20.0", "matplotlib>=3.3"])
 
 
 if __name__ == "__main__":

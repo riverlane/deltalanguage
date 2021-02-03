@@ -298,11 +298,8 @@ class PythonNode(RealNode):
     out_queues : Dict[str, DeltaQueue]
         Queues consumins output(s).
     sig_stop : Event
-        Communication channel through which the runtime signals `thread_worker`
-        to stop.
-    err : Queue
-        Communication channel through which `thread_worker` sends error
-        messages to the runtime.
+        Communication channel through which a runtime simulator or a runtime
+        signals `thread_worker` to stop.
     node_key : Optional[str]
         Keyword argument used for providing the node to the block, included for
         debugging purposes.
@@ -333,31 +330,31 @@ class PythonNode(RealNode):
 
     def set_communications(self, runtime: DeltaPySimulator):
         """Get the in and out queues relating to this node, as well as the
-        utility events such as sig_stop from the runtime and save them in
-        the instance.
+        utility events such as ``sig_stop`` from a runtime simulator or
+        a runtime and save them in the instance.
 
         Parameters
         ----------
         runtime : DeltaPySimulator
-            A runtime instance.
+            API of a runtime simulator or a runtime.
         """
         self.in_queues = runtime.in_queues[self.name]
         self.out_queues = runtime.out_queues[self.name]
         self.sig_stop = runtime.sig_stop
 
     def check_stop(self):
-        """Check the stop signal, which can be set by the simulator or other
-        threads. If set, stop the current thread.
+        """Check the stop signal, which can be set by a runtime simulator or
+        a runtime. If set, it stops the current thread.
         """
         if self.sig_stop.is_set():
             self.log.info(f"Stopped {repr(self)}.")
             sys.exit()
 
     def receive(self, *args: str) -> Union[Dict[str, Any], Any]:
-        """Retrieve inputs from the input queues.
+        """Receives the node's input(s) via in ports.
 
-        Compulsory inputs block the further execution if not provided,
-        whereas optional inputs do not block.
+        Compulsory inputs block the further execution until the data is
+        provided, whereas optional inputs do not block.
 
         Check if the node should stop.
 
@@ -412,11 +409,11 @@ class PythonNode(RealNode):
         return val
 
     def send(self, ret: Union[object, NamedTuple]):
-        """Sends out the node's output(s).
+        """Sends the node's output(s) via out ports.
 
-        Check if the node should stop.
-
-        If the queue is blocked it regularly checks for
+        If sending is blocked this method will lock the execution of the node
+        until unblocked or a stop signal is raised, which shall stop
+        the execution of the node.
 
         Parameters
         ----------
@@ -454,7 +451,7 @@ class PythonNode(RealNode):
         Parameters
         ----------
         runtime : DeltaPySimulator
-            A runtime instance.
+            API of a runtime simulator or a runtime.
         """
         self.set_communications(runtime)
 
@@ -481,14 +478,15 @@ class PythonNode(RealNode):
         """Compute the value of the node and pass it to the output queues.
 
         The output queues are
-        :py:class:`ConstQueue<deltalanguage.runtime.ConstQueue>` - they will save
-        the value and keep returning its deepcopy to the caller, which reduces
-        load on the runtime.
+        :py:class:`ConstQueue<deltalanguage.runtime.ConstQueue>` that store
+        this value and retrive a deepcopy at each request of the receiving
+        node.
+        This is done purely for optimisation purposes.
 
         Parameters
         ----------
         runtime : DeltaPySimulator
-            A runtime instance.
+            API of a runtime simulator or a runtime.
         """
         self.set_communications(runtime)
         ret = self.body.eval()

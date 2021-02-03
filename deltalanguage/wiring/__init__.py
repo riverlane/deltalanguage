@@ -14,11 +14,9 @@ from ._node_classes.node_bodies import (Latency,
                                         PyFuncBody,
                                         PyMethodBody,
                                         PyListOneCast,
-                                        PySplitterBody,
                                         PyTupleOneCast,
                                         PythonBody,
-                                        PyInteractiveBody,
-                                        SplitterBody)
+                                        PyInteractiveBody)
 from ._node_classes.placeholder_node import PlaceholderNode
 from ._node_classes.port_classes import InPort, OutPort
 from ._node_classes.real_nodes import (PyConstNode,
@@ -28,14 +26,13 @@ from ._node_classes.real_nodes import (PyConstNode,
                                        PythonNode,
                                        RealNode,
                                        as_node)
-from ._node_classes.splitter_nodes import PySplitterNode
 from ._node_classes.template_node import TemplateNode
 
 from ._decorators import (DeltaBlock,
                           DeltaMethodBlock,
                           Interactive,
                           InteractiveProcess)
-from ._delta_graph import DeltaGraph, is_needed
+from ._delta_graph import DeltaGraph
 from ._explicit_casts import (to_list_of_one,
                               to_tuple_of_one,
                               to_union_of_one)

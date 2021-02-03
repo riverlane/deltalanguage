@@ -47,7 +47,7 @@ class MigenNodeTemplate(abc.ABC):
         Testbench generator, this includes :py:attr:`_dut` and its wiring to
         I/O ports.
     _sim_object : migen.Simulator
-        Simulated object evaluated by the runtime.
+        Simulated object evaluated by migen's testbench.
     module_name : str
         module name of verilog-converted migen node.
         By default module_name = name. If the module is included
@@ -437,7 +437,7 @@ class MigenNodeTemplate(abc.ABC):
     @staticmethod
     def _py_sim_body(self, **kwargs):
         """This method is handled over to the node body constructor, and it
-        will be evaluated by the runtime at each clock cicle.
+        will be evaluated by the testbench at each clock cycle.
         """
         self.inputs = kwargs  # enqueue the input
         self.output = None
@@ -449,8 +449,9 @@ class MigenNodeTemplate(abc.ABC):
         return self.output
 
     def call(self, *args, **kwargs):
-        """This performs the same action as `@DeltaMethodBlock`
-        but we provide the type information at runtime.
+        """This performs the same action as ``Interactive.call``,
+        i.e. use this method to provide inputs to the node while building
+        the graph.
 
         This implementation uses the global clock of `DeltaPySimulator`,
         at each tick:
@@ -463,15 +464,15 @@ class MigenNodeTemplate(abc.ABC):
         `DeltaPySimulator`, more specifically:
 
             - migen module connects to input / output `DeltaQueue`
-            - | it clocks with its own clock form migen, i.e. it is started by
-              | `DeltaPySimulator` only once
+            - it clocks with its own clock form migen, i.e. it is started by
+              `DeltaPySimulator` only once
 
         Parameters
         ----------
         args
-            Non-keyworded argumets passed to the testbench.
+            Non-keyworded arguments passed to the testbench.
         kwargs
-            Keyworded argumets passed to the testbench.
+            Keyworded arguments passed to the testbench.
 
 
         .. todo::
@@ -512,7 +513,7 @@ class MigenNodeTemplate(abc.ABC):
 
         Currently, it will return a fully-specified verilog string, but in
         future it may return a partial function with kwargs for template
-        paramters.
+        parameters.
         """
         fully_parameterised = True
         if fully_parameterised:

@@ -23,7 +23,6 @@ from ..data_types import (BaseDeltaType,
 from ._node_classes.abstract_node import AbstractNode
 from ._node_classes.node_bodies import Latency
 from ._node_classes.real_nodes import OutPort, PyConstNode
-from ._node_classes.splitter_nodes import PySplitterNode
 from ._node_factories import py_node_factory
 
 if TYPE_CHECKING:
@@ -93,8 +92,9 @@ class DeltaGraph:
 
         graph.draw()
 
-    In order to evaluate the graph it should be run by a runtime. The Deltaflow
-    language comes with a simple runtime
+    In order to evaluate the graph it should be executed on a runtime simulator
+    or a runtime.
+    The Deltaflow language comes with a simple runtime simulator
     :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>`:
 
     .. code-block:: python
@@ -614,55 +614,3 @@ class DeltaGraph:
         cls.global_stack = []
         cls.placeholder_name_index = 0
         AbstractNode.reset_index()
-
-
-def _get_neighbours_of_type(
-        this_node: RealNode,
-        types: Union[Type[RealNode], Tuple[Type[RealNode], ...]]
-) -> List[RealNode]:
-    """Checks all destination nodes of ``this_node`` and returns a list of
-    those that are in ``types``.
-    """
-    return [port.destination.node
-            for port in this_node.out_ports
-            if isinstance(port.destination.node, types)]
-
-
-def is_needed(source_node: RealNode,
-              useful_node_cls: Tuple[Type[RealNode], ...],
-              forwarding_node_cls: Type[RealNode] = PySplitterNode) -> bool:
-    """Determine if ``source_node`` needs to run.
-
-    If a single node of ``useful_node_cls`` is found return ``True``,
-    otherwise ``False``.
-
-    The current condition of search:
-    - check if any of destination nodes is in ``useful_node_cls``
-    - if any of destination nodes is in ``forwarding_node_cls``, use them
-      to search for its destination nodes
-
-    Parameters
-    ----------
-    source_node : RealNode
-        Node which maybe needs to run.
-    useful_node_cls : Tuple[Type[RealNode], ...]
-        If one of these node types is in the destination tree, then the source
-        is useful -> returns True.
-        Otherwise the result is False.
-    forwarding_node_cls : Type[RealNode]
-        Type or tuple of types of nodes through which paths should be followed.
-    """
-    node_queue: Deque[RealNode] = deque()
-    visited_nodes: Set[RealNode] = set()
-    node_queue.append(source_node)
-
-    while node_queue:
-        node = node_queue.popleft()
-        visited_nodes.add(node)
-        if _get_neighbours_of_type(node, useful_node_cls):
-            return True
-        forwarding_dests = _get_neighbours_of_type(node, forwarding_node_cls)
-        node_queue.extend([node for node in forwarding_dests
-                           if node not in visited_nodes])
-
-    return False

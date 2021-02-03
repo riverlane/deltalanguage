@@ -126,7 +126,7 @@ def DeltaBlock(
 
     .. warning::
         If a node does not have compulsory inputs then it will be evaluated
-        continuesly and this can significantly slow down the entire runtime.
+        continuesly and this can significantly slow down a runtime simulator.
 
     Parameters
     ----------
@@ -135,7 +135,7 @@ def DeltaBlock(
     allow_const : bool
         If ``True`` and all inputs are constant then the output of this node is
         calculated only once, cached, and reused at each request.
-        This used to reduce the computation load on the runtime stage.
+        This used to reduce the computation load.
     node_key : Optional[str]
         Keyword argument used for providing the node to the block, in case the
         user wants to debug sending & receiving messages in an interactive
@@ -288,7 +288,7 @@ def DeltaMethodBlock(
 
     .. warning::
         If a node does not have compulsory inputs then it will be evaluated
-        continuesly and this can significantly slow down the entire runtime.
+        continuesly and this can significantly slow down a runtime simulator.
 
     Parameters
     ----------
@@ -352,8 +352,8 @@ def DeltaMethodBlock(
         >>> rt.run()
         saving 15
 
-    However if the internal state of the object changes (before or during)
-    a runtime handles the same graph, the result will change:
+    However if the internal state of the object changes (before or during),
+    the result will change:
 
     .. code-block:: python
 
