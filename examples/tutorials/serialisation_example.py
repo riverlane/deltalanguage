@@ -24,7 +24,7 @@ with DeltaGraph() as graph:
 node = graph.nodes[2]
 
 # serialise it
-serialised = node.get_serialised_body()
+serialised = node.body.as_serialised
 
 # <send serialised object down the wire here>
 

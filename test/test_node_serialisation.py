@@ -58,24 +58,24 @@ class NodeSerialisationTest(unittest.TestCase):
 
         # const independent func
         self.serialised_indepentent_const =\
-            node_indepentent_const.get_serialised_body()
+            node_indepentent_const.body.as_serialised
         self.deserialised_node_indepentent_const = dill.loads(
             self.serialised_indepentent_const
         )
 
         # non-const independent func with environment
         self.serialised_env_func =\
-            node_env_func.get_serialised_body()
+            node_env_func.body.as_serialised
 
         # non-const independent func
         self.serialised_indepentent_func =\
-            node_indepentent_func.get_serialised_body()
+            node_indepentent_func.body.as_serialised
         self.deserialised_node_indepentent_func = dill.loads(
             self.serialised_indepentent_func
         )
 
         # method
-        self.serialised_method = node_method.get_serialised_body()
+        self.serialised_method = node_method.body.as_serialised
         self.deserialised_node_method = dill.loads(
             self.serialised_method
         )
@@ -322,7 +322,7 @@ class StateSaverSerialisationTest(unittest.TestCase):
         saver = StateSaver(t=int, verbose=True)
         with DeltaGraph() as test_graph:
             saver_node = saver.save(return_2())
-        saver_body = saver_node.get_serialised_body()
+        saver_body = saver_node.body.as_serialised
         python_string = f"""
 import dill
 saver_body = dill.loads({saver_body})

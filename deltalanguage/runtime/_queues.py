@@ -1,6 +1,6 @@
 from copy import deepcopy
 import logging
-from queue import Empty, Queue
+from queue import Empty, Full, Queue
 from typing import Any
 
 from deltalanguage.wiring import OutPort
@@ -50,7 +50,7 @@ class DeltaQueue(Queue):
         requires a message from this queue or it's optional.
         If ``False`` and nothing is sent down this queue, the caller will use
         ``Queue.get()`` with block and wait.
-    index : Union[str, None]
+    _index : Union[str, None]
         For ``ForkedReturn`` this stores the name of
         :py:class:`OutPort<deltalanguage.wiring.OutPort>` providing
         messages for this queue. Otherwise it's ``None``.
@@ -64,63 +64,62 @@ class DeltaQueue(Queue):
         self._src = out_port
         self._log = make_logger(logging.WARNING,
                                 f"Queue {out_port.port_name}")
-        self.queue_interval = queue_interval
+        self._queue_interval = queue_interval
         self.optional = out_port.destination.is_optional
 
-        self.index = None
+        self._index = None
         if out_port.port_name.n_index is not None:
-            self.index = out_port.port_name.n_index
+            self._index = out_port.port_name.n_index
 
-    def index_item(self, item):
-        """Check if only one attribute of the given item should be sent, and
-        if so, perform the indexing.
-        This is what actually does the output forking.
+    def _index_and_put(self, item, block=True, timeout=None):
+        """In case of ForkedReturn only the requested indexed element will
+        be put to the queue, otherwise the entire item.
+
+        None is not added to the queue.
+
+        If the queue is full, a Full exception is raised after a timeout so
+        that the node pushing to it becomes unblocked to check for an exit
+        signal.
         """
-        if self.index is not None:
+        if not isinstance(item, QueueMessage):
+            raise TypeError("Only QueueMessage objects can be put on queues")
+
+        if self._index is not None:
             msg = item.msg
-            to_put_msg = msg[msg._fields.index(self.index)]
+            to_put_msg = msg[msg._fields.index(self._index)]
             to_put = QueueMessage(msg=to_put_msg, clk=item.clk)
         else:
             to_put = item
-        assert isinstance(to_put, QueueMessage)
-        return to_put
 
-    def get(self, block=True):
-        item = Queue.get(self, block)
-        # I'm not sure we should need this...
-        if not isinstance(item, QueueMessage):
-            raise TypeError(
-                f"Expected QueueMessage object, but object {item} is in queue")
-        assert isinstance(item, QueueMessage)
+        if to_put.msg is not None:
+            if timeout is None:
+                Queue.put(self, to_put, block, timeout=self._queue_interval)
+            else:
+                Queue.put(self, to_put, block, timeout=timeout)
+
+            return to_put
+
+        else:
+            return None
+
+    def get(self, block=True, timeout=None):
+        """If the queue is optional and empty return ``None``,
+        otherwise return the item.
+        """
+        if self.optional and self.empty():
+            return QueueMessage(None, clk=0)
+
+        item = Queue.get(self, block=block, timeout=timeout)
+
         return item
 
     def put(self, item, block=True, timeout=None):
         """Add an item to a queue, performing the indexing if it applies.
 
         .. warning::
-            If the value to be added is None, it is ignored.
+            If the value to be added is ``None``, it is ignored.
         """
-        if not isinstance(item, QueueMessage):
-            raise TypeError(f"Only values of type QueueMessage should be "
-                            f"sent in a df queue.\nitem: {item}")
-        to_put = self.index_item(item)
-        if to_put.msg is not None:
-            if timeout is None:
-                Queue.put(self, to_put, block, timeout=self.queue_interval)
-            else:
-                Queue.put(self, to_put, block, timeout)
-
-    def get_or_none(self):
-        """If there is no item in the queue, return None."""
-        try:
-            item = self.get(block=False)
-            if item is None:  # I'm not sure we should need this...
-                item = QueueMessage(None, clk=0)
-        except Empty:
-            item = QueueMessage(None, clk=0)  # none from the start of time
-
-        assert isinstance(item, QueueMessage)
-        return item
+        self._index_and_put(item, block=block, timeout=timeout)
 
     def flush(self):
         """Unblock any thread waiting for this queue."""
@@ -142,11 +141,6 @@ class ConstQueue(DeltaQueue):
     out_port : OutPort
         Output port for which this queue is created.
 
-    Attributes
-    ----------
-    saved_value : Any
-        The message itself.
-
 
     .. warning::
         A common misconception about this queue is that the message is passed
@@ -158,32 +152,23 @@ class ConstQueue(DeltaQueue):
 
     def __init__(self, out_port):
         super().__init__(out_port, maxsize=1)
-        self.saved_value = None
+        self._saved_value = None
 
     def put(self, item, block=True, timeout=None):
-        if not isinstance(item, QueueMessage):
-            raise TypeError(
-                f"Only values of type QueueMessage should be sent in a df queue.\nitem: {item}")
-
-        if self.saved_value is None:
-            val = self.index_item(item)
-            if val.msg is not None:
-                self.saved_value = val
-                # emtpy will now be false
-                Queue.put(self, self.saved_value, block, timeout)
-            elif not self.optional:
-                raise ValueError("None cannot be pushed to "
-                                 + "non-optional ConstQueue.")
+        """Overwrite ``DeltaQueue.put``."""
+        if self._saved_value is None:
+            to_put = self._index_and_put(item, block=block, timeout=timeout)
+            if to_put is not None:
+                self._saved_value = to_put
         else:
-            raise ValueError("Put to already populated ConstQueue.")
+            raise Full("Put to already populated ConstQueue.")
 
-    def get(self, block=True):
+    def get(self):
+        """Overwrite ``DeltaQueue.get``, block and timeout are unavailable."""
         if self.empty():
-            raise Empty()
-        return deepcopy(self.saved_value)
+            if self.optional:
+                return QueueMessage(None, clk=0)
 
-    def flush(self):
-        """Overriden flush that does nothing if the queue is already populated.
-        """
-        if self.empty():
-            Queue.put(self, QueueMessage(msg=Flusher()))
+            raise Empty
+
+        return deepcopy(self._saved_value)

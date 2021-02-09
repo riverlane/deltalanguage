@@ -6,6 +6,8 @@ from deltalanguage.data_types import BaseDeltaType
 from ._delta_graph import DeltaGraph
 from ._node_classes.template_node import TemplateNode
 from ._node_classes.real_nodes import as_node
+from deltalanguage.data_types._delta_types import as_delta_type
+from deltalanguage.wiring._node_classes.abstract_node import ForkedNode
 
 
 def template_node_factory(
@@ -80,15 +82,52 @@ def template_node_factory(
 
     # Check if arguments are nodes.
     # If not, put them in PyConstNodes in the current graph
-    kw_input_nodes = {name: as_node(arg, graph)
-                      for (name, arg) in kwargs.items()}
+    kw_in_nodes = {name: as_node(arg, graph)
+                   for (name, arg) in kwargs.items()}
 
-    # Use TemplateNode constructor and return result
-    return TemplateNode(
-        graph,
-        kw_input_nodes,
-        return_type,
-        name,
-        arg_types,
-        lvl=lvl
-    )
+    name_prefix = "template"
+
+    if name is not None:
+        name_prefix = name_prefix + "_" + name
+
+    # Construct the in paramters dict from the kw_in_nodes
+    in_params = {}
+    for k, v in kw_in_nodes.items():
+        # First check if input type specified in arg_types
+        if k in arg_types:
+            arg_type = as_delta_type(arg_types[k])
+        else:
+            arg_type = None
+        # Now check if input type is specified in nodes
+        if isinstance(v, ForkedNode):
+            # In input type is forked, then get specified port type
+            ret_type = v.return_type.elem_dict[v.index]
+        else:
+            ret_type = v.return_type
+        if not isinstance(ret_type, BaseDeltaType):
+            # If we get here then type is not specified
+            ret_type = None
+        if (arg_type is not None) and (ret_type is not None):
+            # We have type define in arg_types and input
+            # check if they match
+            if arg_type == ret_type:
+                in_params[k] = arg_type
+            else:
+                raise TypeError(f"Argument {k} specified as {arg_type}"
+                                f" but is actually {ret_type}")
+        elif arg_type is not None:
+            in_params[k] = arg_type
+        elif ret_type is not None:
+            in_params[k] = ret_type
+        else:
+            # Type cannot be found
+            raise TypeError(f"No type specified for argument {k}")
+
+    return TemplateNode(graph,
+                        None,
+                        in_params,
+                        [],
+                        kw_in_nodes,
+                        return_type=as_delta_type(return_type),
+                        name=name_prefix,
+                        lvl=lvl)

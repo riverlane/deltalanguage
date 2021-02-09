@@ -1,11 +1,13 @@
 """
 Primitives for examples, tests, and just general use.
 """
+import json
 from copy import deepcopy
 from typing import Callable, Iterable, Type, Union
 
 from ..data_types import (BaseDeltaType, NoMessage,
-                          delta_type, make_forked_return)
+                          delta_type, make_forked_return,
+                          DComplex, DArray, DRecord, DTuple)
 from ..runtime import DeltaRuntimeExit
 from ..wiring import (DeltaBlock,
                       DeltaMethodBlock,
@@ -36,8 +38,6 @@ def make_generator(val: Union[object, Iterable],
         Number of repeated messages.
         If ``reps`` is ``None`` then ``val`` must be iterable.
         If ``reps`` is an integer then `val` is sent out this number of times.
-        
-        are sent out one by one.
     verbose : bool
         If ``True`` prints the status.
 
@@ -165,6 +165,24 @@ def make_splitter(t: Union[Type, BaseDeltaType],
     return _splitter
 
 
+class DeltaJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        obj_type = delta_type(obj)
+        if isinstance(obj_type, DComplex):
+            return {"real": obj.real, "imaginary": obj.imag}
+        elif isinstance(obj_type, (DArray, DTuple)):
+            return [self.default(o) for o in obj]
+        elif isinstance(obj_type, DRecord):
+            props = obj.__annotations__.keys()
+            d = {p: self.default(getattr(obj, p)) for p in props}
+            return d
+
+        # Assume it's encodable; if we go back to JSONEncoder.default
+        # this just returns a type error. See:
+        # https://docs.python.org/3/library/json.html#json.JSONEncoder.default
+        return obj
+
+
 class StateSaver:
     """Class used for saving states via various methods.
 
@@ -180,6 +198,13 @@ class StateSaver:
         Used for the conditional blocks, see examples.
     verbose : bool
         If ``True`` prints a status on node's activation.
+    filename : str
+        A filepath in which to save results, incrementally.
+
+        If provided, this file will be appended with
+        line-based JSON representation of the data saved.
+        Note: The writing to the file is done when
+        ``save`` is called is called.
 
     Examples
     --------
@@ -288,10 +313,12 @@ class StateSaver:
 
     def __init__(self, t: Union[Type, BaseDeltaType] = object,
                  condition=None,
-                 verbose=False):
+                 verbose=False,
+                 filename=None):
         self.saved = []
         self.condition = condition
         self.verbose = verbose
+        self.filename = filename
 
         @DeltaBlock(allow_const=False)
         def save(val: t) -> NoMessage:
@@ -396,3 +423,7 @@ class StateSaver:
         if self.verbose:
             print(f"saving {val}")
         self.saved.append(val)
+
+        if self.filename is not None:
+            with open(self.filename, "a") as f:
+                f.write(json.dumps(val, cls=DeltaJsonEncoder) + "\n")

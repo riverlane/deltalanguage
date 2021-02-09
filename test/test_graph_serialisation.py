@@ -161,7 +161,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         self.assertEqual(len(prog.nodes[2].outPorts), 0)
 
         self.assertEqual(prog.bodies[2].python.dillImpl,
-                         test_graph.nodes[2].get_serialised_body())
+                         test_graph.nodes[2].body.as_serialised)
 
         self.assertEqual(len(prog.graph), 2)
 
@@ -216,14 +216,15 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             b = node.receive('b')
             print(a+b)
             raise DeltaRuntimeExit
+
         with DeltaGraph() as test_graph:
             a = add.call(a=2, b=3)
 
         _, prog = serialize_graph(test_graph)
 
-        self.assertEqual(prog.bodies[0].which(), 'interactive')
-        interactive_body = prog.bodies[0].interactive.dillImpl
-        self.assertEqual(interactive_body, a.get_serialised_body())
+        self.assertEqual(prog.bodies[2].which(), 'interactive')
+        interactive_body = prog.bodies[2].interactive.dillImpl
+        self.assertEqual(interactive_body, a.body.as_serialised)
 
     def test_projectQ_serialisation(self):
         """Test ProjectQ nodes serialization/deserialization.

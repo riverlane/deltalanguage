@@ -2,6 +2,7 @@
 """
 from abc import ABC, abstractmethod
 from copy import copy
+import dill
 from typing import Any, Callable, NamedTuple
 
 
@@ -11,6 +12,17 @@ class Body(ABC):
     @abstractmethod
     def language(self) -> str:
         """String representation of the language represented by this body class.
+
+        Returns
+        -------
+        str
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def as_serialised(self) -> str:
+        """Serialisation of body as string.
 
         Returns
         -------
@@ -30,6 +42,16 @@ class PythonBody(Body):
         str
         """
         return "Py"
+
+    @property
+    def as_serialised(self) -> str:
+        """Serialisation of body as string.
+
+        Returns
+        -------
+        str
+        """
+        return dill.dumps(self, recurse=True)
 
 
 class PyFuncBody(PythonBody):
@@ -170,6 +192,16 @@ class PyMigenBody(PyMethodBody):
             ret = self.callback(self.instance, *args, **kwargs)
             if ret is not None:
                 return ret
+
+    @property
+    def as_serialised(self) -> str:
+        """Serialisation of body as string.
+
+        Returns
+        -------
+        str
+        """
+        return str(self.instance.get_serialised_body())
 
 
 class PyInteractiveBody(PyFuncBody):

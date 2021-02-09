@@ -26,7 +26,8 @@ from deltalanguage.data_types import (BaseDeltaType,
 from ._delta_graph import DeltaGraph
 from ._node_classes.interactive_node import (InteractiveFuncType,
                                              PyInteractiveNode)
-from ._node_classes.real_nodes import PythonNode
+from ._node_classes.real_nodes import PythonNode, as_node
+from ._node_classes.node_bodies import PyInteractiveBody
 from ._node_factories import py_method_node_factory, py_node_factory
 
 if TYPE_CHECKING:
@@ -454,8 +455,22 @@ class InteractiveProcess:
             raise ValueError(
                 "Please only use keyword arguments for interactive nodes."
             )
+
         graph = DeltaGraph.current_graph()
-        new_node = PyInteractiveNode(graph, self, **kwargs)
+        my_body = PyInteractiveBody(self.proc)
+
+        kw_in_nodes = {name: as_node(arg, graph)
+                       for (name, arg) in kwargs.items()}
+
+        new_node = PyInteractiveNode(graph,
+                                     my_body,
+                                     self.arg_types,
+                                     [],
+                                     kw_in_nodes,
+                                     return_type=self.return_type,
+                                     name=self.name,
+                                     lvl=self.lvl,
+                                     in_port_size=self.in_port_size)
         return new_node
 
 

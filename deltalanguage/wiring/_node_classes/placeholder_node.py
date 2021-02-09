@@ -17,6 +17,8 @@ from .._node_factories import py_method_node_factory, py_node_factory
 
 from .abstract_node import ForkedNode, ProxyNode
 from .interactive_node import PyInteractiveNode
+from .node_bodies import PyInteractiveBody
+from deltalanguage.wiring._node_classes.real_nodes import as_node
 
 if TYPE_CHECKING:
     from .._decorators import InteractiveProcess
@@ -154,7 +156,7 @@ class PlaceholderNode(ProxyNode):
         # remove myself from the list of active placeholders for my graph
         self.graph.placeholders.pop(self.key)
 
-    def specify_by_process(self, process: InteractiveProcess, **extra_kwargs):
+    def specify_by_process(self, process: InteractiveProcess, **kwargs):
         """Make this placeholder into a PyInteractiveNode with the given
         process function, and the given type of inputs and outputs.
 
@@ -170,10 +172,19 @@ class PlaceholderNode(ProxyNode):
             log.warning("Positional arguments dropped when specifying "
                         "placeholder as PyInteractiveNode")
 
+        referee_body = PyInteractiveBody(process.proc)
+        kw_in_nodes = {name: as_node(arg, self.graph)
+                       for (name, arg) in kwargs.items()}
+
         my_referee = PyInteractiveNode(self.graph,
-                                       process,
-                                       **self.future_in_port_kwargs,
-                                       **extra_kwargs)
+                                       referee_body,
+                                       process.arg_types,
+                                       [],
+                                       kw_in_nodes,
+                                       return_type=process.return_type,
+                                       name=process.name,
+                                       lvl=process.lvl,
+                                       in_port_size=process.in_port_size)
         self.referee = my_referee
 
         # Add destination out-ports

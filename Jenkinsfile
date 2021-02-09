@@ -37,41 +37,47 @@ node('linux') {
 
     stage('Linting') {
         warnError('Error occurred, continue to next stage.') {
-            sh 'make pylint'
-            archiveArtifacts artifacts: 'pylint.log'
-            recordIssues(tools: [pyLint(name: 'Linting',
-                                        pattern: 'pylint.log')])
+            try {
+              sh 'make pylint'
+            } finally {
+              archiveArtifacts artifacts: 'pylint.log'
+              recordIssues(tools: [pyLint(name: 'Linting',
+                                          pattern: 'pylint.log')])
+            }
         }
     }
 
     stage('Style') {
         warnError('Error occurred, continue to next stage.') {
-            sh 'make pycodestyle'
-            archiveArtifacts artifacts: 'pycodestyle.log'
-            recordIssues(tools: [pep8(name: 'Style',
-                                pattern: 'pycodestyle.log')])
+            try {
+              sh 'make pycodestyle'
+            } finally {
+              archiveArtifacts artifacts: 'pycodestyle.log'
+              recordIssues(tools: [pep8(name: 'Style',
+                                  pattern: 'pycodestyle.log')])
+            }
         }
     }
 
     stage('Tests') {
         warnError('Error occurred, continue to next stage.') {
-            sh 'make test'
-
-            archiveArtifacts artifacts: '.coverage, coverage.xml, nosetests.xml'
-
-            junit 'nosetests.xml'
-
-            cobertura autoUpdateHealth: false,
-            autoUpdateStability: false,
-            coberturaReportFile: 'coverage.xml',
-            failUnhealthy: false,
-            failUnstable: false,
-            lineCoverageTargets: '80, 0, 0',
-            maxNumberOfBuilds: 0,
-            methodCoverageTargets: '80, 0, 0',
-            onlyStable: false,
-            sourceEncoding: 'ASCII',
-            zoomCoverageChart: false
+            try {
+              sh 'make test'
+            } finally {
+              archiveArtifacts artifacts: '.coverage, coverage.xml, nosetests.xml'
+              junit 'nosetests.xml'
+              cobertura autoUpdateHealth: false,
+              autoUpdateStability: false,
+              coberturaReportFile: 'coverage.xml',
+              failUnhealthy: false,
+              failUnstable: false,
+              lineCoverageTargets: '80, 0, 0',
+              maxNumberOfBuilds: 0,
+              methodCoverageTargets: '80, 0, 0',
+              onlyStable: false,
+              sourceEncoding: 'ASCII',
+              zoomCoverageChart: false
+            }
         }
     }
 

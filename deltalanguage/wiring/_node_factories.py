@@ -8,6 +8,10 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Type, Union
 from deltalanguage.data_types import BaseDeltaType, DOptional, DeltaTypeError
 from deltalanguage.logging import make_logger
 
+from ._node_classes.node_bodies import (PyConstBody,
+                                        PyFuncBody,
+                                        PyMethodBody,
+                                        PyMigenBody)
 from ._node_classes.abstract_node import AbstractNode, ForkedNode
 from ._node_classes.real_nodes import (PyConstNode,
                                        PyFuncNode,
@@ -90,26 +94,30 @@ def py_node_factory(graph,
         and num_const == len(pos_in_nodes) + len(kw_in_nodes)
         and node_key is None
             and not are_optional_inputs):
+        constructed_body = PyConstBody(node_func,
+                                       *pos_in_nodes,
+                                       **kw_in_nodes)
         constructed_node = PyConstNode(graph,
-                                       node_func,
+                                       constructed_body,
                                        in_params,
-                                       out_type,
                                        pos_in_nodes,
                                        kw_in_nodes,
+                                       return_type=out_type,
                                        name=name,
                                        latency=latency,
                                        lvl=lvl)
     else:
+        constructed_body = PyFuncBody(node_func)
         constructed_node = PyFuncNode(graph,
-                                      node_func,
+                                      constructed_body,
                                       in_params,
-                                      out_type,
                                       pos_in_nodes,
                                       kw_in_nodes,
+                                      return_type=out_type,
                                       name=name,
-                                      latency=latency,
                                       node_key=node_key,
                                       in_port_size=in_port_size,
+                                      latency=latency,
                                       lvl=lvl)
 
     log.debug("making %s: %s", type(constructed_node), constructed_node.name)
@@ -176,27 +184,27 @@ def py_method_node_factory(graph,
     kw_in_nodes = {name: as_node(arg, graph) for (name, arg) in kwargs.items()}
 
     if is_migen:
+        constructed_body = PyMigenBody(node_func, obj)
         constructed_node = PyMigenNode(graph,
-                                       node_func,
-                                       obj,
+                                       constructed_body,
                                        in_params,
-                                       out_type,
                                        pos_in_nodes,
                                        kw_in_nodes,
                                        name=name,
+                                       return_type=out_type,
                                        latency=latency,
                                        node_key=node_key,
                                        in_port_size=in_port_size,
                                        lvl=lvl)
     else:
+        constructed_body = PyMethodBody(node_func, obj)
         constructed_node = PyMethodNode(graph,
-                                        node_func,
-                                        obj,
+                                        constructed_body,
                                         in_params,
-                                        out_type,
                                         pos_in_nodes,
                                         kw_in_nodes,
                                         name=name,
+                                        return_type=out_type,
                                         latency=latency,
                                         node_key=node_key,
                                         in_port_size=in_port_size,
@@ -208,7 +216,7 @@ def py_method_node_factory(graph,
 
 
 def get_py_const_node_arg_num(pos_nodes: List[AbstractNode],
-                               kw_nodes: Dict[str, AbstractNode]):
+                              kw_nodes: Dict[str, AbstractNode]):
     """Get the number of constant arguments in the arg list of a node.
 
     Parameters
