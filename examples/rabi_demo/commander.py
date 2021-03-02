@@ -1,13 +1,11 @@
 from migen import FSM, If, NextState, NextValue, Signal
 
-from deltalanguage.data_types import DUInt, DOptional, DSize
-from deltalanguage.lib import command_creator
-from deltalanguage.wiring import MigenNodeTemplate
+import deltalanguage as dl
 
 from examples.rabi_demo.aggregator import ANGLE_MEMORY_WIDTH
 
 
-class Commander(MigenNodeTemplate):
+class Commander(dl.MigenNodeTemplate):
     """Migen node that contains a state machine to trigger HAL commands
     that execute a Rabi circuit by state preparation, qubit rotation (RX),
     and state measurement.
@@ -23,11 +21,13 @@ class Commander(MigenNodeTemplate):
         # creation of input/output ports
         angle = template.add_pa_in_port(
             'angle',
-            DOptional(DUInt(DSize(ANGLE_MEMORY_WIDTH)))
+            dl.DOptional(dl.DUInt(dl.DSize(ANGLE_MEMORY_WIDTH)))
         )
 
-        hal_command = template.add_pa_out_port('hal_command', DUInt(DSize(32)))
-
+        hal_command = template.add_pa_out_port('hal_command',
+                                               dl.DUInt(dl.DSize(32)))
+        shot_completed = template.add_pa_out_port('shot_completed',
+                                               dl.DBool())
         # set up  internal signals
         _rotation_command = Signal(32)
 
@@ -43,18 +43,17 @@ class Commander(MigenNodeTemplate):
         # waits for angle signal before kicking off HAL sequence
         commander_fsm.act(
             "STATE_PREPARATION",
+            NextValue(shot_completed.valid, 0),
             If(
-                angle.valid == 1 and angle.data,
+                angle.valid == 1,
                 NextValue(
                     _rotation_command,
-                    command_creator("RX", argument=angle.data)
+                    dl.lib.command_creator("RX", argument=angle.data)
                 ),
-
                 NextValue(hal_command.valid, 1),
-
                 NextValue(
                     hal_command.data,
-                    command_creator("STATE_PREPARATION")
+                    dl.lib.command_creator("STATE_PREPARATION")
                 ),
                 NextState("ROTATION")
             ).Else(
@@ -66,13 +65,19 @@ class Commander(MigenNodeTemplate):
         # align HAL command to rotation
         commander_fsm.act(
             "ROTATION",
+            NextValue(hal_command.valid, 1),
             NextValue(hal_command.data, _rotation_command),
+            NextValue(shot_completed.valid, 0),
             NextState("STATE_MEASURE")
         )
 
         # align HAL command to state measure
         commander_fsm.act(
             "STATE_MEASURE",
-            NextValue(hal_command.data, command_creator("STATE_MEASURE")),
+            NextValue(hal_command.valid, 1),
+            NextValue(hal_command.data,
+                      dl.lib.command_creator("STATE_MEASURE")),
+            NextValue(shot_completed.valid, 1),
+            NextValue(shot_completed.data, 1),
             NextState("STATE_PREPARATION")
         )

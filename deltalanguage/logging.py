@@ -1,3 +1,22 @@
+"""
+This section covers the topic of logging during execution of the Deltaflow
+graph and contains the following user-facing parts:
+
+- Factory :py:func:`make_logger` acts as an interface to the Deltaflow
+  logging. We present some use cases in
+  `Logging and tracing within Deltaflow <tutorials/logging.html>`_.
+
+For convenience the classes and functions listed above are also exposed to
+the top level module and can be used like this:
+
+.. code-block:: python
+
+    import deltalanguage as dl
+    
+    logger = dl.make_logger(30, 'test_logger')
+    logger.warning("We have a warning!")
+"""
+
 import logging
 from typing import Dict
 

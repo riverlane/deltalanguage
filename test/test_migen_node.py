@@ -1,4 +1,4 @@
-"""Testing nodes with migen, a.k.a. PyMigenNodes."""
+"""Testing nodes with migen, a.k.a. nodes with PyMigenBody."""
 
 import io
 import json
@@ -25,6 +25,8 @@ from examples.tutorials.migen_hardware_examples import (
     generate_graph_constant_input,
     generate_graph_interactive_input
 )
+
+from test._utils import assert_capnp_content_types
 
 
 class AlternatingOutputsMigen(MigenNodeTemplate):
@@ -136,7 +138,7 @@ class MigenNodeSerialisationTest(unittest.TestCase):
         DeltaGraph.clean_stack()
 
     def test_serialisation(self):
-        """Serialize/deserialize a graph with a PyMigenNode.
+        """Serialize/deserialize a graph with a node with a PyMigenBody.
 
         Notes
         -----
@@ -159,21 +161,12 @@ class MigenNodeSerialisationTest(unittest.TestCase):
         data, _ = serialize_graph(graph)
         self.assertEqual(type(data), bytes)
         g_capnp = deserialize_graph(data).to_dict()
-        for body in g_capnp['bodies']:
-            if 'python' in body:
-                self.assertTrue(isinstance(dill.loads(
-                    body['python']['dillImpl']), PythonBody))
-                del body['python']['dillImpl']
-        for node in g_capnp['nodes']:
-            for port in node['inPorts'] + node['outPorts']:
-                self.assertTrue(isinstance(
-                    dill.loads(port['type']), BaseDeltaType))
-                del port['type']
+        assert_capnp_content_types(self, g_capnp)
         with open('test/data/graph_with_migen_capnp.json', 'r') as file:
             self.assertEqual(g_capnp, json.load(file))
 
     def test_one_migen_node_with_2_outs(self):
-        """One PyMigenNode with 2 out ports produces what we expect."""
+        """One PyMigenBody with 2 out ports produces what we expect."""
         s = StateSaver(int, verbose=True)
 
         with DeltaGraph() as graph:
@@ -188,7 +181,7 @@ class MigenNodeSerialisationTest(unittest.TestCase):
         self.assertEqual(s.saved, [5042])
 
     def test_one_migen_node_with_separate_ctrl_on_output_valid(self):
-        """One PyMigenNode with 2 optional output ports produces
+        """One PyMigenBody with 2 optional output ports produces
         the correct valid values (for the different ports).
         The migen node should be generating a sequence of outputs
         (1, None), (None, 2), (3, None) etc... """
@@ -214,7 +207,7 @@ class MigenNodeHardwareBlocksTest(unittest.TestCase):
 
     @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_migen_node_reset_shaper_constant(self, mock_stdout):
-        """One PyMigenNode that takes as input a reset signal and extends the
+        """One PyMigenBody that takes as input a reset signal and extends the
         length of the reset to N clock cycles reset.
         """
         graph, _ = generate_graph_constant_input()
@@ -227,7 +220,7 @@ class MigenNodeHardwareBlocksTest(unittest.TestCase):
 
     @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)
     def test_migen_node_reset_shaper_pulse(self, mock_stdout):
-        """One PyMigenNode that takes as input a reset signal and extends the
+        """One PyMigenBody that takes as input a reset signal and extends the
         length of the reset to N clock cycles reset. We generate a pulse of
         length 1 clock cycle (i.e. 0010) and check for (00000...111110)
         """

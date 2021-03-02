@@ -1,22 +1,20 @@
 import dill
 
-from deltalanguage.data_types import NoMessage
-from deltalanguage.runtime import DeltaRuntimeExit
-from deltalanguage.wiring import DeltaBlock, DeltaGraph
+import deltalanguage as dl
 
 
-@DeltaBlock(name="add", allow_const=False)
+@dl.DeltaBlock(name="add", allow_const=False)
 def add(a: int, b: int) -> int:
     return a + b
 
 
-@DeltaBlock(name="print_exit", allow_const=False)
-def print_then_exit(to_print: object) -> NoMessage:
+@dl.DeltaBlock(name="print_exit", allow_const=False)
+def print_then_exit(to_print: object) -> dl.Void:
     print(to_print)
-    raise DeltaRuntimeExit
+    raise dl.DeltaRuntimeExit
 
 
-with DeltaGraph() as graph:
+with dl.DeltaGraph() as graph:
     added = add(a=4, b=3)
     print_then_exit(to_print=added)
 

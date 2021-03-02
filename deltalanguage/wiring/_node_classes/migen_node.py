@@ -17,9 +17,15 @@ from deltalanguage.logging import make_logger
 
 
 class MigenNodeTemplate(abc.ABC):
-    """Base class for DeltaGraph nodes that use migen.
+    """Base class for nodes that use ``migen`` for generation of internal
+    logic.
 
-    Users have to create a subclass and define the migen body.
+    Users have to create a subclass and define :py:meth:`migen body` with
+    logic identical to the native migen code.
+    The only extra bit that needs to be added is the connection to input and
+    output protocol adapters, which is illustrated in examples below.
+    More use cases can be found in :doc:`tutorials/tutorials` and
+    :doc:`examples/examples`.
 
     Parameters
     ----------
@@ -49,8 +55,9 @@ class MigenNodeTemplate(abc.ABC):
     _sim_object : migen.Simulator
         Simulated object evaluated by migen's testbench.
     module_name : str
-        module name of verilog-converted migen node.
-        By default module_name = name. If the module is included
+        Module name of verilog-converted migen node.
+        If ``None`` the name is obtained from the class.
+        If the module is included
         in a graph, the node's index is appended to the module name.
     debug_signals : Dict[str, Tuple[migen.Signal, str]]
         Internal signal to print in the debuggin message after each iteration
@@ -58,23 +65,20 @@ class MigenNodeTemplate(abc.ABC):
         signal itself and the number format, e.g. see
         https://mkaz.blog/code/python-string-format-cookbook/
 
+
     .. TODO:: Clean up user-facing methods and hide the rest.
 
     Examples
     --------
     This example is a mere illustration of the syntax with migen.
     Firstly, the user defines inputs and outputs of the node and
-    then defines the logic using :py:mod:`migen` syntax:
+    then defines the logic using ``migen`` syntax:
 
     .. code-block:: python
 
-        >>> from deltalanguage.data_types import DOptional
-        >>> from deltalanguage.lib import StateSaver
-        >>> from deltalanguage.runtime import DeltaPySimulator
-        >>> from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
-        ...                                   MigenNodeTemplate)
+        >>> import deltalanguage as dl
 
-        >>> class Foo(MigenNodeTemplate):
+        >>> class Foo(dl.MigenNodeTemplate):
         ...
         ...     def migen_body(self, template):
         ...         # define I/O: each port gets `data`, `valid`, and `ready`
@@ -105,10 +109,10 @@ class MigenNodeTemplate(abc.ABC):
     .. code-block:: python
 
         >>> foo = Foo()
-        >>> s = StateSaver(int, verbose=True)
+        >>> s = dl.lib.StateSaver(int, verbose=True)
 
         # note how I/O is handled
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     res = foo.call(a=40, b=2)
         ...     s.save_and_exit(res.out) # doctest:+ELLIPSIS
         save_and_exit...
@@ -117,7 +121,7 @@ class MigenNodeTemplate(abc.ABC):
 
     .. code-block:: python
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 42
 
@@ -397,10 +401,6 @@ class MigenNodeTemplate(abc.ABC):
             self.log.debug('>>>>>>>>>>>')
 
             tb_iter += 1
-            # This to allow other threads to reacquire the CPU and
-            # do some of their processing. It can be removed if we
-            # move to a multiprocess implementation
-            sleep(1/1000)
 
     def _elaborate(self):
         """First part of `migen.Simulator.run`.

@@ -4,7 +4,7 @@
 from abc import ABC, abstractmethod
 from typing import Type
 
-from .node_bodies import Body, Latency
+from .node_bodies import Body
 
 
 class AbstractNode(ABC):
@@ -89,17 +89,6 @@ class AbstractNode(ABC):
         """
         pass
 
-    @property
-    @abstractmethod
-    def latency(self) -> Latency:
-        """The latency.
-
-        Returns
-        -------
-        Latency
-        """
-        pass
-
 
 class ProxyNode(AbstractNode):
     """Node class for a node that just refers to another node for all
@@ -142,10 +131,6 @@ class ProxyNode(AbstractNode):
     @property
     def body(self) -> Body:
         return self.referee.body
-
-    @property
-    def latency(self) -> Latency:
-        return self.referee.latency
 
 
 class ForkedNode(ProxyNode):

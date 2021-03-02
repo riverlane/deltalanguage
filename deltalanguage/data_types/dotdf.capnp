@@ -21,7 +21,7 @@ struct Wire {
 struct Node {
   # node id is given by position in the nodes list in the outer Program.
   name @0 :Text;
-  body @1 :Int32; # body is a ref to the bodies list in the outer Program
+  bodies @1 :List(Int32); # indices reference the bodies list in the outer Program
   inPorts @2 :List(InPort); # instantaneous port types
   outPorts @3 :List(OutPort);
 }

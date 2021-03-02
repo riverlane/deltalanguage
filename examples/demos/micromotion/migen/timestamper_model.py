@@ -4,19 +4,14 @@ import time
 
 from migen import Array, If, Module, Signal
 
-from deltalanguage.data_types import (DInt, DOptional,
-                                      make_forked_return)
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.wiring import (DeltaGraph, Interactive, MigenNodeTemplate,
-                                  PyInteractiveNode, placeholder_node_factory)
-
+import deltalanguage as dl
 
 # globals
 TEST_LENGTH = 2
 TIME_RES = 32
 
 
-class TimestamperModel(MigenNodeTemplate):
+class TimestamperModel(dl.MigenNodeTemplate):
     """ This migen node is used as a simplified model of the
    ion-trap measurement system. It contains 2 main migen modules including:
         - a pulser simulating the RF and PMT trigger pulses
@@ -173,12 +168,12 @@ class TimestamperModel(MigenNodeTemplate):
         """
 
         # Node inputs
-        self.reset = template.add_pa_in_port('reset', DOptional(DInt()))
-        self.photon = template.add_pa_in_port('photon', DOptional(DInt()))
+        self.reset = template.add_pa_in_port('reset', dl.DOptional(int))
+        self.photon = template.add_pa_in_port('photon', dl.DOptional(int))
 
         # Node outputs
-        self.time = template.add_pa_out_port('time', DInt())
-        self.error = template.add_pa_out_port('error', DInt())
+        self.time = template.add_pa_out_port('time', dl.DInt())
+        self.error = template.add_pa_out_port('error', dl.DInt())
 
         self.rf_trigger = Signal(1)
         self.pmt_trigger = Signal(1)
@@ -227,12 +222,12 @@ class TimestamperModel(MigenNodeTemplate):
         self.submodules += [self.timestamper_inst, self.pulser_inst]
 
 
-TbT, TbC = make_forked_return({'reset': DInt(),
-                               'photon': DInt()})
+TbT, TbC = dl.make_forked_return({'reset': dl.DInt(),
+                                  'photon': dl.DInt()})
 
 
-@Interactive({'time': DInt(), 'error': DInt()}, TbT)
-def testbench(node: PyInteractiveNode):
+@dl.Interactive({'time': dl.DInt(), 'error': dl.DInt()}, TbT)
+def testbench(node):
     """ Testbench for Timestamper model node. Starts with random testing
     and ends with corner cases
     """
@@ -249,7 +244,7 @@ def testbench(node: PyInteractiveNode):
     # 3: photon arrival time outside range - error expected
     do_test(-3, TIME_RES, node)
 
-    raise DeltaRuntimeExit
+    raise dl.DeltaRuntimeExit
 
 
 def do_test(iteration, photon, node):
@@ -282,10 +277,10 @@ def do_test(iteration, photon, node):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    with DeltaGraph() as graph:
+    with dl.DeltaGraph() as graph:
 
         # define placeholders
-        p0_tb = placeholder_node_factory()
+        p0_tb = dl.placeholder_node_factory()
 
         dut = TimestamperModel(
             name="timestamper_model",
@@ -303,5 +298,5 @@ if __name__ == "__main__":
 
     # run graph
     print(graph)
-    rt = DeltaPySimulator(graph)
+    rt = dl.DeltaPySimulator(graph)
     rt.run()

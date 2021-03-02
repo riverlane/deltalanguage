@@ -1,41 +1,35 @@
 API Reference
 =============
 
-deltalanguage
--------------
-.. automodule:: deltalanguage.release
-    :members:
+Below we present the complete list of this module components (classes,
+functions, and paraments) grouped in submodules.
+Each submodule starts with the list of the user-facing components.
 
-.. automodule:: deltalanguage.logging
-    :members:
+.. note::
+    Note that the other unlisted components can also be found in this reference
+    and are either meant for the internal usage or are likely to change their
+    interface soon.
 
-.. automodule:: deltalanguage._utils
-    :members:
-
-
-deltalanguage.data_types
-------------------------
+Data Types
+----------
 .. automodule:: deltalanguage.data_types
-    :members:
-    :imported-members:
 
+Logging
+-------
+.. automodule:: deltalanguage.logging
 
-deltalanguage.lib
+Runtime Simulator
 -----------------
-.. automodule:: deltalanguage.lib
-    :members:
-    :imported-members:
-
-
-deltalanguage.runtime
----------------------
 .. automodule:: deltalanguage.runtime
-    :members:
-    :imported-members:
 
+Standard Library
+----------------
+.. automodule:: deltalanguage.lib
 
-deltalanguage.wiring
---------------------
+Utilities
+---------
+.. automodule:: deltalanguage._utils
+
+Wiring
+------
 .. automodule:: deltalanguage.wiring
-    :members:
-    :imported-members:

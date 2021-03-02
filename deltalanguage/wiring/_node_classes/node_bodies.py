@@ -3,10 +3,36 @@
 from abc import ABC, abstractmethod
 from copy import copy
 import dill
-from typing import Any, Callable, NamedTuple
+from typing import Any, Callable, List
 
+from .latency import Latency
 
 class Body(ABC):
+
+    def __init__(self, latency: Latency = Latency(time=300), extra_tags: List[str] = []):
+        """
+        Parameters
+        ----------
+        latency : Latency
+            esimated time this body takes to run
+        extra_tags : List[str]
+            list of strings the user wants to add as extra access tags, 
+            by default []
+        """
+        self._access_tags = extra_tags + type(self).mro()
+        self.latency = latency
+
+    @property
+    def access_tags(self) -> List[object]:
+        """List of ways this body wants to identify itself
+        These are usually a list of classes and a list of user added strings
+
+        Returns
+        -------
+        List[object] 
+            A list of immutable objects to be used as keys in a dict
+        """
+        return self._access_tags
 
     @property
     @abstractmethod
@@ -65,7 +91,10 @@ class PyFuncBody(PythonBody):
         Link to the environment.
     """
 
-    def __init__(self, fn: Callable):
+    def __init__(self, fn: Callable,
+                 latency: Latency = Latency(time=350),
+                 extra_tags: List[str] = []):
+        super().__init__(latency, extra_tags)
         self.callback = fn
 
     def eval(self, *args, **kwargs):
@@ -90,7 +119,10 @@ class PyConstBody(PythonBody):
         Constant keyworded arguments for the body.
     """
 
-    def __init__(self, fn, *args, **kwargs):
+    def __init__(self, fn, *args,
+                 latency: Latency = Latency(time=100),
+                 extra_tags: List[str] = [], **kwargs):
+        super().__init__(latency, extra_tags)
         self.value = None
         self.callback = fn
         self.args = args
@@ -152,7 +184,10 @@ class PyMethodBody(PythonBody):
         Link to the environment.
     """
 
-    def __init__(self, fn, instance):
+    def __init__(self, fn, instance,
+                 latency: Latency = Latency(time=350),
+                 extra_tags: List[str] = []):
+        super().__init__(latency, extra_tags)
         self.callback = fn
         self.instance = instance
 
@@ -186,6 +221,11 @@ class PyMigenBody(PyMethodBody):
         an output. Otherwise this body will loop forever.
     """
 
+    def __init__(self, fn, instance,
+                 latency: Latency = Latency(clocks=1),
+                 extra_tags: List[str] = []):
+        super().__init__(fn, instance, latency, extra_tags)
+
     def eval(self, *args, **kwargs):
         """Overwrites :meth:`PyMethodBody.eval`."""
         while True:
@@ -211,67 +251,41 @@ class PyInteractiveBody(PyFuncBody):
     """
 
 
-class PyTupleOneCast(PythonBody):
-    """Body class to encapsulate another body and cast the result to a tuple
-    of one.
-    """
+class TemplateBody(PythonBody):
+    """Body class to represent a body that is yet to be specified, but that
+    has a pre-defined interface.
 
-    def __init__(self, inner_body: PythonBody):
-        self.inner_body = inner_body
+    The main pourpose of this type of node is that its body can be defined
+    at a later stage of the Deltaflow programming, also known as running stage,
+    as opposed to the programming stage where the graph is defined.
 
-    def eval(self, *inner_args, **inner_kwargs):
-        inner_val = self.inner_body.eval(*inner_args, **inner_kwargs)
-        return tuple([inner_val])
-
-
-class PyListOneCast(PythonBody):
-    """Body class to encapsulate another body and cast the result to a list
-    of one.
-    """
-
-    def __init__(self, inner_body: PythonBody):
-        self.inner_body = inner_body
-
-    def eval(self, *inner_args, **inner_kwargs):
-        inner_val = self.inner_body.eval(*inner_args, **inner_kwargs)
-        return [inner_val]
-
-
-class Latency:
-    """Latency of a graph node.
+    Use :py:class:`template_node_factory` for construction in the
+    context of :py:class:`DeltaGraph`.
 
     Parameters
     ----------
-    clocks : int
-        The expected latency of the node in clock cycles.
-    time : int
-        The expected latency in real time.
-    variance : int
-        Variance of the node's latency.
-
-    ..
-        This is not used currently. Use cases:
-
-        - latencies can be used to optimise the emulation process
-        - latencies can be used for cost estimation of the algorithm; this
-          requires latency estimation of inter-node connections as well.
+    kw_in_nodes : Dict[str, AbstractNode]
+        The input nodes to this template node, specified by kwargs
     """
 
-    def __init__(self, clocks: int = None, time: int = None, variance=0):
-        # either a fixed number of clocks or a time, +- variance
-        if clocks and time:
-            raise ValueError(
-                "cannot specify both a clock and time based latency"
-            )
-        self._clocks = clocks
-        self._time = time  # as ns
-        self.variance = variance
+    def __init__(self, kw_in_nodes, extra_tags: List[str] = []):
+        super().__init__(extra_tags)
+        self.kw_in_nodes = kw_in_nodes
+        self.inner_body = None
 
-    def __str__(self) -> str:
-        if self._clocks is not None:
-            return f"c{self._clocks}"
+    def specify_by_func(
+        self,
+        my_func: Callable,
+        allow_const: bool = True,
+    ):
 
-        if self._time is not None:
-            return f"t{self._time}"
+        if allow_const:
+            self.inner_body = PyConstBody(my_func, **self.kw_in_nodes)
+        else:
+            self.inner_body = PyFuncBody(my_func)
 
-        return "t0"
+    def eval(self, *args, **kwargs):
+
+        if self.inner_body is None:
+            raise ValueError("TemplateBody function is not defined!")
+        return self.inner_body.eval(*args, **kwargs)

@@ -2,8 +2,8 @@
 attrs>=20.2
 dill>=0.3
 migen>=0.9.2
-numpy~=1.19.0
+numpy>=1.20
 projectq>=0.5
 pycapnp>=0.6
-qiskit==0.23.4
+qiskit>=0.23.5
 tqdm>=4.51

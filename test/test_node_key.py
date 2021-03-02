@@ -7,7 +7,7 @@ Tests for function and method blocks, as well as placeholder specify methods.
 
 import unittest
 
-from deltalanguage.data_types import NoMessage
+from deltalanguage.data_types import Void
 from deltalanguage.runtime import DeltaRuntimeExit, DeltaPySimulator
 from deltalanguage.wiring import (DeltaBlock,
                               DeltaGraph,
@@ -22,7 +22,7 @@ class AddSetX:
         self.x = None
 
     @DeltaMethodBlock(node_key="node")
-    def add_set_x(self, a: int, b: int, node: PythonNode = None) -> NoMessage:
+    def add_set_x(self, a: int, b: int, node: PythonNode = None) -> Void:
         self.x = node.receive('a') + node.receive('b')
         raise DeltaRuntimeExit
 
@@ -30,7 +30,7 @@ class AddSetX:
 class TestNodeKey(unittest.TestCase):
     def test_func(self):
         @DeltaBlock(node_key="node")
-        def add_assert(a: int, b: int, node: PythonNode = None) -> NoMessage:
+        def add_assert(a: int, b: int, node: PythonNode = None) -> Void:
             self.assertEqual(node.receive('a') + node.receive('b'), 9)
             raise DeltaRuntimeExit
         with DeltaGraph() as test_graph:
@@ -48,7 +48,7 @@ class TestNodeKey(unittest.TestCase):
 
     def test_placeholder_func(self):
         @DeltaBlock(node_key="node")
-        def add_assert(a: int, b: int, node: PythonNode = None) -> NoMessage:
+        def add_assert(a: int, b: int, node: PythonNode = None) -> Void:
             self.assertEqual(node.receive('a') + node.receive('b'), 9)
             raise DeltaRuntimeExit
         with DeltaGraph() as test_graph:

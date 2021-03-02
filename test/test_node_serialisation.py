@@ -4,7 +4,7 @@ import unittest
 
 import dill
 
-from deltalanguage.data_types import NoMessage
+from deltalanguage.data_types import Void
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock,
@@ -176,7 +176,7 @@ class NodeSerialisationTest(unittest.TestCase):
         python_string = """
 import dill
 
-from deltalanguage.data_types import NoMessage
+from deltalanguage.data_types import Void
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage.wiring import DeltaBlock, DeltaGraph
 
@@ -186,7 +186,7 @@ def add(a: int, b: int) -> int:
 
 
 @DeltaBlock(name="print_exit", allow_const=False)
-def print_then_exit(to_print: object) -> NoMessage:
+def print_then_exit(to_print: object) -> Void:
     print(to_print)
     raise DeltaRuntimeExit
 
@@ -222,7 +222,7 @@ rt.run()
         python_string = """
 import dill
 
-from deltalanguage.data_types import NoMessage
+from deltalanguage.data_types import Void
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage.wiring import DeltaBlock, DeltaGraph
 
@@ -232,7 +232,7 @@ def add(a: int, b: int) -> int:
 
 
 @DeltaBlock(name="print_exit", allow_const=False)
-def print_then_exit(to_print: object) -> NoMessage:
+def print_then_exit(to_print: object) -> Void:
     print(to_print)
     raise DeltaRuntimeExit
 
@@ -268,7 +268,7 @@ rt.run()
         python_string = """
 import dill
 
-from deltalanguage.data_types import NoMessage
+from deltalanguage.data_types import Void
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage.wiring import DeltaBlock, DeltaMethodBlock, DeltaGraph
 
@@ -283,7 +283,7 @@ class Adder:
 
 
 @DeltaBlock(name="print_exit", allow_const=False)
-def print_then_exit(to_print: object) -> NoMessage:
+def print_then_exit(to_print: object) -> Void:
     print(to_print)
     raise DeltaRuntimeExit
 

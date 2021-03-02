@@ -1,10 +1,9 @@
-from deltalanguage.runtime import DeltaRuntimeExit
-from deltalanguage.wiring import DeltaBlock
+import deltalanguage as dl
 
 
-@DeltaBlock()
+@dl.DeltaBlock()
 def user_interface() -> bool:
     if input('Start Experiment (y/n): ') == 'y':
         return True
     else:
-        raise DeltaRuntimeExit
+        raise dl.DeltaRuntimeExit

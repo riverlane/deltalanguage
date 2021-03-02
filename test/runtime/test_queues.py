@@ -7,6 +7,7 @@ from test._utils import TwoInts, TwoIntsT
 
 from deltalanguage.data_types import DOptional, DInt
 from deltalanguage.runtime import ConstQueue, DeltaQueue
+from deltalanguage.runtime._queues import Flusher
 from deltalanguage._utils import NamespacedName, QueueMessage
 from deltalanguage.wiring import InPort, OutPort
 
@@ -146,6 +147,30 @@ class TestDeltaQueue(unittest.TestCase):
         # non-optional empty ConstQueue raises Empty without blocking
         with self.assertRaises(Empty):
             self.const_queue_obl.get()
+
+    def test_flush_empty(self):
+        """If any empty queue is flushed then a message with Flusher is added.
+        """
+        for q in (self.delta_queue_obl, self.delta_queue_opt,
+                  self.const_queue_obl, self.const_queue_opt):
+            q.flush()
+            self.assertIsInstance(q.get().msg, Flusher)
+
+    def test_flush_non_empty(self):
+        """If any non-empty queue is flushed then nothing happens."""
+        for q in (self.delta_queue_obl, self.delta_queue_opt,
+                  self.const_queue_obl, self.const_queue_opt):
+            q.put(self.msg1)
+            q.flush()
+            self.assertEqual(q.get(), self.msg1_answer)
+
+        # DeltaQueue becomes empty
+        for q in (self.delta_queue_obl, self.delta_queue_opt):
+            self.assertEqual(q.empty(), True)
+
+        # ConstQueue keeps holding the cached message
+        for q in (self.const_queue_obl, self.const_queue_opt):
+            self.assertEqual(q.get(), self.msg1_answer)
 
 
 class TestDeltaQueueForkedReturn(TestDeltaQueue):

@@ -23,6 +23,19 @@ class HardwareAbstractionLayerNode:
 
     @DeltaMethodBlock(name="accept_command")
     def accept_command(self, command: DUInt(DSize(32))) -> DUInt(DSize(32)):
+        """Interface for ``quantum_simulator.accept_command`` that is used
+        to create a graph node.
+
+        Parameters
+        ----------
+        command : DUInt(DSize(32))
+            The HAL command to deconstruct and use to perform actions.
+
+        Returns
+        -------
+        DUInt(DSize(32))
+            Result of a measurement command.
+        """
         result = self._quantum_simulator.accept_command(command)
 
         return result

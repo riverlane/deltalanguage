@@ -14,7 +14,7 @@
     "nodes": [
         {
             "name": "node_0",
-            "body": 0,
+            "bodies": [0],
             "inPorts": [],
             "outPorts": [
                 {
@@ -24,7 +24,7 @@
         },
         {
             "name": "node_1",
-            "body": 1,
+            "bodies": [1],
             "inPorts": [],
             "outPorts": [
                 {
@@ -34,7 +34,7 @@
         },
         {
             "name": "add_print_exit_2",
-            "body": 2,
+            "bodies": [2],
             "inPorts": [
                 {
                     "name": "a",

@@ -8,7 +8,7 @@ many graphs are created.
 from collections import Counter
 import unittest
 
-from deltalanguage.data_types import NoMessage, DOptional
+from deltalanguage.data_types import Void, DOptional
 from deltalanguage.runtime import DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
                                   placeholder_node_factory)
@@ -23,7 +23,7 @@ def add(a: int, b: DOptional(int)) -> int:
 
 
 @DeltaBlock()
-def print_then_exit(n: int) -> NoMessage:
+def print_then_exit(n: int) -> Void:
     print(n)
     raise DeltaRuntimeExit
 

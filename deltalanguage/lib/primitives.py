@@ -5,22 +5,21 @@ import json
 from copy import deepcopy
 from typing import Callable, Iterable, Type, Union
 
-from ..data_types import (BaseDeltaType, NoMessage,
+from ..data_types import (BaseDeltaType, Void,
                           delta_type, make_forked_return,
                           DComplex, DArray, DRecord, DTuple)
 from ..runtime import DeltaRuntimeExit
 from ..wiring import (DeltaBlock,
                       DeltaMethodBlock,
                       Interactive,
-                      PyInteractiveNode,
+                      PythonNode,
                       InteractiveProcess)
 
 
 def make_generator(val: Union[object, Iterable],
                    reps: int = None,
                    verbose: bool = False) -> InteractiveProcess:
-    """Returns a generator implemented via
-    :py:class:`PyInteractiveNode<deltalanguage.wiring.PyInteractiveNode>` that
+    """Used to create a generator node that
     produces a series of messages of the same data type.
 
     This generator is useful for checking the robustness of the graph vs
@@ -49,15 +48,13 @@ def make_generator(val: Union[object, Iterable],
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import StateSaver, make_generator
-        >>> from deltalanguage.wiring import DeltaGraph, Interactive
-        >>> from deltalanguage.runtime import DeltaPySimulator
+        >>> import deltalanguage as dl
 
         # Generate 5 integers
-        >>> generator = make_generator(10, reps=5)
+        >>> generator = dl.lib.make_generator(10, reps=5)
 
         # Receive 5 integers and send their sum
-        >>> @Interactive({"a": int}, int)
+        >>> @dl.Interactive({"a": int}, int)
         ... def accumulator(node):
         ...     memory = []
         ...     for _ in range(5):
@@ -66,15 +63,15 @@ def make_generator(val: Union[object, Iterable],
         ...     node.send(sum(memory))
 
         # Save the result
-        >>> s = StateSaver(int, verbose=True)
+        >>> s = dl.lib.StateSaver(int, verbose=True)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     generator_out = generator.call()
         ...     accumulator_out = accumulator.call(a=generator_out)
         ...     s.save_and_exit(accumulator_out) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 50
 
@@ -82,15 +79,15 @@ def make_generator(val: Union[object, Iterable],
 
     .. code-block:: python
 
-        >>> generator = make_generator([1, 2, 3, 4, 5])
+        >>> generator = dl.lib.make_generator([1, 2, 3, 4, 5])
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     generator_out = generator.call()
         ...     accumulator_out = accumulator.call(a=generator_out)
         ...     s.save_and_exit(accumulator_out) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 15
     """
@@ -108,7 +105,7 @@ def make_generator(val: Union[object, Iterable],
         vals_to_send = (deepcopy(val) for _ in range(reps))
 
     @Interactive({}, elem_type)
-    def generator(node: PyInteractiveNode):
+    def generator(node: PythonNode):
         for v in vals_to_send:
             if verbose:
                 print(f"sending {val}")
@@ -121,10 +118,11 @@ def make_generator(val: Union[object, Iterable],
 def make_splitter(t: Union[Type, BaseDeltaType],
                   reps: int,
                   allow_const=True) -> Callable:
-    """Returns a splitter node, which returns multiple copies of incoming
-    messages via individual outputs.
+    """Used to create a splitter node, which sends multiple copies of
+    incoming messages to different nodes via individual outputs.
 
-    Names of outputs go as `out0`, `out1`, `out2`, ...
+    Names of output ports go in ascending order as ``out0``, ``out1``,
+    ``out2``, etc. The total number of outputs is equal to ``reps``.
 
     Examples
     --------
@@ -132,25 +130,23 @@ def make_splitter(t: Union[Type, BaseDeltaType],
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import StateSaver, make_splitter
-        >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
-        >>> from deltalanguage.runtime import DeltaPySimulator
+        >>> import deltalanguage as dl
 
-        >>> @DeltaBlock()
+        >>> @dl.DeltaBlock()
         ... def adder(a: int, b: int) -> int:
         ...     return a + b
 
-        >>> state_saver = StateSaver(int, verbose=True)
+        >>> state_saver = dl.lib.StateSaver(int, verbose=True)
 
-        >>> splitter = make_splitter(int, 2)
+        >>> splitter = dl.lib.make_splitter(int, 2)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     splitter_out = splitter(10)
         ...     adder_out = adder(splitter_out.out0, splitter_out.out1)
         ...     state_saver.save_and_exit(adder_out) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 20
     """
@@ -212,13 +208,11 @@ class StateSaver:
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import make_generator, StateSaver
-        >>> from deltalanguage.wiring import DeltaGraph
-        >>> from deltalanguage.runtime import DeltaPySimulator
+        >>> import deltalanguage as dl
 
-        >>> s = StateSaver(int, verbose=True)
+        >>> s = dl.lib.StateSaver(int, verbose=True)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     s.save(42) # doctest:+ELLIPSIS
         save...
 
@@ -226,11 +220,11 @@ class StateSaver:
 
     .. code-block:: python
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     s.save_and_exit(42) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 42
 
@@ -239,13 +233,13 @@ class StateSaver:
 
     .. code-block:: python
 
-        >>> s = StateSaver(int, condition=lambda x: x>10, verbose=True)
+        >>> s = dl.lib.StateSaver(int, condition=lambda x: x>10, verbose=True)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     s.save_and_exit_if(42) # doctest:+ELLIPSIS
         save_and_exit_if...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 42
 
@@ -254,16 +248,16 @@ class StateSaver:
 
     .. code-block:: python
 
-        >>> gen = make_generator([42])
-        >>> s0 = StateSaver(int, verbose=True)
-        >>> s1 = StateSaver(bool, verbose=True)
+        >>> gen = dl.lib.make_generator([42])
+        >>> s0 = dl.lib.StateSaver(int, verbose=True)
+        >>> s1 = dl.lib.StateSaver(bool, verbose=True)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     status = s0.save_and_ack(gen.call())
         ...     s1.save_and_exit(status) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 42
         saving True
@@ -272,16 +266,16 @@ class StateSaver:
 
     .. code-block:: python
 
-        >>> gen = make_generator([42])
-        >>> s0 = StateSaver(int, verbose=True)
-        >>> s1 = StateSaver(int, verbose=True)
+        >>> gen = dl.lib.make_generator([42])
+        >>> s0 = dl.lib.StateSaver(int, verbose=True)
+        >>> s1 = dl.lib.StateSaver(int, verbose=True)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     message = s0.transfer(gen.call())
         ...     s1.save_and_exit(message) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 42
         saving 42
@@ -290,16 +284,17 @@ class StateSaver:
 
     .. code-block:: python
 
-        >>> gen = make_generator([3, 8])
-        >>> s0 = StateSaver(int, condition=lambda x: x%2==0, verbose=True)
-        >>> s1 = StateSaver(int, verbose=True)
+        >>> gen = dl.lib.make_generator([3, 8])
+        >>> s0 = dl.lib.StateSaver(int, condition=lambda x: x%2==0,
+        ...                        verbose=True)
+        >>> s1 = dl.lib.StateSaver(int, verbose=True)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     message = s0.transfer_if(gen.call())
         ...     s1.save_and_exit(message) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 3
         saving 8
@@ -321,7 +316,7 @@ class StateSaver:
         self.filename = filename
 
         @DeltaBlock(allow_const=False)
-        def save(val: t) -> NoMessage:
+        def save(val: t) -> Void:
             """Save input of any type.
 
             Parameters
@@ -333,7 +328,7 @@ class StateSaver:
         self.save = save
 
         @DeltaBlock(allow_const=False)
-        def save_and_exit(val: t) -> NoMessage:
+        def save_and_exit(val: t) -> Void:
             """Save input of any type and exit.
 
             Parameters
@@ -346,7 +341,7 @@ class StateSaver:
         self.save_and_exit = save_and_exit
 
         @DeltaBlock(allow_const=False)
-        def save_and_exit_if(val: t) -> NoMessage:
+        def save_and_exit_if(val: t) -> Void:
             """Save input of any type and exit if the condition is fulfilled.
 
             Parameters

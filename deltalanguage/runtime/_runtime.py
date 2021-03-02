@@ -7,14 +7,13 @@ from typing import Dict, Tuple, Type, Union
 
 from deltalanguage.wiring import (DeltaGraph,
                                   OutPort,
-                                  PyConstNode,
-                                  PyFuncNode,
-                                  PyInteractiveNode,
-                                  PyMethodNode,
-                                  PyMigenNode,
+                                  PyConstBody,
+                                  PyFuncBody,
+                                  PyInteractiveBody,
+                                  PyMethodBody,
                                   PythonNode,
                                   RealNode,
-                                  TemplateNode)
+                                  TemplateBody)
 from deltalanguage.logging import MessageLog, clear_loggers, make_logger
 
 from ._queues import ConstQueue, DeltaQueue
@@ -37,20 +36,18 @@ class DeltaRuntimeExit(Exception):
 
     .. code-block:: python
 
-        >>> from deltalanguage.data_types import NoMessage
-        >>> from deltalanguage.runtime import DeltaRuntimeExit
-        >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
+        >>> import deltalanguage as dl
 
-        >>> @DeltaBlock(allow_const=False)
-        ... def foo(a: int) -> NoMessage:
+        >>> @dl.DeltaBlock(allow_const=False)
+        ... def foo(a: int) -> dl.Void:
         ...     print("Received result", a)
-        ...     raise DeltaRuntimeExit
+        ...     raise dl.DeltaRuntimeExit
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     foo(42) # doctest:+ELLIPSIS
         foo...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         Received result 42
     """
@@ -59,18 +56,23 @@ class DeltaRuntimeExit(Exception):
 
 class DeltaThread(threading.Thread):
     """Extension of ``threading.Thread``, which
-    handles Deltaflow exit strategy via exceptions.
-
-    Re-thrown exceptions are directed to ``threading.excepthook``, which will
+    handles Deltaflow exit strategy via ``threading.excepthook``.
 
     Attributes
     ----------
     bad_exc : BaseException
-        All bad exceptions, which include everything except:
+        If a bad exception is raised by this thread it will be referred here
+        for logging and afted-simulation analysis.
 
-        - ``SystemExit`` - good thread exit.
+        If a good exception is raised it is not added here as the thread
+        has finished successfully.
+        There are 2 types of good exceptions:
+
+        - ``SystemExit`` - good thread exit, i.e. the thread can be joined
+          with the main thread.
         - :py:class:`DeltaRuntimeExit` - good thread exit that also signals
-          to stop the other threads via ``SystemExit``.
+          to stop all the other threads via ``SystemExit`` thus the entire
+          simulation will be finished.
     """
 
     def run(self):
@@ -91,7 +93,8 @@ class DeltaThread(threading.Thread):
 
 
 class DeltaPySimulator:
-    """Python runtime simulator for running :py:class:`DeltaGraph`.
+    """Python runtime simulator for running
+    :py:class:`DeltaGraph<deltalanguage.wiring.DeltaGraph>`.
 
     The main purpose of this simulator is debugging of the graph and basic
     testing. Please note that this implementation is not
@@ -113,11 +116,11 @@ class DeltaPySimulator:
         The graph which will be executed.
     lvl : int
         The level at which logs are displayed.
-        These are the same levels as in Python's :py:mod:`logging` package.
+        These are the same levels as in Python's ``logging`` module.
         By default only error logs are displayed.
     msg_lvl : int
         The level at which logs from messages between nodes are displayed.
-        These are the same levels as in Python's :py:mod:`logging` package.
+        These are the same levels as in Python's ``logging`` module.
         By default only error logs are displayed.
     switchinterval : float
         Passed to `sys.setswitchinterval`, which
@@ -148,16 +151,16 @@ class DeltaPySimulator:
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import StateSaver
-        >>> from deltalanguage.runtime import DeltaPySimulator
+        >>> import deltalanguage as dl
 
-        >>> s = StateSaver(int, verbose=True) # helper node that saves the result
+         # helper node that saves the result
+        >>> s = dl.lib.StateSaver(int, verbose=True)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     s.save_and_exit(5) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 5
 
@@ -168,12 +171,11 @@ class DeltaPySimulator:
     __quit_msg = "Quitting Delta Runtime due to error in node."
 
     # nodes with thread_worker
-    running_node_cls: Tuple[Type[RealNode], ...] = (PyInteractiveNode,
-                                                    PyFuncNode,
-                                                    PyMethodNode,
-                                                    PyMigenNode)
+    running_body_cls: Tuple[Type[RealNode], ...] = (PyInteractiveBody,
+                                                    PyFuncBody,
+                                                    PyMethodBody)
     # nodes that only run once
-    run_once_node_cls: Tuple[Type[RealNode], ...] = (PyConstNode,)
+    run_once_body_cls: Tuple[Type[RealNode], ...] = (PyConstBody,)
 
     def __init__(self,
                  graph: DeltaGraph,
@@ -212,6 +214,9 @@ class DeltaPySimulator:
 
         # Signal to stop child threads
         self.sig_stop = threading.Event()
+
+        for node in self.graph.nodes:
+            node.set_communications(self)
 
         # child threads for node's workers
         self.threads: Dict[str, threading.Thread] = {}
@@ -257,8 +262,8 @@ class DeltaPySimulator:
         ConstQueue. Messages between two const nodes call each other directly
         and avoid queues altogether. The default is DeltaQueue.
         """
-        if isinstance(out_port.node, self.run_once_node_cls):
-            if isinstance(out_port.destination.node, self.run_once_node_cls):
+        if isinstance(out_port.node.body, self.run_once_body_cls):
+            if isinstance(out_port.destination.node.body, self.run_once_body_cls):
                 return None
             return ConstQueue(out_port)
 
@@ -305,14 +310,14 @@ class DeltaPySimulator:
 
         try:
             for node in self.graph.nodes:
-                if isinstance(node, TemplateNode):
-                    if node.body is None:
+                if isinstance(node.body, TemplateBody):
+                    if node.body.inner_body is None:
                         raise RuntimeError(
-                            f"Must specify node body for node {node.name}"
+                            f"Must specify template body on node {node.name}"
                         )
 
-                if isinstance(node, self.run_once_node_cls) \
-                        or (isinstance(node, TemplateNode) and node.is_const()):
+                if isinstance(node.body, self.run_once_body_cls) \
+                        or (isinstance(node.body, TemplateBody) and node.is_const()):
                     node.run_once(self)
 
         except DeltaRuntimeExit:
@@ -324,12 +329,12 @@ class DeltaPySimulator:
                 + "Exiting simulator.") from exc
 
         for node in self.graph.nodes:
-            if isinstance(node, self.run_once_node_cls) \
-                    or (isinstance(node, TemplateNode) and node.is_const()):
+            if isinstance(node.body, self.run_once_body_cls) \
+                    or (isinstance(node.body, TemplateBody) and node.is_const()):
                 continue
 
-            elif isinstance(node, self.running_node_cls) \
-                    or (isinstance(node, TemplateNode) and not node.is_const()):
+            elif isinstance(node.body, self.running_body_cls) \
+                    or (isinstance(node.body, TemplateBody) and not node.is_const()):
                 self.log.info(f"Starting node {node.name}")
                 self.threads[node.name] = DeltaThread(
                     target=node.thread_worker,

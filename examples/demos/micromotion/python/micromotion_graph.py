@@ -3,20 +3,14 @@ from progress.bar import Bar
 import random
 import time
 
-from deltalanguage.data_types import DOptional, make_forked_return
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.wiring import (DeltaBlock,
-                                  DeltaGraph,
-                                  Interactive,
-                                  PyInteractiveNode,
-                                  placeholder_node_factory)
+import deltalanguage as dl
 
 
-ExpT, ExpVal = make_forked_return({'pmt_trigger': bool, 'rf_trigger': bool})
+ExpT, ExpVal = dl.make_forked_return({'pmt_trigger': bool, 'rf_trigger': bool})
 
 
-@Interactive({}, ExpT)
-def triggers(node: PyInteractiveNode):
+@dl.Interactive({}, ExpT)
+def triggers(node):
     """ triggers
     This node simulates the two trigger pulses.
     The experiment measures a photon click on a PMT, then counts until the
@@ -47,8 +41,8 @@ def triggers(node: PyInteractiveNode):
             node.send(ExpVal(pmt_trigger=False, rf_trigger=False))
 
 
-@Interactive({'pmt': DOptional(bool), 'rf': DOptional(bool)}, int)
-def counter(node: PyInteractiveNode):
+@dl.Interactive({'pmt': dl.DOptional(bool), 'rf': dl.DOptional(bool)}, int)
+def counter(node):
     """ counter
     The counter node receives the 2 trigger pulses from hardware and counts the
     time between the pulses. The unit of time in a real system will be clock
@@ -66,13 +60,13 @@ def counter(node: PyInteractiveNode):
             node.send(cnt)
 
 
-DACT, DACVals = make_forked_return(
+DACT, DACVals = dl.make_forked_return(
     {'node_status': int, 'return_data': int, 'rx_data': int}
 )
 
 
-@Interactive({'command': DOptional(int), 'params': int}, DACT)
-def DAC_control(node: PyInteractiveNode):
+@dl.Interactive({'command': dl.DOptional(int), 'params': int}, DACT)
+def DAC_control(node):
     """ DAC_control
     This node is the interface between our graph and the DAC hardware. rx_data
     would be linked to an SPI DAC, in this example is goes nowhere.
@@ -132,16 +126,16 @@ def DAC_control(node: PyInteractiveNode):
         time.sleep(0.001)
 
 
-AccumT, AccumVals = make_forked_return({'DAC_command': int,
-                                        'DAC_param': int})
+AccumT, AccumVals = dl.make_forked_return({'DAC_command': int,
+                                           'DAC_param': int})
 
 
-@Interactive({'new_time': int,
-              'DAC_status': int,
-              'DAC_voltage': int,
-              'experiment_start': DOptional(bool)
-              }, AccumT)
-def accumulator(node: PyInteractiveNode):
+@dl.Interactive({'new_time': int,
+                 'DAC_status': int,
+                 'DAC_voltage': int,
+                 'experiment_start': dl.DOptional(bool)
+                 }, AccumT)
+def accumulator(node):
     """ Accumulator Node
 
     This node both collects times reports from the counter FPGA node but also
@@ -218,7 +212,7 @@ def accumulator(node: PyInteractiveNode):
 
             # Print a histogram of the collected data
             histogram_printer(histogram)
-            raise DeltaRuntimeExit
+            raise dl.DeltaRuntimeExit
 
 
 def histogram_printer(data):
@@ -227,21 +221,21 @@ def histogram_printer(data):
     plt.savefig('histogram.png')
 
 
-@DeltaBlock()
+@dl.DeltaBlock()
 def user_interface() -> bool:
     if input('Start Experiment (y/n): ') == 'y':
         return True
     else:
-        raise DeltaRuntimeExit
+        raise dl.DeltaRuntimeExit
 
 
-with DeltaGraph() as graph:
+with dl.DeltaGraph() as graph:
     ui = user_interface()
     trig = triggers.call()
     cntr = counter.call(pmt=trig.pmt_trigger, rf=trig.rf_trigger)
 
-    p1_dac_status = placeholder_node_factory()
-    p2_dac_voltage = placeholder_node_factory()
+    p1_dac_status = dl.placeholder_node_factory()
+    p2_dac_voltage = dl.placeholder_node_factory()
     accume = accumulator.call(new_time=cntr,
                               DAC_status=p1_dac_status,
                               DAC_voltage=p2_dac_voltage,
@@ -251,5 +245,5 @@ with DeltaGraph() as graph:
     p2_dac_voltage.specify_by_node(dac.return_data)
 
 print(graph)
-rt = DeltaPySimulator(graph)
+rt = dl.DeltaPySimulator(graph)
 rt.run()

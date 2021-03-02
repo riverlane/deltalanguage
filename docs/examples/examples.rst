@@ -25,7 +25,7 @@ the Deltaflow language:
 
 - `Sine Wave Generator <hardware/dds_sine_wave.html>`_
   (:download:`dds_sine_wave.ipynb <hardware/dds_sine_wave.ipynb>`)
-  :download:`dss_sine_wave.py` contains a node that implements a 
+  contains a node that implements a 
   simple sine wave generator through Direct Digital Synthesis (DDS), 
   meant to drive a DAC with a suitable reconstruction filter.
   This node is connected with a testbench node that provides input/output

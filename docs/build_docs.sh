@@ -26,8 +26,10 @@ echo ${PYTHONPATH}
 # In order to add a new version to docs
 # add it to DOCSVERSIONS following a whitespace
 # Make sure dev is the last one as it has the latest version of conf.py
+# LATESTVERSION is also used as the default version
 # TODO: automate this process
-DOCSVERSIONS="v0.4.4 dev"
+LATESTVERSION="v0.5.0"
+DOCSVERSIONS="${LATESTVERSION} dev"
 export DOCSVERSIONS=${DOCSVERSIONS}
 # This variable is defined in docs/Makefile
 # TODO: remover redundant repetition
@@ -61,20 +63,19 @@ for CURRENT_VERSION in ${DOCSVERSIONS}; do
    fi
 
    # build HTML / PDF / EPUB
-   # TODO: fix PDF build and add here
+   # TODO: fix PDF & EPUB build and add here
    make -C docs html
-   make -C docs epub
 
    # copy them to docroot
    mkdir -p "${docroot}/${CURRENT_VERSION}"
    rsync -av "docs/${BUILDDIR}/html/" "${docroot}/${CURRENT_VERSION}/"
    # cp "docs/${BUILDDIR}/pdf/target.pdf" \
    #    "${docroot}/${CURRENT_VERSION}/${REPO_NAME}-docs-${CURRENT_VERSION}.pdf"
-   cp "docs/${BUILDDIR}/epub/target.epub" \
-      "${docroot}/${CURRENT_VERSION}/${REPO_NAME}-docs-${CURRENT_VERSION}.epub"
+   # cp "docs/${BUILDDIR}/epub/target.epub" \
+   #    "${docroot}/${CURRENT_VERSION}/${REPO_NAME}-docs-${CURRENT_VERSION}.epub"
    cp "docs/sphinx-build-html.log" "${docroot}/${CURRENT_VERSION}/"
    # cp "docs/sphinx-build-pdf.log" "${docroot}/${CURRENT_VERSION}/"
-   cp "docs/sphinx-build-epub.log" "${docroot}/${CURRENT_VERSION}/"
+   # cp "docs/sphinx-build-epub.log" "${docroot}/${CURRENT_VERSION}/"
 
    make -C docs clean
 done
@@ -104,10 +105,10 @@ cat > index.html <<EOF
 <html>
    <head>
       <title>${REPO_NAME} docs</title>
-      <meta http-equiv = "refresh" content="0; url='/${REPO_NAME}/dev/'" />
+      <meta http-equiv = "refresh" content="0; url='/${REPO_NAME}/${LATESTVERSION}/'" />
    </head>
    <body>
-      <p>Please wait while you're redirected to our <a href="/${REPO_NAME}/dev/">documentation</a>.</p>
+      <p>Please wait while you're redirected to our <a href="/${REPO_NAME}/${LATESTVERSION}/">documentation</a>.</p>
    </body>
 </html>
 EOF

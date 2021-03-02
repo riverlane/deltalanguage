@@ -7,10 +7,12 @@ import os
 from typing import Any, List
 import migen
 
+import dill
 from nbconvert.preprocessors import ExecutePreprocessor
 import nbformat
 
-from deltalanguage.data_types import (NoMessage,
+from deltalanguage.data_types import (BaseDeltaType,
+                                      Void,
                                       Top,
                                       DOptional,
                                       make_forked_return)
@@ -20,7 +22,8 @@ from deltalanguage.wiring import (DeltaBlock,
                                   DeltaMethodBlock,
                                   Interactive,
                                   MigenNodeTemplate,
-                                  PyInteractiveNode)
+                                  PythonBody,
+                                  PythonNode)
 
 
 def simple_graph():
@@ -138,6 +141,29 @@ def get_full_filelist(path):
     return [os.path.join(path, file) for file in os.listdir(path)]
 
 
+def assert_capnp_content_types(test_class, g_capnp):
+    """Helper function to check capnp has been deserialised correctly.
+
+    Parameters
+    ----------
+    test_class:
+        The test class calling the function
+    g_capnp :
+        The deserialised capnp graph
+    """
+
+    for body in g_capnp['bodies']:
+        if 'python' in body:
+            test_class.assertTrue(isinstance(dill.loads(
+                body['python']['dillImpl']), PythonBody))
+            del body['python']['dillImpl']
+    for node in g_capnp['nodes']:
+        for port in node['inPorts'] + node['outPorts']:
+            test_class.assertTrue(isinstance(
+                dill.loads(port['type']), BaseDeltaType))
+            del port['type']
+
+
 @DeltaBlock()
 def add(n1: int, n2: int) -> int:
     return n1 + n2
@@ -177,7 +203,7 @@ def return_2() -> int:
 
 
 @DeltaBlock(allow_const=False)
-def do_nothing(n: int) -> NoMessage:
+def do_nothing(n: int) -> Void:
     pass
 
 
@@ -196,18 +222,18 @@ def return_1() -> int:
 
 
 @DeltaBlock(allow_const=False)
-def printer(obj: Top) -> NoMessage:
+def printer(obj: Top) -> Void:
     if obj is not None:
         print(obj)
 
 
 @DeltaBlock(allow_const=True)
-def const_consumer(obj: Top) -> NoMessage:
+def const_consumer(obj: Top) -> Void:
     pass
 
 
 @Interactive({"n": int}, TwoIntsT)
-def opt_increment(node: PyInteractiveNode):
+def opt_increment(node: PythonNode):
 
     n = 0
     while n < 3:
@@ -233,13 +259,13 @@ class SomeClass:
 
 
 @DeltaBlock(allow_const=False)
-def err_if_3(n: int) -> NoMessage:
+def err_if_3(n: int) -> Void:
     if n == 3:
         raise Exception("oh no! n is 3!!!")
 
 
 @DeltaBlock()
-def async_err_if_4(n: int) -> NoMessage:
+def async_err_if_4(n: int) -> Void:
     if n == 4:
         raise Exception("oh no! n is 3!!!")
 

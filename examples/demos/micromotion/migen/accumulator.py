@@ -7,31 +7,23 @@ import random
 import numpy as np
 import logging
 
-from deltalanguage.data_types import (DOptional,
-                                      make_forked_return,
-                                      NoMessage)
+import deltalanguage as dl
 
-from deltalanguage.runtime import DeltaRuntimeExit
-
-from deltalanguage.wiring import (Interactive,
-                                  PyInteractiveNode,
-                                  DeltaMethodBlock)
-
-AccumT, AccumC = make_forked_return({'DAC_command': int,
-                                     'DAC_param': int,
-                                     'photon': int,
-                                     'reset': int})
+AccumT, AccumC = dl.make_forked_return({'DAC_command': int,
+                                        'DAC_param': int,
+                                        'photon': int,
+                                        'reset': int})
 
 
 TIME_RES = 30
 
 
-@Interactive({'new_time': int,
-              'DAC_status': int,
-              'DAC_voltage': int,
-              'experiment_start': DOptional(bool)
-              }, AccumT)
-def accumulator(node: PyInteractiveNode):
+@dl.Interactive({'new_time': int,
+                 'DAC_status': int,
+                 'DAC_voltage': int,
+                 'experiment_start': dl.DOptional(bool)
+                 }, AccumT)
+def accumulator(node):
     """ Accumulator Node
 
     This node collects times sent from the counter FPGA node and issues
@@ -71,7 +63,7 @@ def accumulator(node: PyInteractiveNode):
 
     def dac_set(voltage):
         logging.basicConfig()
-        #logging.getLogger().setLevel(logging.DEBUG)
+
         print(f"Setting new voltage: {voltage}V")
         node.send(AccumC(DAC_command=DAC_SET_VOLTAGE,
                          DAC_param=voltage, photon=None, reset=0))
@@ -160,7 +152,7 @@ def accumulator(node: PyInteractiveNode):
                 full_histogram.append(histogram)
                 v_comp_list.append(v_comp-1)
             histogram_printer(full_histogram, v_comp_list)
-            raise DeltaRuntimeExit
+            raise dl.DeltaRuntimeExit
 
 
 def histogram_printer(data, voltage):

@@ -1,6 +1,7 @@
-import sys
 import logging
-import yappi
+import sys
+
+import deltalanguage as dl
 
 from accumulator import accumulator
 from DAC_controller import DACController
@@ -8,8 +9,6 @@ from user_interface import user_interface
 from timestamper_model import TimestamperModel
 from timestamper_interface import TimestampChipInterface
 
-from deltalanguage.runtime import DeltaPySimulator
-from deltalanguage.wiring import DeltaGraph, placeholder_node_factory
 
 if __name__ == "__main__":
     # Define Node debugging
@@ -18,13 +17,13 @@ if __name__ == "__main__":
     _TIMESTAMPER_DEBUG = logging.ERROR
     _CHIP_INTERFACE_DEBUG = logging.ERROR
 
-    with DeltaGraph() as graph:
+    with dl.DeltaGraph() as graph:
         # UI acts as an experiment controller, this could be a GUI interface.
         UI = user_interface()
 
         # Place holders are required because of loops between
         # the DAC_controller, accumulator, timestamper and chip interface.
-        p0_acc = placeholder_node_factory()
+        p0_acc = dl.placeholder_node_factory()
 
         # DAC controller receives commands and parameters from accumulator.
         # This node could be used to control a DAC IC
@@ -66,5 +65,5 @@ if __name__ == "__main__":
     # Run the graph until it reaches a natural exit
     # This happens after sufficient data has been collected.
     print(graph)
-    rt = DeltaPySimulator(graph)
+    rt = dl.DeltaPySimulator(graph)
     rt.run()

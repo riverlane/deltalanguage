@@ -3,9 +3,9 @@ nodes and placeholders.
 """
 
 from __future__ import annotations
-from collections import deque, OrderedDict
+from collections import OrderedDict
 from copy import deepcopy
-from typing import TYPE_CHECKING, Deque, Dict, List, Set, Tuple, Type, Union
+from typing import TYPE_CHECKING, Dict, List, Set, Tuple, Union
 import logging
 import textwrap
 
@@ -21,8 +21,8 @@ from ..data_types import (BaseDeltaType,
                           DUnion,
                           Top)
 from ._node_classes.abstract_node import AbstractNode
-from ._node_classes.node_bodies import Latency
-from ._node_classes.real_nodes import OutPort, PyConstNode
+from ._node_classes.node_bodies import Latency, PyConstBody, PyInteractiveBody
+from ._node_classes.real_nodes import OutPort
 from ._node_factories import py_node_factory
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ class DeltaGraph:
 
     lvl : int
         The level at which logs are displayed.
-        These are the same levels as in Python's :py:mod:`logging` package.
+        These are the same levels as in Python's ``logging`` package.
         By default only error logs are displayed.
 
     Examples
@@ -57,21 +57,19 @@ class DeltaGraph:
 
     .. code-block:: python
 
-        >>> from deltalanguage.data_types import NoMessage
-        >>> from deltalanguage.runtime import DeltaRuntimeExit
-        >>> from deltalanguage.wiring import DeltaBlock
+        >>> import deltalanguage as dl
 
-        >>> @DeltaBlock(allow_const=False)
-        ... def print_and_exit(a: int) -> NoMessage:
+        >>> @dl.DeltaBlock(allow_const=False)
+        ... def print_and_exit(a: int) -> dl.Void:
         ...     print(a)
-        ...     raise DeltaRuntimeExit
+        ...     raise dl.DeltaRuntimeExit
 
     The graph definition uses python's ``with`` statement where one simply
     wires up outputs of nodes with inputs of the other nodes:
 
     .. code-block:: python
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     print_and_exit(42) # doctest:+ELLIPSIS
         print_and_exit...
 
@@ -99,14 +97,14 @@ class DeltaGraph:
 
     .. code-block:: python
 
-        >>> from deltalanguage.runtime import DeltaPySimulator
+        >>> import deltalanguage as dl
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         42
 
     Node inputs and outputs must be typed (in case of no output
-    :py:class:`NoMessage<deltalanguage.data_types.NoMessage>` is used as above).
+    :py:class:`Void<deltalanguage.data_types.Void>` is used as above).
     To check the correctness of wiring manually one can call this method:
 
     .. code-block:: python
@@ -251,7 +249,7 @@ class DeltaGraph:
             # create a const splitter node if merged_node is const
             new_node = py_node_factory(
                 self,
-                isinstance(merged_node, PyConstNode),
+                merged_node.is_const(),
                 _splitter,
                 OrderedDict([('to_split', merged_type)]),
                 _SplitterT,
@@ -318,6 +316,7 @@ class DeltaGraph:
         bool
             ``True`` if correct.
 
+
         .. todo::
             Add extra checks of splitting/forking of wires in step 1.
         """
@@ -358,8 +357,19 @@ class DeltaGraph:
             raise DeltaIOError(f"out_ports' destination names should be unique\n"
                                f"graph={self}")
 
-        # TODO check that if splitting is needed then out_port' names are
-        # unique, otherwise raise DeltaIOError
+        # nodes with interactive bodies cannot be portless,
+        # as they block simulation, until scheduling is implemented
+        for node in self.nodes:
+            # after multibody extension: check all bodies
+            if (isinstance(node.body, PyInteractiveBody)
+                    and len(node.in_ports) == 0
+                    and len(node.out_ports) == 0):
+                raise DeltaIOError(
+                    f"Node {node} does not have I/O has an interactive body "
+                    f"{node.body}. At the moment this is not supported.\n"
+                    "Please either remove this body or connect this node "
+                    "to another one."
+                )
 
         # check missing inputs
         in_ports_unused = [port
@@ -432,7 +442,8 @@ class DeltaGraph:
 
         Returns
         -------
-        Node or list of nodes matching this name.
+        Union[AbstractNode, List[AbstractNode]]
+            Node or list of nodes matching this name.
         """
         nodes = []
         for node in self.nodes:
@@ -480,7 +491,7 @@ class DeltaGraph:
 
         Parameters
         ----------
-        port_nodes : bool = False
+        port_nodes : bool
             If ``True``, ports are presented as types of nodes in the graph.
             If ``False``, port details are added as extra labels to edges.
 

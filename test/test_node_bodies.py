@@ -6,9 +6,7 @@ from test._utils import TwoIntsT, TwoInts
 from deltalanguage.data_types import make_forked_return
 from deltalanguage.wiring import (PyConstBody,
                                   PyFuncBody,
-                                  PyListOneCast,
-                                  PyMethodBody,
-                                  PyTupleOneCast)
+                                  PyMethodBody)
 
 
 class TestPyConstBody(unittest.TestCase):
@@ -121,7 +119,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_arg = Mock()
         mock_arg.body.eval.return_value = TwoInts(None, 3)
         mock_arg.index = 'x'
-        mock_arg.return_type = TwoIntsT
+        mock_arg.out_type = TwoIntsT
         node_body = PyConstBody(self.mock_callback, mock_arg)
         with self.assertRaises(ValueError):
             node_body.eval()
@@ -140,7 +138,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_kwarg = Mock()
         mock_kwarg.body.eval.return_value = TwoInts(None, 3)
         mock_kwarg.index = 'x'
-        mock_kwarg.return_type = TwoIntsT
+        mock_kwarg.out_type = TwoIntsT
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
         with self.assertRaises(ValueError):
             node_body.eval()
@@ -173,23 +171,6 @@ class TestPyFuncBody(unittest.TestCase):
         self.assertEqual(node_body.eval(), 6)
 
 
-class TestPyListOneCast(unittest.TestCase):
-
-    def setUp(self):
-        self.mock_inner_body = Mock()
-        self.node_body = PyListOneCast(self.mock_inner_body)
-
-    def test_inner_body_eval(self):
-        """Inner body should be evaluated."""
-        self.node_body.eval(1, 2, 3, a=4, b=5)
-        self.mock_inner_body.eval.assert_called_with(1, 2, 3, a=4, b=5)
-
-    def test_return_list(self):
-        """PyListOneCast should take returned value and cast as a list."""
-        self.mock_inner_body.eval.return_value = 5
-        self.assertEqual(self.node_body.eval(1, 2, 3, a=4, b=5), [5])
-
-
 class TestPyMethodBody(unittest.TestCase):
 
     def test_method_callback(self):
@@ -212,23 +193,6 @@ class TestPyMethodBody(unittest.TestCase):
         node_body = PyMethodBody(
             TestClass.add_5, test_object)
         self.assertEqual(17, node_body.eval())
-
-
-class TestPyTupleOneCast(unittest.TestCase):
-
-    def setUp(self):
-        self.mock_inner_body = Mock()
-        self.node_body = PyTupleOneCast(self.mock_inner_body)
-
-    def test_inner_body_eval(self):
-        """Inner body should be evaluated."""
-        self.node_body.eval(1, 2, 3, a=4, b=5)
-        self.mock_inner_body.eval.assert_called_with(1, 2, 3, a=4, b=5)
-
-    def test_return_tuple(self):
-        """PyListOneCast should take returned value and cast as a tuple."""
-        self.mock_inner_body.eval.return_value = 5
-        self.assertEqual(self.node_body.eval(1, 2, 3, a=4, b=5), tuple([5]))
 
 
 if __name__ == "__main__":

@@ -33,12 +33,6 @@ RUN pip install --no-cache-dir -r /opt/dev_requirements.txt
 RUN pip install --no-cache-dir -r /opt/install_requirements.txt
 RUN pip install --no-cache-dir -r /opt/visualisation_requirements.txt
 
-# Hotfix for this bug https://github.com/microsoft/vscode-python/issues/13701
-# Jupyter Server does not start in VSCode
-# TODO remove this block when resolved
-RUN pip install --upgrade pip
-RUN pip install 'traitlets==4.3.3' --force-reinstall
-
 # The image above can be stored on the Docker Registry for quicker rebuild.
 # See Anian's repo for inspiration.
 # Everything below is to create a user with the same credentials as yours.
@@ -53,7 +47,7 @@ ARG USER_GID
 RUN (groupadd --gid $USER_GID $USERNAME; exit 0) && \
     useradd --uid $USER_UID --gid $USER_GID -m $USERNAME && \
     mkdir -p /home/$USERNAME/.vscode-server /home/$USERNAME/.vscode-server-insiders && \
-    chown ${USER_UID}:${USER_GID} /home/$USERNAME/.vscode-server*
+    (chown ${USER_UID}:${USER_GID} /home/$USERNAME/.vscode-server*; exit 0)
 
 # Add sudo support to install extra software if needed
 RUN apt-get install -y sudo && \
@@ -71,4 +65,4 @@ USER $USERNAME
 ENV DEBIAN_FRONTEND=dialog \
     PYTHONPATH=${PYTHONPATH}:/workdir
 
-CMD [ "/bin/bash" ]
+CMD ["/bin/bash"]

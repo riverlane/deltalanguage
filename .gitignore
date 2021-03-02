@@ -25,7 +25,7 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
-nosetests.xml
+testreport.xml
 coverage.xml
 *.cover
 *.py,cover

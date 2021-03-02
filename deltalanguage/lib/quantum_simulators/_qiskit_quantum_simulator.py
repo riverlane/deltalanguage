@@ -31,7 +31,8 @@ class PiXY(UnitaryGate):
 
     def __init__(self, angle):
         super().__init__(np.array([[0, -np.sin(angle) - 1j*np.cos(angle)],
-                                   [np.sin(angle) - 1j*np.cos(angle), 0]]), label='PiXY')
+                                   [np.sin(angle) - 1j*np.cos(angle), 0]]),
+                         label='PiXY')
 
 
 class PiYZ(UnitaryGate):
@@ -39,7 +40,8 @@ class PiYZ(UnitaryGate):
 
     def __init__(self, angle):
         super().__init__(np.array([[np.cos(angle), -1j*np.sin(angle)],
-                                   [1j*np.sin(angle), -1*np.cos(angle)]]), label='PiYZ')
+                                   [1j*np.sin(angle), -1*np.cos(angle)]]),
+                         label='PiYZ')
 
 
 class PiZX(UnitaryGate):
@@ -47,7 +49,8 @@ class PiZX(UnitaryGate):
 
     def __init__(self, angle):
         super().__init__(np.array([[np.cos(angle), np.sin(angle)],
-                                   [np.sin(angle), -1*np.cos(angle)]]), label='PiZX')
+                                   [np.sin(angle), -1*np.cos(angle)]]),
+                         label='PiZX')
 
 
 class RX(UnitaryGate):
@@ -55,7 +58,8 @@ class RX(UnitaryGate):
 
     def __init__(self, angle):
         super().__init__(np.array([[1j*np.cos(angle/2), np.sin(angle/2)],
-                                   [np.sin(angle/2), 1j*np.cos(angle/2)]]), label='RX')
+                                   [np.sin(angle/2), 1j*np.cos(angle/2)]]),
+                         label='RX')
 
 # Some gates that already exist in qiskit need to redefined with a custom label
 # so that they can be recognized by the noise model
@@ -73,7 +77,8 @@ class RY(UnitaryGate):
 
     def __init__(self, angle):
         super().__init__(np.array([[1j*np.cos(angle/2), -1j*np.sin(angle/2)],
-                                   [1j*np.sin(angle/2), 1j*np.cos(angle/2)]]), label='RY')
+                                   [1j*np.sin(angle/2), 1j*np.cos(angle/2)]]),
+                         label='RY')
 
 
 class Y(UnitaryGate):
@@ -109,40 +114,28 @@ class QiskitQuantumSimulator(IQuantumSimulator):
 
     Parameters
     ----------
-    register_size: int
+    register_size : int
         Size of the qubit register.
     seed : int
-        seed for both the random transpiler and the measurement sampling
-    simulator:
-        specifies which qiskit simulator backend to use, possibilities are:
-        QasmSimulator (default),
-        StatevectorSimulator/UnitarySimulator (for debugging)
+        Seed for both the random transpiler and the measurement sampling.
+    simulator_backend : AerBackend
+        Specifies which qiskit simulator backend to use, possibilities are:
+        QasmSimulator, StatevectorSimulator/UnitarySimulator
+        (for debugging).
+    noise_model : NoiseModel
+        Qiskit NoiseModel object to apply when running a circuit.
 
 
     .. TODO::
         Add and example how to use it in a graph (without any runtime).
-        """
+    """
 
     def __init__(self,
                  register_size: int = 16,
                  seed: int = None,
                  simulator_backend=Aer.get_backend('qasm_simulator'),
-                 noise_model=None
+                 noise_model: NoiseModel = None
                  ):
-        """Constructor.
-
-        Parameters
-        ----------
-        register_size : int
-            Size of the qubit register.
-        seed : int
-            seed for both the random transpiler and the measurement sampling
-        simulator : AerBackend
-            specifies which qiskit simulator backend to use, possibilities are:
-            QasmSimulator, StatevectorSimulator/UnitarySimulator (for debugging)
-        noise_model : NoiseModel
-            the qiskit NoiseModel object to apply when running a circuit
-        """
 
         self._circuit = None
         self._simulator_backend = simulator_backend

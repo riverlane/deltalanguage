@@ -10,25 +10,13 @@
 # --------------- DECLARATIONS -----------------------------------------------#
 
 
-.DEFAULT_GOAL := help
-.PHONY: help
-help: ## List of main goals
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / \
-	{printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-
 ifeq ($(OS),Windows_NT)
-  # Windows is not supported!
+include Makefile.win
 else
-  # Some commands are different in Linux and Mac
-  UNAME_S := $(shell uname -s)
-
-  # User's credential will be passed to the image and container
-  USERNAME=$(shell whoami)
-  USER_UID=$(shell id -u)
-  USER_GID=$(shell id -g)
+include Makefile.unix
 endif
 
-PWD=$(shell pwd)
+.DEFAULT_GOAL := help
 
 IMAGENAME=deltalanguage
 CONTAINERNAME=deltalanguage
@@ -42,15 +30,14 @@ DBUILD=docker build . \
 
 DRUN=docker run \
 	--interactive \
-	--privileged \
 	--rm \
 	--volume ${PWD}:/workdir \
 	--workdir /workdir \
 	--name=${CONTAINERNAME}
 
 DEXEC=docker exec \
-	--interactive \
-	$(shell cat container)
+	--interactive  \
+	${CONTAINERID}
 
 PYCODESTYLE=pycodestyle -v \
 	deltalanguage/ examples/ test/ >> pycodestyle.log || true
@@ -60,15 +47,15 @@ PYLINT=pylint \
 	--rcfile=pylint.rc \
 	deltalanguage/ examples/ test/ >> pylint.log
 
-PYTHONNOSE=python -m nose \
-	--with-xunit \
-	--logging-level=INFO \
-	--with-xcoverage \
-	--cover-erase \
-	--cover-package=deltalanguage \
-	--verbose \
-	--detailed-errors \
-	--with-randomly
+PYTEST=pytest \
+	-v \
+	-ra \
+	--random-order \
+	--log-level=INFO \
+	--junitxml=testreport.xml \
+	--cov-report xml \
+	--cov-report term \
+	--cov=deltalanguage
 
 LICENSES=pip-licenses --format=confluence --output-file licenses.confluence && \
 	echo -e '\n' >> licenses.confluence && \
@@ -117,11 +104,7 @@ build: ./environment/Dockerfile ## Build the image
 build-nc: ./environment/Dockerfile ## Build the image from scratch
 	${DBUILD} --no-cache
 
-# --privileged: needed for DGB, but also needed for leaksan,
-# so causes a heisenbug: lsan throws a warning, enabling --priv fixes it
 container: ## Spin out the container
-	# if `build` is put in dependencies then it will cause rerun of `container`,
-	# we want it to be blocked by `container` file though
 	make build
 	${DRUN} \
 	--detach \
@@ -131,11 +114,11 @@ container: ## Spin out the container
 
 .PHONY: rshell
 rshell: container
-	docker exec --privileged -it $(shell cat container) /bin/bash
+	docker exec --privileged -it ${CONTAINERID} /bin/bash
 
 .PHONY: shell
 shell: container
-	docker exec -it $(shell cat container) /bin/bash
+	docker exec -it ${CONTAINERID} /bin/bash
 
 .PHONY: notebook
 notebook: container ## Attach a Jupyter Notebook to a container
@@ -164,27 +147,27 @@ docs: container ## Generate docs
 
 
 .PHONY: test
-test: test-nose ## Run all the tests
+test: pytest ## Run all the tests
 
-.PHONY: test-nose
-test-nose: container ## Run the test suite via nose
-	${DEXEC} ${PYTHONNOSE}
+.PHONY: pytest
+pytest: container ## Run the test suite via pytest
+	${DEXEC} ${PYTEST}
 
 .PHONY: test-unit
 test-unit: container ## Run the test suite via unittest
 	${DEXEC} python -m unittest discover
 
 .PHONY: check-os
-check-os: ## Which OS is used?
-ifeq ($(OS),Windows_NT)
-	@echo MAKEFILE: Windows is detected (not supported!)
-else ifeq ($(UNAME_S),Linux)
-	@echo MAKEFILE: Linux is detected
-else ifeq ($(UNAME_S),Darwin)
-	@echo MAKEFILE: Mac is detected
-else
-	@echo MAKEFILE: What is this beast?
-endif
+ check-os: ## Which OS is used?
+ ifeq ($(OS),Windows_NT)
+ 	@echo "MAKEFILE: Windows is detected"
+ else ifeq ($(UNAME_S),Linux)
+ 	@echo "MAKEFILE: Linux is detected"
+ else ifeq ($(UNAME_S),Darwin)
+ 	@echo "MAKEFILE: Mac is detected"
+ else
+ 	@echo "MAKEFILE: What is this beast?"
+ endif
 
 
 # --------------- QA ---------------------------------------------------------#
@@ -221,57 +204,40 @@ test-package: ## Make and run tests on the package
 
 
 # --------------- CLEANING ---------------------------------------------------#
-
+ARTIFACTS=.coverage coverage.xml testreport.xml *.vcd *.png \
+     *.txt licenses.confluence licenses.csv *.log dist *.egg-info .eggs \
+	 build printed_graph.df pylint.log pycodestyle.log 
 
 .PHONY: clean
 clean: dev-clean clean-container ## Clean everything
 
-.PHONY: clean-cache
-clean-cache: ## Clean python cache
-ifeq ($(UNAME_S),Linux)
-	find . -name "__pycache__" -type d -print0 | xargs -r0 -- rm -r
-	find . -name "*.pyc" -type f -print0 | xargs -r0 -- rm -r
-else
-	find . -name "*.pyc" -type f -exec rm -rf {} \;
-	find . -name "__pycache__" -type d -exec rm -rf {} \;
-endif
-
+.PHONY: clean-artifacts
+clean-artifacts: ## Cleans all the artifacts
+	$(foreach var,$(ARTIFACTS),$(RMCMD) $(var);) 
+ 
 .PHONY: clean-container
 clean-container: ## Stop and remove the container
-	docker ps -q --filter "name=${CONTAINERNAME}" | grep -q . && \
-	docker stop ${CONTAINERNAME}
-	rm -f container
-
-.PHONY: clean-cover
-clean-cover: ## Clean the test suite results
-	rm -f .coverage coverage.xml nosetests.xml trace.vcd
-
-.PHONY: clean-data
-clean-data: ## Clean any data
-ifeq ($(UNAME_S),Linux)
-	find . -name "printed_graph.df" -type f -print0 | xargs -r0 -- rm -r
-else
-	find . -name "printed_graph.df" -exec rm -rf {} \;
-endif
-	rm -f *.vcd *.png *.txt
+	docker stop ${CONTAINERNAME} || exit 0
+	$(RMCMD) container
 
 .PHONY: clean-docs
 clean-docs: ## Clean docs
 	make -C docs clean
 
-.PHONY: clean-licenses
-clean-licenses: ## Clean licenses
-	rm -f licenses.confluence licenses.csv
+.PHONY: clean-cache
+clean-cache: ## Clean python cache
+ifeq ($(OS),Windows_NT)
+	@del /s *__pycache__* 
+	@del /s *.pyc 
+else ifeq ($(OS),Linux)
+	find . -name "__pycache__" -type d -print0 | xargs -r0 -- rm -r
+	find . -name "*.pyc" -type f -print0 | xargs -r0 -- rm -r
+else
+	find . -name "*.pyc" -type f -exec rm -rf {} \; || exit 0
+	find . -name "__pycache__" -type d -exec rm -rf {} \; || exit 0
+endif
 
-.PHONY: clean-logs
-clean-logs: ## Clean logs
-	rm -f pylint.log pycodestyle.log docs/sphinx-build-*.log
-
-.PHONY: clean-package
-clean-package: ## Clean packaging artifacts
-	rm -rf dist *.egg-info .eggs build
-
-
+    
 # --------------- DEVELOPMENT ------------------------------------------------#
 
 
@@ -279,11 +245,11 @@ clean-package: ## Clean packaging artifacts
 # the development container via VSCode
 
 .PHONY: dev-test
-dev-test: dev-test-nose ## See non-dev version
+dev-test: dev-pytest ## See non-dev version
 
-.PHONY: dev-test-nose
-dev-test-nose: ## See non-dev version
-	${PYTHONNOSE}
+.PHONY: dev-pytest
+dev-pytest: ## See non-dev version
+	${PYTEST}
 
 .PHONY: dev-test-unit
 dev-test-unit: ## See non-dev version
@@ -324,4 +290,4 @@ dev-test-package: ## See non-dev version
 	${TESTPACKAGE}
 
 .PHONY: dev-clean
-dev-clean: clean-cache clean-cover clean-data clean-licenses clean-logs clean-docs clean-package ## See non-dev version
+dev-clean: clean-cache clean-artifacts clean-docs## See non-dev version

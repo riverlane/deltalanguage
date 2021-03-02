@@ -17,7 +17,8 @@ Prerequisites
 
 .. note::
    We primarily support and test Deltalanguage on Ubuntu 20.04 but have 
-   additionally tested our system on MacOS 10.15.
+   additionally tested our system on MacOS 10.15 and Windows-10. 
+
 
 You will require 
 `Python 3.8 <https://www.python.org/downloads/release/python-385/>`_.
@@ -30,6 +31,7 @@ python development tools.
 
 We are in the process of extending both the supported operating systems and 
 python versions.
+For Windows-10 you can refer to our step-by-step guide :doc:`wininstall`.
 If you have specfic requirements, you are welcome request support. Get in 
 contact by `emailing us <mailto:deltaflow@riverlane.com>`_.
 

@@ -2,11 +2,12 @@ import unittest
 
 from deltalanguage.data_types import (DBool,
                                       DInt,
-                                      NoMessage,
+                                      Void,
                                       make_forked_return)
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
+                                  ForkedNode,
                                   placeholder_node_factory,
                                   template_node_factory)
 
@@ -28,19 +29,19 @@ class TemplateNodeTest(unittest.TestCase):
             return a + b
 
         @DeltaBlock(allow_const=False)
-        def print_then_exit(to_print: object) -> NoMessage:
+        def print_then_exit(to_print: object) -> Void:
             self.output = to_print
             raise DeltaRuntimeExit
 
         with DeltaGraph() as self.test_graph_inline:
             self.n_standalone = template_node_factory(
-                a=1, b=2, return_type=int)
+                a=1, b=2, out_type=int)
             print_then_exit(to_print=self.n_standalone)
 
         with DeltaGraph() as self.test_graph_const_in:
             a_1 = add_const(1, 2)
             a_2 = add_const(3, 4)
-            self.n_const = template_node_factory(a=a_1, b=a_2, return_type=int)
+            self.n_const = template_node_factory(a=a_1, b=a_2, out_type=int)
             print_then_exit(to_print=self.n_const)
 
         with DeltaGraph() as self.test_graph_nonconst_in:
@@ -48,7 +49,7 @@ class TemplateNodeTest(unittest.TestCase):
             a_2 = add_nonconst(3, 4)
             self.n_nonconst = template_node_factory(a=a_1,
                                                     b=a_2,
-                                                    return_type=int)
+                                                    out_type=int)
             print_then_exit(to_print=self.n_nonconst)
 
     def test_add_standalone_const_func(self):
@@ -99,21 +100,40 @@ class TemplateNodeTest(unittest.TestCase):
         with DeltaGraph() as _test_graph:
             forked_input = add_1_true(n=5)
             template = template_node_factory(
-                a=forked_input.a, b=forked_input.b, return_type=NoMessage)
-        self.assertEqual(template._in_params['a'], DInt())
-        self.assertEqual(template._in_params['b'], DBool())
+                a=forked_input.a, b=forked_input.b, out_type=Void)
+        body_input = template.body.kw_in_nodes['a']
+        self.assertEqual(
+            body_input.out_type.elem_dict[body_input.index] if isinstance(
+                body_input, ForkedNode
+            ) else body_input.out_type,
+            DInt()
+        )
+        body_input = template.body.kw_in_nodes['b']
+        self.assertEqual(
+            body_input.out_type.elem_dict[body_input.index] if isinstance(
+                body_input, ForkedNode
+            ) else body_input.out_type,
+            DBool()
+        )
 
     def test_placeholder_input_raises_exception(self):
         with self.assertRaises(TypeError):
             with DeltaGraph():
                 template_node_factory(
-                    a=placeholder_node_factory(), return_type=NoMessage)
+                    a=placeholder_node_factory(), out_type=Void)
 
     def test_placeholder_input_no_exception(self):
         with DeltaGraph():
             template = template_node_factory(
-                a=placeholder_node_factory(), return_type=NoMessage, arg_types={'a': int})
-        self.assertEqual(template._in_params['a'], DInt())
+                a=placeholder_node_factory(), out_type=Void, arg_types={'a': int})
+
+        body_input = template.body.kw_in_nodes['a']
+        self.assertEqual(
+            body_input.out_type.elem_dict[body_input.index] if isinstance(
+                body_input.out_type, ForkedNode
+            ) else body_input.out_type,
+            DInt()
+        )
 
     def test_partial_arg_types(self):
         @DeltaBlock()
@@ -122,10 +142,23 @@ class TemplateNodeTest(unittest.TestCase):
         with DeltaGraph():
             template = template_node_factory(a=placeholder_node_factory(),
                                              b=bool_and(a=True, b=False),
-                                             return_type=NoMessage,
+                                             out_type=Void,
                                              arg_types={'a': int})
-        self.assertEqual(template._in_params['a'], DInt())
-        self.assertEqual(template._in_params['b'], DBool())
+
+        body_input = template.body.kw_in_nodes['a']
+        self.assertEqual(
+            body_input.out_type.elem_dict[body_input.index] if isinstance(
+                body_input, ForkedNode
+            ) else body_input.out_type,
+            DInt()
+        )
+        body_input = template.body.kw_in_nodes['b']
+        self.assertEqual(
+            body_input.out_type.elem_dict[body_input.index] if isinstance(
+                body_input, ForkedNode
+            ) else body_input.out_type,
+            DBool()
+        )
 
     def test_template_input_raises_exception(self):
         @DeltaBlock()
@@ -134,7 +167,7 @@ class TemplateNodeTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             with DeltaGraph():
                 template_node_factory(
-                    a=add(a=1, b=2), arg_types={'a': bool}, return_type=NoMessage)
+                    a=add(a=1, b=2), arg_types={'a': bool}, out_type=Void)
 
 
 if __name__ == "__main__":

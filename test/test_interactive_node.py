@@ -10,15 +10,14 @@ from test._utils import (TwoInts,
                          return_1,
                          return_2)
 
-from deltalanguage.data_types import as_delta_type
+from deltalanguage.data_types import as_delta_type, Void, DeltaIOError
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage._utils import QueueMessage
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
                                   Interactive,
-                                  PyFuncNode,
-                                  PyInteractiveNode,
+                                  PythonNode,
                                   placeholder_node_factory)
 
 
@@ -28,7 +27,7 @@ def int_to_str(n: int) -> str:
 
 
 @Interactive(in_params={"num": str}, out_type=int, name="blah")
-def interactive_func(node: PyInteractiveNode):
+def interactive_func(node: PythonNode):
     node.send(3)
     num = node.receive()["num"]
     num = int(num, base=10)
@@ -36,7 +35,7 @@ def interactive_func(node: PyInteractiveNode):
 
 
 @Interactive(in_params={"num": int}, out_type=int)
-def forward(node: PyInteractiveNode):
+def forward(node: PythonNode):
     for _ in range(10):
         num = node.receive("num")
         node.send(num)
@@ -44,7 +43,7 @@ def forward(node: PyInteractiveNode):
 
 
 @Interactive(in_params={'num': int}, out_type=TwoIntsT)
-def add_until_10(node: PyInteractiveNode):
+def add_until_10(node: PythonNode):
     """Sends num on the left port until it is greater than 10, then sends it
     on the right port.
     """
@@ -53,6 +52,40 @@ def add_until_10(node: PyInteractiveNode):
         node.send(TwoInts(num, None))
         num = node.receive()["num"]
     node.send(TwoInts(None, num))
+
+
+class InteractiveNodeGeneralTest(unittest.TestCase):
+    """Unsorted testes of interactive nodes."""
+
+    def test_interactive_node_without_io(self):
+        """Interactive node must have I/O. 
+
+        We chose this rule because runtime simulators,
+        in particular the Python GIL, wouldn't know when to
+        interrupt this node simulation.
+
+        In order to allow such nodes we need to change the simulation strategy.
+        """
+
+        with self.assertRaises(DeltaIOError):
+            @Interactive({}, Void)
+            def bar(node):
+                while True:
+                    pass
+
+    def test_interactive_node_without_ports(self):
+        """An interactive node with I/O can be just forgotten during graph
+        construction. We check that it is connected.
+        """
+        @Interactive({}, int)
+        def bar(node):
+            node.send(1)
+
+        with DeltaGraph() as graph:
+            bar.call()
+
+        with self.assertRaises(DeltaIOError):
+            graph.check()
 
 
 class SimpleGraph(unittest.TestCase):
@@ -72,9 +105,8 @@ class SimpleGraph(unittest.TestCase):
         """Test if the node wires are connected correctly and have the right
         type.
         """
-        interactive_node: PyInteractiveNode =\
-            self.graph.find_node_by_name("blah")
-        dummy_node: PyFuncNode = self.graph.find_node_by_name("node")
+        interactive_node = self.graph.find_node_by_name("blah")
+        dummy_node = self.graph.find_node_by_name("node")
 
         self.assertEqual(len(interactive_node.in_ports), 1)
         self.assertEqual(len(interactive_node.out_ports), 1)
@@ -97,7 +129,7 @@ class SimpleGraph(unittest.TestCase):
         """Test if the Interactive Node performs correctly by simulating
         the runtime and the other node.
         """
-        inter_node: PyInteractiveNode = self.graph.find_node_by_name("blah")
+        inter_node: PythonNode = self.graph.find_node_by_name("blah")
         in_q = self.runtime.in_queues[inter_node.name]["num"]
         out_q = self.runtime.out_queues[inter_node.name][None]
 
@@ -128,6 +160,10 @@ class SimpleGraph(unittest.TestCase):
 
 
 class UpdateClockTest(unittest.TestCase):
+    """Test logical clock in MessageLog.
+
+    TODO this test case should be moved from here.
+    """
 
     def setUp(self):
         with DeltaGraph() as self.test_graph:
@@ -138,8 +174,8 @@ class UpdateClockTest(unittest.TestCase):
         """
         self.rt = DeltaPySimulator(self.test_graph, msg_lvl=logging.DEBUG)
         self.rt.run()
-        message_times = [msg.clk for node, _,
-                         msg in self.rt.msg_log.messages if node.startswith("const_consumer")]
+        message_times = [msg.clk for node, _, msg in self.rt.msg_log.messages
+                         if node.startswith("const_consumer")]
         self.assertGreater(len(message_times), 0)
         for time_1, time_2 in zip(message_times, message_times[1:]):
             self.assertLess(time_1, time_2)
@@ -149,8 +185,8 @@ class UpdateClockTest(unittest.TestCase):
         """
         self.rt = DeltaPySimulator(self.test_graph)
         self.rt.run()
-        message_times = [msg.clk for node, _,
-                         msg in self.rt.msg_log.messages if node.startswith("const_consumer")]
+        message_times = [msg.clk for node, _, msg in self.rt.msg_log.messages
+                         if node.startswith("const_consumer")]
         self.assertEqual(message_times, [])
         for time_1, time_2 in zip(message_times, message_times[1:]):
             self.assertLess(time_1, time_2)
@@ -189,45 +225,6 @@ class ComplexGraph(unittest.TestCase):
 
     def test_graph_properties(self):
         self.graph.check()
-
-
-@Interactive(in_params={}, out_type=int, name="unstoppable")
-def no_inputs(node: PyInteractiveNode):
-    """Example of an InteractiveNode in a while True loop with no inputs.
-    Note that we need this node to sleep for at least some time so that the
-    rest of the graph can execute.
-    """
-    i = 1
-    while True:
-        node.send(i)
-        i = i + 1
-        time.sleep(0.01)
-
-
-class TestNoInputs(unittest.TestCase):
-
-    def setUp(self):
-        """Constructs the following graph:
-
-            +---------+
-            +no_inputs+
-            |         |
-            |         +---> SAVE and Exit if > 10
-            +---------+
-        """
-        exit_if = StateSaver(object, condition=lambda x: x > 10)
-        with DeltaGraph() as graph:
-            exit_if.save_and_exit_if(no_inputs.call())
-        self.graph = graph
-        self.runtime = DeltaPySimulator(self.graph)
-
-    def test_graph_exits(self):
-        """This graph should run and terminate,
-        and the interactive node should pick up the exit signal.
-        """
-        self.runtime.run()
-        no_inputs_node = self.graph.find_node_by_name("unstoppable")
-        self.assertFalse(self.runtime.threads[no_inputs_node.name].is_alive())
 
 
 if __name__ == "__main__":

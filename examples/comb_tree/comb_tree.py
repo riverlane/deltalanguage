@@ -7,12 +7,7 @@ import sys
 
 from migen import If, Signal, FSM, NextState, NextValue, Array, Cat
 
-from deltalanguage.data_types import (DInt, DOptional, DArray,
-                                      DBool, DSize, make_forked_return)
-from deltalanguage.wiring import (MigenNodeTemplate, PyInteractiveNode,
-                                  Interactive, placeholder_node_factory,
-                                  DeltaGraph)
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
+import deltalanguage as dl
 
 from core_unit import CoreUnit
 from commands import Commands
@@ -28,7 +23,7 @@ C_N_BITS = 8  # MAX 64
 C_N_INPUTS = 8  # MAX 64
 
 
-class CombTree(MigenNodeTemplate):
+class CombTree(dl.MigenNodeTemplate):
     """Generates resources to compute given operation according to input size.
 
     Generic constants:
@@ -58,12 +53,12 @@ class CombTree(MigenNodeTemplate):
 
         # inputs
         self.d_in = template.add_pa_in_port(
-            'd_in', DOptional(DInt(DSize(N_BITS*N_INPUTS))))
-        self.cmd = template.add_pa_in_port('cmd', DOptional(DInt()))
+            'd_in', dl.DOptional(dl.DInt(dl.DSize(N_BITS*N_INPUTS))))
+        self.cmd = template.add_pa_in_port('cmd', dl.DOptional(dl.DInt()))
 
         # outputs
-        self.d_out = template.add_pa_out_port('d_out', DInt())
-        self.err = template.add_pa_out_port('error', DInt())
+        self.d_out = template.add_pa_out_port('d_out', dl.DInt())
+        self.err = template.add_pa_out_port('error', dl.DInt())
 
         # input length correction [need a power of 2 sized tree]
         N_INPUTS_CORR = pow(2, TREE_DEPTH)
@@ -119,7 +114,7 @@ class CombTree(MigenNodeTemplate):
                                             self.cmd_data_reg,
                                             self.e_pipe[j][i],
                                             N_BITS)
-                
+
                 # error signal propagation. If any of the single units have
                 # a high error signal, the error is propagated to the node's output.
                 self.comb += [
@@ -154,15 +149,15 @@ def generate_data_vector(N_BITS, N_INPUTS):
     return np.random.randint(0, pow(2, N_BITS), size=N_INPUTS)
 
 
-TbT, TbVals = make_forked_return(
-    {'cmd': DInt(),
-     'data': DInt(DSize(C_VECTOR_LEN))})
+TbT, TbVals = dl.make_forked_return(
+    {'cmd': dl.DInt(),
+     'data': dl.DInt(dl.DSize(C_VECTOR_LEN))})
 
 
-@Interactive({'result': DInt(),
-              'error': DInt(),
-              }, TbT)
-def testbench(node: PyInteractiveNode):
+@dl.Interactive({'result': dl.DInt(),
+                 'error': dl.DInt(),
+                 }, TbT)
+def testbench(node):
 
     data_array = generate_data_vector(C_N_BITS, C_N_INPUTS)
     # Temporary - needs df.DArray => migen.Array support
@@ -171,7 +166,8 @@ def testbench(node: PyInteractiveNode):
     for i in range(C_N_INPUTS):
         data_vector += data_array[i] << C_N_BITS*i
 
-    data_vector = DInt(DSize(C_VECTOR_LEN)).from_numpy_object(data_vector)
+    data_vector = dl.DInt(dl.DSize(C_VECTOR_LEN)
+                          ).from_numpy_object(data_vector)
 
     for cmd in range(0x01, 0x06):
         node.send(TbVals(data=data_vector, cmd=cmd))
@@ -204,17 +200,17 @@ def testbench(node: PyInteractiveNode):
             exp_res = -1
         assert error == exp_err
 
-    raise DeltaRuntimeExit
+    raise dl.DeltaRuntimeExit
 
 
 if __name__ == "__main__":
 
     logging.root.setLevel(logging.DEBUG)
 
-    with DeltaGraph() as graph:
+    with dl.DeltaGraph() as graph:
 
         # define placeholders
-        p0_tb = placeholder_node_factory()
+        p0_tb = dl.placeholder_node_factory()
 
         # DUT
         dut = CombTree(
@@ -243,5 +239,5 @@ if __name__ == "__main__":
 
     # run graph
     print(graph)
-    rt = DeltaPySimulator(graph)
+    rt = dl.DeltaPySimulator(graph)
     rt.run()

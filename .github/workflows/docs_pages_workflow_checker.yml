@@ -1,0 +1,15 @@
+name: docs_pages_workflow_checker
+
+on:
+  page_build
+
+jobs: 
+  build_docs_job:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Verify that the dev page is reachable
+        # Note - GITHUB_REPOSITORY contains riverlane/repo-name we only want repo-name. 
+        # Don't use ${{ github.event.repository.name }} if on: schedule as no payload is generated
+        run: wget "https://riverlane.github.io/${{ github.event.repository.name }}/dev/index.html"
+        shell: bash

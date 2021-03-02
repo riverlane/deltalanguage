@@ -1,30 +1,30 @@
 import logging
 from typing import Dict, Type, Union
 
-from deltalanguage.data_types import BaseDeltaType
+from deltalanguage.data_types import BaseDeltaType, as_delta_type
 
 from ._delta_graph import DeltaGraph
-from ._node_classes.template_node import TemplateNode
-from ._node_classes.real_nodes import as_node
-from deltalanguage.data_types._delta_types import as_delta_type
-from deltalanguage.wiring._node_classes.abstract_node import ForkedNode
+from ._node_classes.abstract_node import ForkedNode
+from ._node_classes.node_bodies import TemplateBody
+from ._node_classes.placeholder_node import PlaceholderNode
+from ._node_classes.real_nodes import as_node, PythonNode
 
 
 def template_node_factory(
-    return_type: Union[Type, BaseDeltaType] = None,
+    out_type: Union[Type, BaseDeltaType] = None,
     name: str = None,
     arg_types: Dict[str, Union[Type, BaseDeltaType]] = {},
     lvl: int = logging.ERROR,
     **kwargs
-) -> TemplateNode:
-    """Node factory for :py:class:`TemplateNode`.
+) -> PythonNode:
+    """Node factory for nodes with :py:class:`TemplateBody`.
 
     When used the inputs and outputs types should be provided, please see the
     examples for use cases.
 
     Parameters
     ----------
-    return_type : Union[Type, BaseDeltaType]
+    out_type : Union[Type, BaseDeltaType]
         The required output from the implemented body of this node.
     name
         Name for the template node.
@@ -36,8 +36,8 @@ def template_node_factory(
 
     Returns
     -------
-    TemplateNode
-        Template for a node.
+    PythonNode
+        With a body that can be replaced with another body (a template body)
 
 
     Examples
@@ -51,26 +51,23 @@ def template_node_factory(
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import StateSaver
-        >>> from deltalanguage.runtime import DeltaPySimulator
-        >>> from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
-        ...                                   template_node_factory)
+        >>> import deltalanguage as dl
 
-        >>> @DeltaBlock()
+        >>> @dl.DeltaBlock()
         ... def foo(a: int, b: int) -> int:
         ...     return a + b
 
-        >>> s = StateSaver(int, verbose=True)
+        >>> s = dl.lib.StateSaver(int, verbose=True)
 
         # programming stage: define a graph with a template node
-        >>> with DeltaGraph() as graph:
-        ...     n = template_node_factory(a=1, b=2, return_type=int)
+        >>> with dl.DeltaGraph() as graph:
+        ...     n = dl.template_node_factory(a=1, b=2, out_type=int)
         ...     s.save_and_exit(n) # doctest:+ELLIPSIS
         save_and_exit...
 
         # running stage: complete the graph by specifying templates and run
         >>> n.specify_by_func(foo)
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 3
 
@@ -81,7 +78,7 @@ def template_node_factory(
     graph = DeltaGraph.current_graph()
 
     # Check if arguments are nodes.
-    # If not, put them in PyConstNodes in the current graph
+    # If not, put them in PyConstBodies in the current graph
     kw_in_nodes = {name: as_node(arg, graph)
                    for (name, arg) in kwargs.items()}
 
@@ -101,9 +98,10 @@ def template_node_factory(
         # Now check if input type is specified in nodes
         if isinstance(v, ForkedNode):
             # In input type is forked, then get specified port type
-            ret_type = v.return_type.elem_dict[v.index]
+            ret_type = v.out_type.elem_dict[v.index]
         else:
-            ret_type = v.return_type
+            ret_type = v.out_type
+
         if not isinstance(ret_type, BaseDeltaType):
             # If we get here then type is not specified
             ret_type = None
@@ -116,6 +114,9 @@ def template_node_factory(
                 raise TypeError(f"Argument {k} specified as {arg_type}"
                                 f" but is actually {ret_type}")
         elif arg_type is not None:
+            # TODO: think this is only necessary to pass a test
+            if isinstance(v, PlaceholderNode):
+                v.out_type = arg_type
             in_params[k] = arg_type
         elif ret_type is not None:
             in_params[k] = ret_type
@@ -123,11 +124,13 @@ def template_node_factory(
             # Type cannot be found
             raise TypeError(f"No type specified for argument {k}")
 
-    return TemplateNode(graph,
-                        None,
-                        in_params,
-                        [],
-                        kw_in_nodes,
-                        return_type=as_delta_type(return_type),
-                        name=name_prefix,
-                        lvl=lvl)
+    constructed_body = TemplateBody(kw_in_nodes)
+
+    return PythonNode(graph,
+                      [constructed_body],
+                      in_params,
+                      [],
+                      kw_in_nodes,
+                      out_type=as_delta_type(out_type),
+                      name=name_prefix,
+                      lvl=lvl)

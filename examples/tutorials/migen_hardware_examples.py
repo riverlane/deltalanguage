@@ -1,15 +1,7 @@
 import logging
 
 import migen
-
-from deltalanguage.data_types import DOptional
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.wiring import (DeltaMethodBlock,
-                                  Interactive,
-                                  PyInteractiveNode,
-                                  DeltaGraph,
-                                  MigenNodeTemplate,
-                                  placeholder_node_factory)
+import deltalanguage as dl
 
 
 class LengthChecker:
@@ -25,7 +17,7 @@ class LengthChecker:
         self.interactive = interactive
         self.verbose = verbose
 
-    @DeltaMethodBlock()
+    @dl.DeltaMethodBlock()
     def check_shape(self, rst: int) -> bool:
         self.length += rst
         if self.verbose:
@@ -37,17 +29,17 @@ class LengthChecker:
                 if rst == 0:
                     print(f"{msg} exactly {self.length} clk cycles")
                     assert self.length == 5
-                    raise DeltaRuntimeExit
+                    raise dl.DeltaRuntimeExit
             else:
                 print(f"{msg} at least {self.length} clk cycles")
                 assert self.length == 5
-                raise DeltaRuntimeExit
+                raise dl.DeltaRuntimeExit
 
         return True
 
 
-@Interactive({"status": bool}, int)
-def one_shot_run(node: PyInteractiveNode):
+@dl.Interactive({"status": bool}, int)
+def one_shot_run(node):
     """Sends a simple pulse 010 and then sits and waits.
 
     We are using an interactive node because we want to simulate a network-like
@@ -72,7 +64,7 @@ def one_shot_run(node: PyInteractiveNode):
             print(f"one_shot_run: [@{cnt}] received!")
 
 
-class HwResetShaper(MigenNodeTemplate):
+class HwResetShaper(dl.MigenNodeTemplate):
     """A reset shaper extends a single clock reset to last n clock cycles.
     Handy for guarantying proper completion/propagation of a reset signal
     throughout the design.
@@ -87,7 +79,7 @@ class HwResetShaper(MigenNodeTemplate):
         # an input is received. In this example, we have a cyclical graph
         # in which the hardware node (migenNode) must produce an output
         # (a reset signal) no matter the input.
-        pulse_in = template.add_pa_in_port('pulse_in', DOptional(int))
+        pulse_in = template.add_pa_in_port('pulse_in', dl.DOptional(int))
         reset_out = template.add_pa_out_port('reset_out', int)
 
         # Constants
@@ -137,7 +129,7 @@ def generate_graph_constant_input():
     reset request and we can't check that the reset
     gets deasserted by the node
     """
-    with DeltaGraph() as graph:
+    with dl.DeltaGraph() as graph:
         shaper = HwResetShaper(tb_num_iter=100,
                                name='reset_shaper',
                                lvl=logging.INFO)
@@ -161,8 +153,8 @@ def generate_graph_interactive_input(verbose=False):
         lvl = logging.DEBUG
     else:
         lvl = logging.INFO
-    with DeltaGraph() as graph:
-        ph = placeholder_node_factory()
+    with dl.DeltaGraph() as graph:
+        ph = dl.placeholder_node_factory()
         oneshot = one_shot_run.call(status=ph)
         shaper = HwResetShaper(tb_num_iter=50,
                                name='reset_shaper_one_shot',
@@ -188,7 +180,7 @@ def main(simple):
     else:
         graph, shaper = generate_graph_interactive_input(verbose)
 
-    rt = DeltaPySimulator(graph, lvl=logging.ERROR)
+    rt = dl.DeltaPySimulator(graph, lvl=logging.ERROR)
     rt.run()
 
 

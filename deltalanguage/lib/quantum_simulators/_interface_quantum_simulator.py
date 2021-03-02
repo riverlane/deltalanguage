@@ -18,15 +18,12 @@ class IQuantumSimulator(ABC):
 
         Parameters
         ----------
-        command : DInt(DSize(32))
+        command : DUInt(DSize(32))
             The HAL command to deconstruct and use to perform actions.
 
         Returns
         -------
-        DInt(DSize(32))
+        DUInt(DSize(32))
             Result of a measurement command.
-
-
-        .. TODO:: Isn't it supposed to be a ``DeltaMethodBlock``?
         """
         pass

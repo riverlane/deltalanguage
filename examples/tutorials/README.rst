@@ -125,10 +125,6 @@ users should be aware:
   talks about caching of node results for reducing the
   computation load on a runtime.
 
-- `No input blocking <no_input_blocking.html>`_
-  (:download:`no_input_blocking.ipynb`) gives details about a
-  common issue when a node has only optional inputs.
-
 Tips and tricks
 ^^^^^^^^^^^^^^^
 

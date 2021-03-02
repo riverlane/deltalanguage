@@ -1,3 +1,5 @@
+"""Various utilities for internal usage."""
+
 from typing import NamedTuple, Optional
 
 
@@ -5,11 +7,12 @@ class NamespacedName(NamedTuple):
     """A name that uses namespace, so is therefore split into
     domain and index in that domain.
 
-    Used in, for example, :py:class:`OutPort<deltalanguage.wiring.OutPort>` when
-    a node sends different outputs to other nodes.
-    The domain specifies the name of the node, and the index specifies what
+    For example, it's used in :py:class:`OutPort<deltalanguage.wiring.OutPort>`
+    a node has forked outputs sent to multiple destinations.
+    `domain` specifies the name of the node and `n_index` specifies which
     result :py:class:`OutPort<deltalanguage.wiring.OutPort>` is meant to send
     on.
+    In case if the node has a single output `n_index` is `None`.
     """
 
     domain: str  #: The domain name.
@@ -34,9 +37,6 @@ class QueueMessage():
     clk : int
         The logical clock value when this message was created. See
         :py:class:`MessageLog<deltalanguage.logging.MessageLog>` for detail.
-
-
-    .. note:: This is not a user-facing class.
 
 
     .. todo:: This class belongs to the domain of `DeltaPySimulator`.

@@ -1,15 +1,39 @@
+ifeq ($(OS),Windows_NT)
+include ../Makefile.win
+else
+include ../Makefile.unix
+endif
+
 BUILDDIR=_build
 SPHINXBUILD=sphinx-build -v -n -a
 
+DOC_ARTIFACTS_TUTORIALS= *.py \
+	*.ipynb
+DOC_ARTIFACTS_EXAMPLES= hardware \
+	rabi_demo \
+	VQE 
+DOC_ARTIFACTS_MICROMOTION= micromotion.zip
+     
+
+.PHONY: clean-examples
+clean-examples:
+	cd examples && $(foreach var,$(DOC_ARTIFACTS_EXAMPLES),$(RMCMD) $(var);) 
+
+.PHONY: clean-micromotion
+clean-micromotion:
+	cd examples && cd micromotion && $(foreach var,$(DOC_ARTIFACTS_MICROMOTION),$(RMCMD) $(var);) 
+
+.PHONY: clean-tutorials
+clean-tutorials:
+	cd tutorials && $(foreach var,$(DOC_ARTIFACTS_TUTORIALS),$(RMCMD) $(var);)
+
+.PHONY: clean-build
+clean-build: 
+	$(RMCMD) $(BUILDDIR)
 
 .PHONY: clean
-clean:
-	rm -rf $(BUILDDIR)/*
-	rm -f tutorials/*.py tutorials/*.ipynb
-	rm -rf examples/hardware
-	rm -rf examples/rabi_demo
-	rm -rf examples/VQE
-	rm -rf examples/micromotion/micromotion.zip
+clean: clean-tutorials clean-examples clean-micromotion clean-build
+
 
 .PHONY: pre-build
 pre-build:

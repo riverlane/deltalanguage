@@ -34,5 +34,4 @@ def generate_angles(resolution: int, register_width: int = 10) -> List[int]:
     angles = []
     for i in range(0, 2**resolution):
         angles.append(int(i * scaling))
-
     return angles

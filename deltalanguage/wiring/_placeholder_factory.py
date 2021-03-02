@@ -33,19 +33,16 @@ def placeholder_node_factory(*args, name=None, **kwargs) -> PlaceholderNode:
 
     .. code-block:: python
 
-        >>> from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-        >>> from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
-        ...                                   Interactive,
-        ...                                   placeholder_node_factory)
+        >>> import deltalanguage as dl
 
-        >>> @DeltaBlock()
+        >>> @dl.DeltaBlock()
         ... def foo(a: int) -> int:
         ...     if a%2 == 0:
         ...         return a
         ...     else:
         ...         return -a
 
-        >>> @Interactive(in_params={"a": int}, out_type=int)
+        >>> @dl.Interactive(in_params={"a": int}, out_type=int)
         ... def bar(node):
         ...     internal_memory = 0
         ...
@@ -54,14 +51,14 @@ def placeholder_node_factory(*args, name=None, **kwargs) -> PlaceholderNode:
         ...         internal_memory += node.receive("a")
         ...
         ...     print("0 - 1 + 2 - 3 + 4 =", internal_memory)
-        ...     raise DeltaRuntimeExit
+        ...     raise dl.DeltaRuntimeExit
 
-        >>> with DeltaGraph() as graph:
-        ...     p = placeholder_node_factory()
+        >>> with dl.DeltaGraph() as graph:
+        ...     p = dl.placeholder_node_factory()
         ...     b = bar.call(a=p)
         ...     p.specify_by_node(foo(b))
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         0 - 1 + 2 - 3 + 4 = 2
 
@@ -101,7 +98,7 @@ def placeholder_node_factory(*args, name=None, **kwargs) -> PlaceholderNode:
     graph = DeltaGraph.current_graph()
 
     # Check if arguments are nodes.
-    # If not, put them in PyConstNodes in the current graph
+    # If not, put them in PyConstBodies in the current graph
     pos_input_nodes = [as_node(arg, graph) for arg in args]
     kw_input_nodes = {name: as_node(arg, graph)
                       for (name, arg) in kwargs.items()}

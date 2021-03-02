@@ -5,17 +5,13 @@ import math
 
 from migen import If, Module, Signal, FSM, NextState, NextValue
 
-from deltalanguage.data_types import DOptional, DInt, make_forked_return
-from deltalanguage.wiring import (Interactive, PyInteractiveNode,
-                                  MigenNodeTemplate, DeltaGraph,
-                                  placeholder_node_factory)
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
+import deltalanguage as dl
 
 # testbench global
 _TIME_RES = 32
 
 
-class TimestampChipInterface(MigenNodeTemplate):
+class TimestampChipInterface(dl.MigenNodeTemplate):
     """This migen node is an interface to the high resolution (25 ps)
     time to digital converter.
 
@@ -34,11 +30,11 @@ class TimestampChipInterface(MigenNodeTemplate):
 
         _TIME_RES = 32
         # Node inputs
-        self.time_in = template.add_pa_in_port('time_in', DOptional(DInt()))
+        self.time_in = template.add_pa_in_port('time_in', dl.DOptional(int))
 
         # Node outputs
-        self.time_out = template.add_pa_out_port('time_out', DInt())
-        self.counter_reset = template.add_pa_out_port('counter_reset', DInt())
+        self.time_out = template.add_pa_out_port('time_out', dl.DInt())
+        self.counter_reset = template.add_pa_out_port('counter_reset', dl.DInt())
 
         # Internal signals
         self.pmt_reg = Signal(_TIME_RES)
@@ -142,8 +138,8 @@ class TimestampChipInterface(MigenNodeTemplate):
         )
 
 
-@Interactive({'time_out': DInt(), 'reset': DInt()}, DInt())
-def testbench(node: PyInteractiveNode):
+@dl.Interactive({'time_out': dl.DInt(), 'reset': dl.DInt()}, dl.DInt())
+def testbench(node):
     """ Testbench for Timestamper interface node. Starts with random testing
     and ends with corner cases
     """
@@ -154,7 +150,7 @@ def testbench(node: PyInteractiveNode):
         time_rf = random.randint(0, 100)
         do_test(node, time_pmt, time_rf)
 
-    raise DeltaRuntimeExit
+    raise dl.DeltaRuntimeExit
 
 
 def do_test(node, time_pmt, time_rf):
@@ -178,10 +174,10 @@ def do_test(node, time_pmt, time_rf):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    with DeltaGraph() as graph:
+    with dl.DeltaGraph() as graph:
 
         # define placeholders
-        p0_tb = placeholder_node_factory()
+        p0_tb = dl.placeholder_node_factory()
 
         dut = TimestampChipInterface(
             name="timestamper_interface",
@@ -198,5 +194,5 @@ if __name__ == "__main__":
 
     # run graph
     print(graph)
-    rt = DeltaPySimulator(graph)
+    rt = dl.DeltaPySimulator(graph)
     rt.run()

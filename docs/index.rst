@@ -16,9 +16,9 @@ Deltalanguage documentation
     :hidden:
 
     install
+    coderef
     tutorials/tutorials
     examples/examples
-    coderef
     development
     faq
     license

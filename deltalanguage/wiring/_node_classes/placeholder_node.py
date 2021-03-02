@@ -16,9 +16,8 @@ from .._decorators import get_func_in_params_out_type
 from .._node_factories import py_method_node_factory, py_node_factory
 
 from .abstract_node import ForkedNode, ProxyNode
-from .interactive_node import PyInteractiveNode
 from .node_bodies import PyInteractiveBody
-from deltalanguage.wiring._node_classes.real_nodes import as_node
+from .real_nodes import as_node, PythonNode
 
 if TYPE_CHECKING:
     from .._decorators import InteractiveProcess
@@ -121,7 +120,7 @@ class PlaceholderNode(ProxyNode):
             Function we will make into a node that this placeholder will
             represent.
         allow_const : bool
-            Flag to specify if the node body can be constant, by default True.
+            Flag to specify if the node body can be constant.
         node_key : Optional[str]
             Keyword argument used for providing the node to the block, in case the
             user wants to debug sending & receiving messages in an interactive
@@ -129,7 +128,8 @@ class PlaceholderNode(ProxyNode):
             Deltaflow programs in production it should be sufficient to use the
             inputs and return values of a block for communications.
         lvl : int
-            Logging level for the node. By default logging.ERROR.
+            Logging level for the node.
+            By default only error logs are displayed.
         """
 
         in_params, out_type = get_func_in_params_out_type(
@@ -157,34 +157,35 @@ class PlaceholderNode(ProxyNode):
         self.graph.placeholders.pop(self.key)
 
     def specify_by_process(self, process: InteractiveProcess, **kwargs):
-        """Make this placeholder into a PyInteractiveNode with the given
-        process function, and the given type of inputs and outputs.
+        """Make this placeholder into a node with interactive body
+        with the given process function, and the given type of inputs and 
+        outputs.
 
         Parameters
         ----------
         process : InteractiveProcess
-            Function of type (PyInteractiveNode -> None) packed with its
+            Function of type (PythonNode -> None) packed with its
             input and output types.
         extra_kwargs
             Additional inputs to pass to the Interactive Node constructor.
         """
         if self.future_in_port_args:
             log.warning("Positional arguments dropped when specifying "
-                        "placeholder as PyInteractiveNode")
+                        "placeholder as interactive node")
 
         referee_body = PyInteractiveBody(process.proc)
         kw_in_nodes = {name: as_node(arg, self.graph)
                        for (name, arg) in kwargs.items()}
 
-        my_referee = PyInteractiveNode(self.graph,
-                                       referee_body,
-                                       process.arg_types,
-                                       [],
-                                       kw_in_nodes,
-                                       return_type=process.return_type,
-                                       name=process.name,
-                                       lvl=process.lvl,
-                                       in_port_size=process.in_port_size)
+        my_referee = PythonNode(self.graph,
+                                [referee_body],
+                                process.arg_types,
+                                [],
+                                kw_in_nodes,
+                                out_type=process.out_type,
+                                name=process.name,
+                                lvl=process.lvl,
+                                in_port_size=process.in_port_size)
         self.referee = my_referee
 
         # Add destination out-ports
@@ -241,6 +242,11 @@ class PlaceholderNode(ProxyNode):
 
         # remove myself from the list of active placeholders for my graph
         self.graph.placeholders.pop(self.key)
+
+    def is_const(self):
+        # Constantness does not propegate through placeholders
+        # This makes somewhat sense as a loop of constants makes no sense
+        return False
 
     def specify_by_node(self, node: AbstractNode):
         """Makes this placeholder no longer a placeholder, it acts like

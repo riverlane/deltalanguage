@@ -22,7 +22,7 @@ def serialize_graph(
     requirements: List[str] = []
 ) -> Tuple[bytes, capnp.lib.capnp._DynamicStructBuilder]:
     """Converts a complete representation of the Deltaflow program stored as
-    a :py:class:`DeltaGraph` to bytecode.
+    a :py:class:`DeltaGraph<deltalanguage.wiring.DeltaGraph>` to bytecode.
 
     Parameters
     ----------

@@ -3,15 +3,20 @@ import logging
 
 from migen import FSM, If, NextState, NextValue, Signal
 
-from deltalanguage.data_types import DInt, DOptional, make_forked_return
-from deltalanguage.wiring import (Interactive, PyInteractiveNode,
-                                  MigenNodeTemplate, DeltaGraph,
-                                  placeholder_node_factory)
-
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
+import deltalanguage as dl
 
 
-class DACController(MigenNodeTemplate):
+# Commands
+DAC_STATUS = 0x01
+DAC_SET_VOLTAGE = 0x02
+DAC_GET_VOLTAGE = 0x03
+
+# Status
+BUSY = 0x80
+READY = 0x00
+
+
+class DACController(dl.MigenNodeTemplate):
     """ DAC controller should output instructions to DAC controlling ion
         trap electrodes. When a voltage update has been implemented wait for a
         settle time and initiate measurement of photon arrival times.
@@ -31,32 +36,23 @@ class DACController(MigenNodeTemplate):
     """
 
     def migen_body(self, template):
-        # Accepted commands
-        DAC_STATUS = 0x01
-        DAC_SET_VOLTAGE = 0x02
-        DAC_GET_VOLTAGE = 0x03
-
-        # Node Status
-        BUSY = 0x80
-        READY = 0x00
-
         # Node Inputs
         # Two inputs, a command and parameters.
         self.DAC_command = template.add_pa_in_port(
-            'DAC_command', DOptional(DInt())
+            'DAC_command', dl.DOptional(dl.DInt())
         )
         self.DAC_param = template.add_pa_in_port(
-            'DAC_param', DOptional(DInt())
+            'DAC_param', dl.DOptional(dl.DInt())
         )
 
         # Node Outputs
         # Returns the node status upon request
         self.DAC_controller_status = template.add_pa_out_port(
-            'DAC_controller_status', DInt()
+            'DAC_controller_status', dl.DInt()
         )
         # Data to be returned to accumulator eg DAC voltage
         self.DAC_return_data = template.add_pa_out_port(
-            'DAC_return_data', DInt()
+            'DAC_return_data', dl.DInt()
         )
 
         # Internal signals.
@@ -156,27 +152,41 @@ class DACController(MigenNodeTemplate):
         )
 
 
-TbT, TbC = make_forked_return({'cmd': DInt(), 'param': DInt()})
+TbT, TbC = dl.make_forked_return({'cmd': dl.DInt(), 'param': dl.DInt()})
 
 
-@Interactive({'dac_status': DInt(), 'dac_voltage': DInt()}, TbT)
-def testbench(node: PyInteractiveNode):
+@dl.Interactive({'dac_status': dl.DInt(), 'dac_voltage': dl.DInt()}, TbT)
+def testbench(node):
     """ Testbench for the DAC controller node, coverage of all commands
     and parameters, out of range values, assertion of expected results
     """
-    # Accepted commands
-    DAC_STATUS = 0x01
-    DAC_SET_VOLTAGE = 0x02
-    DAC_GET_VOLTAGE = 0x03
 
-    # Node Status
-    BUSY = 0x80
-    READY = 0x00
+    def do_send_cmd(node, cmd, param):
+        # check if the module is READY
+        if cmd != DAC_STATUS:
+            while True:
+                node.send(TbC(cmd=DAC_STATUS, param=None))
+                status = node.receive('dac_status')
+                if status == READY:
+                    break
+                    time.sleep(1e-6)
+
+        node.send(TbC(cmd=cmd, param=param))
+
+        if cmd == DAC_STATUS:
+            status = node.receive('dac_status')
+            return status
+        elif cmd == DAC_GET_VOLTAGE:
+            voltage = node.receive('dac_voltage')
+            return voltage
+        else:
+            return -1
 
     # get status
     res = do_send_cmd(node, DAC_STATUS, None)
     assert(res == READY)
     logging.debug(f'result {res}, expected {READY}')
+
     # get voltage
     res = do_send_cmd(node, DAC_GET_VOLTAGE, None)
     assert(res == 0)
@@ -202,31 +212,15 @@ def testbench(node: PyInteractiveNode):
     assert(res == 5)
     logging.debug(f'result {res}, expected {5}')
 
-    raise DeltaRuntimeExit
-
-
-def do_send_cmd(node, cmd, param):
-    _DAC_STATUS = 0x01
-    _DAC_SET_VOLTAGE = 0x02
-    _DAC_GET_VOLTAGE = 0x03
-
-    node.send(TbC(cmd=cmd, param=param))
-    if (cmd == _DAC_STATUS):
-        status = node.receive('dac_status')
-        return status
-    elif (cmd == _DAC_GET_VOLTAGE):
-        voltage = node.receive('dac_voltage')
-        return voltage
-    else:
-        return -1
+    raise dl.DeltaRuntimeExit
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    with DeltaGraph() as graph:
+    with dl.DeltaGraph() as graph:
 
         # define placeholders
-        p0_tb = placeholder_node_factory()
+        p0_tb = dl.placeholder_node_factory()
 
         dut = DACController(
             name="dac_controller",
@@ -244,5 +238,5 @@ if __name__ == "__main__":
 
     # run graph
     print(graph)
-    rt = DeltaPySimulator(graph)
+    rt = dl.DeltaPySimulator(graph)
     rt.run()

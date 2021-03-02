@@ -12,7 +12,7 @@ class DecoratorTest(unittest.TestCase):
             def _add(a, b: int) -> int:
                 return a + b
 
-    def test_no_return_type(self):
+    def test_no_out_type(self):
         with self.assertRaises(TypeError):
             @DeltaBlock(name="add")
             def _add(a: int, b: int):
@@ -29,7 +29,7 @@ class DecoratorTest(unittest.TestCase):
                 def add_x(self, a) -> int:
                     return a + self._x
 
-    def test_class_no_return_type(self):
+    def test_class_no_out_type(self):
         with self.assertRaises(TypeError):
             class _AdderNoReturnType:
 

@@ -27,7 +27,7 @@ from deltalanguage.data_types import (
     DUInt,
     DUnion,
     ForkedReturn,
-    NoMessage,
+    Void,
     Top,
     as_delta_type,
     delta_type
@@ -194,7 +194,7 @@ class DeltaTypesTest(unittest.TestCase):
         self.assertEqual(str(DUnion([int, DUnion([int, DUnion([int, bool])])])),
                          "<DBool | DInt32>")
 
-        # incapculation of various types
+        # encapsulation of various types
         self.assertEqual(str(DUnion([int, DTuple([int, bool])])),
                          "<(DInt32, DBool) | DInt32>")
         self.assertEqual(str(DArray(DTuple([int, bool]), DSize(8))),
@@ -343,38 +343,22 @@ class DeltaTypesPackTest(unittest.TestCase):
         self.assertAlmostEqual(val.imag, val_new.imag, places=places)
 
     def test_DInt(self):
-        """Only 8, 32 and 64 bits are supported."""
-        self.check(-2**7, DInt(DSize(8)))
-        self.check(2**7-1, DInt(DSize(8)))
-        for _ in range(1000):
-            self.check(random.randint(-2**7, 2**7-1), DInt(DSize(8)))
-
-        self.check(-2**31, DInt(DSize(32)))
-        self.check(2**31-1, DInt(DSize(32)))
-        for _ in range(1000):
-            self.check(random.randint(-2**31, 2**31-1), DInt(DSize(32)))
-
-        self.check(-2**63, DInt(DSize(64)))
-        self.check(2**63-1, DInt(DSize(64)))
-        for _ in range(1000):
-            self.check(random.randint(-2**63, 2**63-1), DInt(DSize(64)))
+        """Only 8, 16, 32, and 64 bits are supported."""
+        for bits in (8, 16, 32, 64):
+            self.check(-2**(bits-1), DInt(DSize(bits)))
+            self.check(2**(bits-1) - 1, DInt(DSize(bits)))
+            for _ in range(1000):
+                self.check(random.randint(-2**(bits-1), 2**(bits-1) - 1),
+                           DInt(DSize(bits)))
 
     def test_DUInt(self):
-        """Only 8, 32 and 64 bits are supported."""
-        self.check(0, DUInt(DSize(8)))
-        self.check(2**7-1, DUInt(DSize(8)))
-        for _ in range(1000):
-            self.check(random.randint(0, 2**7-1), DUInt(DSize(8)))
-
-        self.check(0, DUInt(DSize(32)))
-        self.check(2**32-1, DUInt(DSize(32)))
-        for _ in range(1000):
-            self.check(random.randint(0, 2**32-1), DUInt(DSize(32)))
-
-        self.check(0, DUInt(DSize(64)))
-        self.check(2**64-1, DUInt(DSize(64)))
-        for _ in range(1000):
-            self.check(random.randint(0, 2**64-1), DUInt(DSize(64)))
+        """Only 8, 16, 32, and 64 bits are supported."""
+        for bits in (8, 16, 32, 64):
+            self.check(0, DUInt(DSize(bits)))
+            self.check(2**bits - 1, DUInt(DSize(bits)))
+            for _ in range(1000):
+                self.check(random.randint(0, 2**bits - 1),
+                           DUInt(DSize(bits)))
 
     def test_DBool(self):
         self.check(False, DBool())
@@ -383,26 +367,25 @@ class DeltaTypesPackTest(unittest.TestCase):
         self.check(1, DBool())
 
     def test_DFloat(self):
-        for _ in range(1000):
-            self.check_float(random.uniform(-1, 1), DFloat(DSize(32)))
+        """Only 32 and 64 bits are supported."""
+        precision_dict = {32: -23, 64: -52}
 
-        for _ in range(1000):
-            self.check_float(random.uniform(-1, 1), DFloat(DSize(64)))
+        for bits, precision in precision_dict.items():
+            for _ in range(1000):
+                self.check_float(random.uniform(-1, 1), DFloat(DSize(bits)))
 
-        self.check(1 + 2**-23, DFloat(DSize(32)))
-        self.check(1 + 2**-52, DFloat(DSize(64)))
+            self.check(1 + 2**precision, DFloat(DSize(bits)))
 
     def test_DComplex(self):
-        for _ in range(1000):
-            self.check_complex(random.uniform(-1, 1) +
-                               random.uniform(-1, 1) * 1j, DComplex(DSize(64)))
-
-        for _ in range(1000):
-            self.check_complex(random.uniform(-1, 1) +
-                               random.uniform(-1, 1) * 1j, DComplex(DSize(128)))
+        """Only 64 and 128 bits are supported."""
+        for bits in (64, 128):
+            for _ in range(1000):
+                self.check_complex(random.uniform(-1, 1) +
+                                   random.uniform(-1, 1) * 1j,
+                                   DComplex(DSize(bits)))
 
     def test_DArray(self):
-        # primitive elements are poperly handled
+        # primitive elements are properly handled
         # int are passed as DInt, not DUInt
         self.check([1, 2, 3], DArray(DInt(), DSize(3)))
         with self.assertRaises(DeltaTypeError):
@@ -419,7 +402,7 @@ class DeltaTypesPackTest(unittest.TestCase):
         with self.assertRaises(DeltaTypeError):
             self.check([1, 0, 0], DArray(DBool(), DSize(3)))
 
-        # incapsulation
+        # encapsulation of compound types
         self.check([[1, 2, 3], [4, 5, 6]],
                    DArray(DArray(DInt(), DSize(3)), DSize(2)))
 
@@ -437,6 +420,7 @@ class DeltaTypesPackTest(unittest.TestCase):
                    DArray(DTuple([int, int, int]), DSize(2)))
 
         self.check(["hello", "world"], DArray(DStr(DSize(5)), DSize(2)))
+
         # numpy
         self.check_numpy([1, 2, 3, 4, 5], DArray(int, DSize(5)))
 
@@ -455,7 +439,7 @@ class DeltaTypesPackTest(unittest.TestCase):
         self.check_numpy('hello world', DStr())
 
     def test_DTuple(self):
-        # primitive elements are poperly handled
+        # primitive elements are properly handled
         self.check((-5, True, 3.25), DTuple([int, bool, float]))
 
         with self.assertRaises(DeltaTypeError):
@@ -474,6 +458,8 @@ class DeltaTypesPackTest(unittest.TestCase):
                    DTuple([DArray(int, DSize(3)), DArray(float, DSize(2))]))
 
         self.check(("hello", "world"), DTuple([DStr(), DStr(DSize(6))]))
+
+        # numpy
         self.check_numpy((1, 2.0, True), DTuple([int, float, bool]))
 
     def test_DRecord(self):
@@ -525,7 +511,7 @@ class DeltaTypesPackTest(unittest.TestCase):
 
 
 class WiresTest(unittest.TestCase):
-    """Testing the rules of data transmission in a sinlge wire of DeltaGraph."""
+    """Testing the rules of data transmission in a single wire of DeltaGraph."""
 
     def test_primitive_types(self):
         """Strict typing without subtyping."""
@@ -631,7 +617,7 @@ class WiresTest(unittest.TestCase):
 
 
 class UtilsTest(unittest.TestCase):
-    """Helper funtions."""
+    """Helper functions."""
 
     def test_as_delta_type(self):
         """Test conversion from python to Deltaflow data types."""
@@ -640,7 +626,7 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual(as_delta_type(type(object)), Top())
         self.assertEqual(as_delta_type(type), Top())
 
-        self.assertEqual(as_delta_type(NoMessage), NoMessage)
+        self.assertEqual(as_delta_type(Void), Void)
 
         with self.assertRaises(DeltaTypeError):
             as_delta_type(None)
@@ -682,7 +668,8 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual(as_delta_type(DStr().as_numpy_type()), DStr())
         self.assertEqual(
             as_delta_type(DTuple([int, bool, float]).as_numpy_type()),
-            DTuple([int, bool, float]))
+            DTuple([int, bool, float])
+        )
         self.assertEqual(as_delta_type(DRecord(RecBI).as_numpy_type()),
                          DRecord(RecBI))
         self.assertEqual(
@@ -690,10 +677,12 @@ class UtilsTest(unittest.TestCase):
             DUnion([bool, float, int]))
 
     def test_delta_type(self):
-        """Redundant tests."""
-        # primitive
+        """Test mapping python objects to Deltaflow data types."""
+        # special
         with self.assertRaises(DeltaTypeError):
             delta_type(None)
+
+        # primitive
         self.assertEqual(delta_type(False), DBool())
         self.assertEqual(delta_type(np.bool_(False)), DBool())
         self.assertEqual(delta_type(5), DInt(DSize(32)))
@@ -720,18 +709,23 @@ class UtilsTest(unittest.TestCase):
         # numpy compound
         self.assertEqual(delta_type(np.array([1, 2, 3, 4, 5])),
                          DArray(DInt(DSize(64)), DSize(5)))
+        self.assertEqual(delta_type(np.array([1, 2.0, 3, 4, 5])),
+                         DArray(DFloat(DSize(64)), DSize(5)))
         self.assertEqual(delta_type(
             DStr(DSize(5)).as_numpy_object("abcde")), DStr(DSize(5)))
         self.assertEqual(
             delta_type(DTuple([int, float, bool]
                               ).as_numpy_object((1, 2.0, True))),
-            DTuple([int, float, bool]))
+            DTuple([int, float, bool])
+        )
         self.assertEqual(
             delta_type(DRecord(RecBI).as_numpy_object(RecBI(True, 2))),
-            DRecord(RecBI))
+            DRecord(RecBI)
+        )
         self.assertEqual(
             delta_type(DUnion([bool, float, int]).as_numpy_object(5.0)),
-            DUnion([bool, float, int]))
+            DUnion([bool, float, int])
+        )
 
         # different combinations
         self.assertEqual(delta_type([(4, 4.3), (2, 3.3)]),
@@ -739,6 +733,13 @@ class UtilsTest(unittest.TestCase):
 
 
 class DeltaTypesNumpyTest(unittest.TestCase):
+    """Test from_numpy_object/as_numpy_object methods for `BaseDeltaType`.
+
+    .. todo::
+        Can be rewritten to inherit from DeltaTypesPackTest.
+        The only possible exception is the DUnion test as that one is only
+        one-way.
+    """
 
     def to_np_and_back(self, val, t):
         return t.from_numpy_object(t.as_numpy_object(val))
@@ -944,6 +945,16 @@ class DeltaTypesNumpyTest(unittest.TestCase):
 
 
 class DRawTest(unittest.TestCase):
+    """Test DRaw packing/unpacking + transmission rules.
+
+    .. todo::
+        This test case repeats everything from DeltaTypesPackTest but with 
+        different check method, specifically for DRaw. This code repetition
+        can be reduced via inheritance.
+
+        Plus there are checks how DeltaGraph.check_wire works with DRaw.
+        They can be moved to WiresTest.
+    """
 
     def to_and_from_bits(self, val, base_type):
         """Helper that converts a value to and from bits via given type."""
@@ -1011,21 +1022,13 @@ class DRawTest(unittest.TestCase):
         self.check_error(val, t)
 
     def test_DInt(self):
-        """Only 8, 32 and 64 bits are supported."""
-        self.check(-2**7, DInt(DSize(8)))
-        self.check(2**7-1, DInt(DSize(8)))
-        for _ in range(1000):
-            self.check(random.randint(-2**7, 2**7-1), DInt(DSize(8)))
-
-        self.check(-2**31, DInt(DSize(32)))
-        self.check(2**31-1, DInt(DSize(32)))
-        for _ in range(1000):
-            self.check(random.randint(-2**31, 2**31-1), DInt(DSize(32)))
-
-        self.check(-2**63, DInt(DSize(64)))
-        self.check(2**63-1, DInt(DSize(64)))
-        for _ in range(1000):
-            self.check(random.randint(-2**63, 2**63-1), DInt(DSize(64)))
+        """Only 8, 16, 32 and 64 bits are supported."""
+        for bits in (8, 16, 32, 64):
+            self.check(-2**(bits-1), DInt(DSize(bits)))
+            self.check(2**(bits-1) - 1, DInt(DSize(bits)))
+            for _ in range(1000):
+                self.check(random.randint(-2**(bits-1), 2**(bits-1) - 1),
+                           DInt(DSize(bits)))
 
         self.assertTrue(DeltaGraph.check_wire(DRaw(int), DRaw(int)))
         with self.assertRaises(DeltaTypeError):
@@ -1033,21 +1036,13 @@ class DRawTest(unittest.TestCase):
                                   DRaw(DInt(DSize(64))))
 
     def test_DUInt(self):
-        """Only 8, 32 and 64 bits are supported."""
-        self.check(0, DUInt(DSize(8)))
-        self.check(2**7-1, DUInt(DSize(8)))
-        for _ in range(1000):
-            self.check(random.randint(0, 2**7-1), DUInt(DSize(8)))
-
-        self.check(0, DUInt(DSize(32)))
-        self.check(2**32-1, DUInt(DSize(32)))
-        for _ in range(1000):
-            self.check(random.randint(0, 2**32-1), DUInt(DSize(32)))
-
-        self.check(0, DUInt(DSize(64)))
-        self.check(2**64-1, DUInt(DSize(64)))
-        for _ in range(1000):
-            self.check(random.randint(0, 2**64-1), DUInt(DSize(64)))
+        """Only 8, 16, 32 and 64 bits are supported."""
+        for bits in (8, 16, 32, 64):
+            self.check(0, DUInt(DSize(bits)))
+            self.check(2**bits - 1, DUInt(DSize(bits)))
+            for _ in range(1000):
+                self.check(random.randint(0, 2**bits - 1),
+                           DUInt(DSize(bits)))
 
         self.assertTrue(DeltaGraph.check_wire(DRaw(DUInt(DSize(32))),
                                               DRaw(DUInt(DSize(32)))))
@@ -1063,34 +1058,35 @@ class DRawTest(unittest.TestCase):
         self.assertTrue(DeltaGraph.check_wire(DRaw(DBool()), DRaw(DBool())))
 
     def test_DFloat(self):
-        for _ in range(1000):
-            self.check_float(random.uniform(-1, 1), DFloat(DSize(32)))
+        """Only 32 and 64 bits are supported."""
+        precision_dict = {32: -23, 64: -52}
 
-        for _ in range(1000):
-            self.check_float(random.uniform(-1, 1), DFloat(DSize(64)))
+        for bits, precision in precision_dict.items():
+            for _ in range(1000):
+                self.check_float(random.uniform(-1, 1), DFloat(DSize(bits)))
 
-        self.check(1 + 2**-23, DFloat(DSize(32)))
-        self.check(1 + 2**-52, DFloat(DSize(64)))
+            self.check(1 + 2**precision, DFloat(DSize(bits)))
+
         self.assertTrue(DeltaGraph.check_wire(DRaw(float), DRaw(float)))
         with self.assertRaises(DeltaTypeError):
             DeltaGraph.check_wire(DRaw(DFloat(DSize(32))),
                                   DRaw(DFloat(DSize(64))))
 
     def test_DComplex(self):
-        for _ in range(1000):
-            self.check_complex(random.uniform(-1, 1) +
-                               random.uniform(-1, 1) * 1j, DComplex(DSize(64)))
+        """Only 64 and 128 bits are supported."""
+        for bits in (64, 128):
+            for _ in range(1000):
+                self.check_complex(random.uniform(-1, 1) +
+                                   random.uniform(-1, 1) * 1j,
+                                   DComplex(DSize(bits)))
 
-        for _ in range(1000):
-            self.check_complex(random.uniform(-1, 1) +
-                               random.uniform(-1, 1) * 1j, DComplex(DSize(128)))
         self.assertTrue(DeltaGraph.check_wire(DRaw(complex), DRaw(complex)))
         with self.assertRaises(DeltaTypeError):
             DeltaGraph.check_wire(DRaw(DComplex(DSize(64))),
                                   DRaw(DComplex(DSize(128))))
 
     def test_DArray(self):
-        # primitive elements are poperly handled
+        # primitive elements are properly handled
         # int are passed as DInt, not DUInt
         self.check([1, 2, 3], DArray(DInt(), DSize(3)))
 
@@ -1101,7 +1097,7 @@ class DRawTest(unittest.TestCase):
         # bool are passed as DBool, not DInt
         self.check([True, False, False], DArray(DBool(), DSize(3)))
 
-        # incapsulation
+        # encapsulation of compound types
         self.check([[1, 2, 3], [4, 5, 6]],
                    DArray(DArray(DInt(), DSize(3)), DSize(2)))
 

@@ -26,21 +26,18 @@ class CustomNoiseModel(NoiseModel):
         """Creating the noise model object and specifying the used gateset All
         erros are assigend uniformly to the set of single-/two-qubit gates
 
-            Parameters
-            ----------
-            coherent_error_angles : List[float], optional
-                angles of unitary over-rotaions for single, and two-qubit gates,
-                by default None
-            depol_errors : List[float], optional
-                params of single- and two-qubit depolarization noise channels,
-                by default None
-            damping_params : List[float], optional
-                amplitude damping, phase damping and excited state population
-                of a general amplitude + phase damping channel, by default None
-            relaxation_params : List[float], optional
-                t1 time, t2 time, timestep (unit of time) and excited state
-                population of a thermal relaxation noise channel,
-                by default None
+        Parameters
+        ----------
+        coherent_error_angles : List[float]
+            Angles of unitary over-rotaions for single, and two-qubit gates.
+        depol_errors : List[float], optional
+            Params of single- and two-qubit depolarization noise channels.
+        damping_params : List[float]
+            Amplitude damping, phase damping and excited state population
+            of a general amplitude + phase damping channel.
+        relaxation_params : List[float]
+            t1 time, t2 time, timestep (unit of time) and excited state
+            population of a thermal relaxation noise channel
             """
 
         # create "empty" noise model from the original Qiskit class

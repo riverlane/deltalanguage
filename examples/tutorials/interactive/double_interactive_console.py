@@ -13,22 +13,17 @@ to ensure the other block terminates too.
 import code
 from collections import OrderedDict
 
-from deltalanguage.data_types import DOptional, NoMessage
-from deltalanguage.runtime import DeltaRuntimeExit, DeltaPySimulator
-from deltalanguage.wiring import (DeltaBlock,
-                                  DeltaGraph,
-                                  placeholder_node_factory,
-                                  PythonNode)
+import deltalanguage as dl
 
 X = 4
 Y = 5
 Z = 6
 
 
-@DeltaBlock(node_key="node", allow_const=False)
+@dl.DeltaBlock(node_key="node", allow_const=False)
 def interact(a: int,
-             b:  DOptional(int) = None,
-             node: PythonNode = None) -> int:
+             b:  dl.DOptional(int) = None,
+             node: dl.PythonNode = None) -> int:
     """Node that will set up an interactive console.
 
     The user will be able to see local variables, arguments and globals.
@@ -45,7 +40,7 @@ def interact(a: int,
     c = 9
     d = 10
     if b == -1:
-        raise DeltaRuntimeExit
+        raise dl.DeltaRuntimeExit
     code.interact(
         banner=f"{a}",
         local=dict(globals(), **locals()),
@@ -55,12 +50,12 @@ def interact(a: int,
 
 if __name__ == "__main__":
     # define our two-cycle graph
-    with DeltaGraph() as test_graph:
-        p = placeholder_node_factory()
+    with dl.DeltaGraph() as test_graph:
+        p = dl.placeholder_node_factory()
         n1 = interact(a=1, b=p)
         n2 = interact(a=2, b=n1)
         p.specify_by_node(n2)
 
     # make a runtime and run the graph
-    rt = DeltaPySimulator(test_graph)
+    rt = dl.DeltaPySimulator(test_graph)
     rt.run()

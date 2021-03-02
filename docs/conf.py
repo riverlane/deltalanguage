@@ -54,7 +54,7 @@ else:
     raise ValueError(f"Mismatch between the version in docs/ {CURRENT_VERSION}"
                      f"and the version in the package {__version__}")
 
-description_ = "Componentent of Deltaflow-on-ARTIQ"
+description_ = "Component of Deltaflow-on-ARTIQ"
 category_ = "control system"
 
 # -- General configuration ---------------------------------------------------
@@ -75,11 +75,21 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     'sphinx.ext.todo',
+    'sphinx_autodoc_typehints',
     'sphinx_copybutton',
     'sphinx_rtd_theme',
     'sphinx_toggleprompt',
     'recommonmark'
 ]
+
+autodoc_default_options = {
+    'members': True,
+    'imported-members': False,
+    'inherited-members': True,
+    'member-order': 'bysource',
+    'show-inheritance': True,
+    'ignore-module-all': True
+}
 
 toggleprompt_offset_right = 25
 
@@ -266,7 +276,7 @@ today_fmt = "%B %d, %Y"
 epub_basename = 'target'
 
 html_context['downloads'] = list()
-# TODO: fix PDF build in rinoh and add this block
+# TODO: fix PDF & EPUB build in rinoh and add this block
 # html_context['downloads'].append(
 #     (
 #         'pdf',
@@ -274,13 +284,13 @@ html_context['downloads'] = list()
 #         REPO_NAME + '-docs-' + CURRENT_VERSION + '.pdf'
 #     )
 # )
-html_context['downloads'].append(
-    (
-        'epub',
-        '/' + REPO_NAME + '/' + CURRENT_VERSION + '/' +
-        REPO_NAME + '-docs-' + CURRENT_VERSION + '.epub'
-    )
-)
+# html_context['downloads'].append(
+#     (
+#         'epub',
+#         '/' + REPO_NAME + '/' + CURRENT_VERSION + '/' +
+#         REPO_NAME + '-docs-' + CURRENT_VERSION + '.epub'
+#     )
+# )
 
 ######################## "EDIT ON GITHUB" LINKS ###############################
 

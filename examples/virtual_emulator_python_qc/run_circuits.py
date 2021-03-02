@@ -5,18 +5,7 @@ from typing import List
 
 import numpy as np
 
-from deltalanguage.data_types import DArray, DUInt, DSize
-from deltalanguage.lib.hal import (command_creator,
-                                   HardwareAbstractionLayerNode,
-                                   measurement_unpacker)
-from deltalanguage.lib.quantum_simulators import ProjectqQuantumSimulator
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.wiring import (DeltaGraph,
-                                  DeltaMethodBlock,
-                                  Interactive,
-                                  placeholder_node_factory,
-                                  PyInteractiveNode,
-                                  template_node_factory)
+import deltalanguage as dl
 
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -25,16 +14,17 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 # One node to send circuit to HAL node, another to digest result from HAL node
 
 
-@Interactive(
-    {"input_params": DArray(int, DSize(2)), "repeat": bool}, DUInt(DSize(32))
+@dl.Interactive(
+    {"input_params": dl.DArray(int, dl.DSize(2)), "repeat": bool},
+    dl.DUInt(dl.DSize(32))
 )
-def send_gate_sequence(node: PyInteractiveNode):
+def send_gate_sequence(node):
     """Interactive node to define the circuit.
     Accepts the circuit parameters and sends the HAL commands to the HAL node.
 
     Parameters
     ----------
-    node : PyInteractiveNode
+    node : PythonNode
         The node that sends the HAL command outputs.
     """
 
@@ -43,21 +33,21 @@ def send_gate_sequence(node: PyInteractiveNode):
 
     while repeat:
 
-        node.send(command_creator("STATE_PREPARATION"))
+        node.send(dl.lib.command_creator("STATE_PREPARATION"))
         node.send(
-            command_creator("RX", argument=params[0])
+            dl.lib.command_creator("RX", argument=params[0])
         )
         node.send(
-            command_creator("RZ", argument=params[1])
+            dl.lib.command_creator("RZ", argument=params[1])
         )
 
         node.send(
-            command_creator("CONTROL", qubit=0)
+            dl.lib.command_creator("CONTROL", qubit=0)
         )
         node.send(
-            command_creator("X", qubit=1)
+            dl.lib.command_creator("X", qubit=1)
         )
-        node.send(command_creator("STATE_MEASURE"))
+        node.send(dl.lib.command_creator("STATE_MEASURE"))
 
         repeat = node.receive("repeat")
 
@@ -80,8 +70,8 @@ class Aggregator:
         self._counter = 0
         self._results = []
 
-    @DeltaMethodBlock(name="result_collector")
-    def result_collector(self, result: DUInt(DSize(32))) -> bool:
+    @dl.DeltaMethodBlock(name="result_collector")
+    def result_collector(self, result: dl.DUInt(dl.DSize(32))) -> bool:
         """Method to receive the results and update state.
 
         Parameters
@@ -99,7 +89,7 @@ class Aggregator:
         DeltaRuntimeExit
             Stops the deltaflow program when statistics have been aggregated
         """
-        measurement = measurement_unpacker(result, [0])
+        measurement = dl.lib.measurement_unpacker(result, [0])
         self._results.append(measurement)
         self._counter += 1
 
@@ -110,7 +100,7 @@ class Aggregator:
                 f"{np.round(np.sum(self._results) / self._repetitions, 1)}"
             )
 
-            raise DeltaRuntimeExit
+            raise dl.DeltaRuntimeExit
 
         return True
 
@@ -125,21 +115,21 @@ repetitions = 100
 aggregator = Aggregator(repetitions=repetitions)
 
 
-with DeltaGraph() as graph:
-    ph = placeholder_node_factory()
+with dl.DeltaGraph() as graph:
+    ph = dl.placeholder_node_factory()
     sender_node = send_gate_sequence.call(input_params=params, repeat=ph)
-    hal_node = template_node_factory(
+    hal_node = dl.template_node_factory(
         command=sender_node,
-        return_type=DUInt(DSize(32))
+        out_type=dl.DUInt(dl.DSize(32))
     )
     agg = aggregator.result_collector(result=hal_node)
     ph.specify_by_node(agg)
 
 # specify the hal_node body
-q_sim = HardwareAbstractionLayerNode(
-    ProjectqQuantumSimulator(register_size=2, seed=43)
+q_sim = dl.lib.HardwareAbstractionLayerNode(
+    dl.lib.ProjectqQuantumSimulator(register_size=2, seed=43)
 )
 hal_node.specify_by_func(q_sim.accept_command)
 
-rt = DeltaPySimulator(graph)
+rt = dl.DeltaPySimulator(graph)
 rt.run()

@@ -25,7 +25,7 @@
     "nodes": [
         {
             "name": "node_0",
-            "body": 0,
+            "bodies": [0],
             "inPorts": [],
             "outPorts": [
                 {
@@ -35,7 +35,7 @@
         },
         {
             "name": "node_1",
-            "body": 1,
+            "bodies": [1],
             "inPorts": [],
             "outPorts": [
                 {
@@ -45,7 +45,7 @@
         },
         {
             "name": "counter_2",
-            "body": 2,
+            "bodies": [2],
             "inPorts": [
                 {
                     "name": "in1",
@@ -67,7 +67,7 @@
         },
         {
             "name": "multiplier_3",
-            "body": 3,
+            "bodies": [3],
             "inPorts": [
                 {
                     "name": "a",
@@ -82,7 +82,7 @@
         },
         {
             "name": "adder_4",
-            "body": 4,
+            "bodies": [4],
             "inPorts": [
                 {
                     "name": "a",
@@ -101,7 +101,7 @@
         },
         {
             "name": "save_and_exit_5",
-            "body": 5,
+            "bodies": [5],
             "inPorts": [
                 {
                     "name": "val",

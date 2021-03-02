@@ -19,6 +19,11 @@ class DeltaQueue(Queue):
 
     The object connects corresponding I/O ports.
 
+    .. note::
+        :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>`
+        performs all required splitting of data on the background
+        (if required).
+
     Parameters
     ----------
     out_port : OutPort
@@ -34,13 +39,6 @@ class DeltaQueue(Queue):
         :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>`
         interrupts this at this periodicity (in seconds) and checks if
         stopping is needed.
-
-    .. note::
-        :py:class:`DeltaPySimulator<deltalanguage.runtime.DeltaPySimulator>`
-        performs all required splitting of data on the background
-        (if required).
-        This is not a user-facing class and we leave further comments away
-        from the documentation.
 
     Attributes
     ----------
@@ -71,15 +69,21 @@ class DeltaQueue(Queue):
         if out_port.port_name.n_index is not None:
             self._index = out_port.port_name.n_index
 
-    def _index_and_put(self, item, block=True, timeout=None):
+    def _index_and_put(self,
+                       item: QueueMessage,
+                       block=True,
+                       timeout=None) -> QueueMessage:
         """In case of ForkedReturn only the requested indexed element will
         be put to the queue, otherwise the entire item.
 
-        None is not added to the queue.
+        ``None`` is not added to the queue.
 
         If the queue is full, a Full exception is raised after a timeout so
         that the node pushing to it becomes unblocked to check for an exit
         signal.
+
+        Returns a reference to the object added to the queue, which is used
+        by ConstQueue for caching.
         """
         if not isinstance(item, QueueMessage):
             raise TypeError("Only QueueMessage objects can be put on queues")
@@ -97,12 +101,9 @@ class DeltaQueue(Queue):
             else:
                 Queue.put(self, to_put, block, timeout=timeout)
 
-            return to_put
+        return to_put
 
-        else:
-            return None
-
-    def get(self, block=True, timeout=None):
+    def get(self, block=True, timeout=None) -> QueueMessage:
         """If the queue is optional and empty return ``None``,
         otherwise return the item.
         """
@@ -113,11 +114,11 @@ class DeltaQueue(Queue):
 
         return item
 
-    def put(self, item, block=True, timeout=None):
+    def put(self, item: QueueMessage, block=True, timeout=None):
         """Add an item to a queue, performing the indexing if it applies.
 
         .. warning::
-            If the value to be added is ``None``, it is ignored.
+            If ``item.msg == None``, it is not added to the queue.
         """
         self._index_and_put(item, block=block, timeout=timeout)
 
@@ -129,7 +130,7 @@ class DeltaQueue(Queue):
 
 class ConstQueue(DeltaQueue):
     """An imitation queue created at the output of
-    :py:class:`PyConstNode<deltalanguage.wiring.PyConstNode>`.
+    :py:class:`PyConstBody<deltalanguage.wiring.PyConstBody>`.
 
     A deepcopy of the message from this queue is passed to the receiving node
     and it is _not_ removed from the queue, thus the next time the receiving
@@ -154,16 +155,18 @@ class ConstQueue(DeltaQueue):
         super().__init__(out_port, maxsize=1)
         self._saved_value = None
 
-    def put(self, item, block=True, timeout=None):
+    def put(self, item: QueueMessage, block=True, timeout=None):
         """Overwrite ``DeltaQueue.put``."""
         if self._saved_value is None:
             to_put = self._index_and_put(item, block=block, timeout=timeout)
-            if to_put is not None:
+
+            # same rule as in _index_and_put: only non-None is saved
+            if to_put.msg is not None:
                 self._saved_value = to_put
         else:
             raise Full("Put to already populated ConstQueue.")
 
-    def get(self):
+    def get(self) -> QueueMessage:
         """Overwrite ``DeltaQueue.get``, block and timeout are unavailable."""
         if self.empty():
             if self.optional:
@@ -172,3 +175,9 @@ class ConstQueue(DeltaQueue):
             raise Empty
 
         return deepcopy(self._saved_value)
+
+    def flush(self):
+        """Overwrite ``DeltaQueue.flush``"""
+        if self.empty():
+            self._saved_value = QueueMessage(Flusher(), clk=-1)
+            Queue.put(self, self._saved_value)

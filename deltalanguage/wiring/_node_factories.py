@@ -13,11 +13,7 @@ from ._node_classes.node_bodies import (PyConstBody,
                                         PyMethodBody,
                                         PyMigenBody)
 from ._node_classes.abstract_node import AbstractNode, ForkedNode
-from ._node_classes.real_nodes import (PyConstNode,
-                                       PyFuncNode,
-                                       PyMethodNode,
-                                       PyMigenNode,
-                                       as_node)
+from ._node_classes.real_nodes import PythonNode, as_node
 
 if TYPE_CHECKING:
     from deltalanguage.wiring import Latency
@@ -71,8 +67,8 @@ def py_node_factory(graph,
 
     Returns
     -------
-    RealNode
-        Created node, can be PyConstNode or PyFuncNode
+    PythonNode
+        Created node, with a function or const body
     """
     are_optional_inputs = False
     for in_type in in_params.values():
@@ -97,28 +93,19 @@ def py_node_factory(graph,
         constructed_body = PyConstBody(node_func,
                                        *pos_in_nodes,
                                        **kw_in_nodes)
-        constructed_node = PyConstNode(graph,
-                                       constructed_body,
-                                       in_params,
-                                       pos_in_nodes,
-                                       kw_in_nodes,
-                                       return_type=out_type,
-                                       name=name,
-                                       latency=latency,
-                                       lvl=lvl)
     else:
         constructed_body = PyFuncBody(node_func)
-        constructed_node = PyFuncNode(graph,
-                                      constructed_body,
-                                      in_params,
-                                      pos_in_nodes,
-                                      kw_in_nodes,
-                                      return_type=out_type,
-                                      name=name,
-                                      node_key=node_key,
-                                      in_port_size=in_port_size,
-                                      latency=latency,
-                                      lvl=lvl)
+        
+    constructed_node = PythonNode(graph,
+                                  [constructed_body],
+                                  in_params,
+                                  pos_in_nodes,
+                                  kw_in_nodes,
+                                  out_type=out_type,
+                                  name=name,
+                                  node_key=node_key,
+                                  in_port_size=in_port_size,
+                                  lvl=lvl)
 
     log.debug("making %s: %s", type(constructed_node), constructed_node.name)
 
@@ -172,8 +159,8 @@ def py_method_node_factory(graph,
 
     Returns
     -------
-    RealNode
-        Created node, of type PyMethodNode or PyMigenNode.
+    PythonNode
+        Created node, with method or migen body.
     """
     log.debug("Making method node with %s", node_func)
     assert list(inspect.signature(node_func).parameters.keys())[0] == "self"
@@ -185,30 +172,19 @@ def py_method_node_factory(graph,
 
     if is_migen:
         constructed_body = PyMigenBody(node_func, obj)
-        constructed_node = PyMigenNode(graph,
-                                       constructed_body,
-                                       in_params,
-                                       pos_in_nodes,
-                                       kw_in_nodes,
-                                       name=name,
-                                       return_type=out_type,
-                                       latency=latency,
-                                       node_key=node_key,
-                                       in_port_size=in_port_size,
-                                       lvl=lvl)
     else:
         constructed_body = PyMethodBody(node_func, obj)
-        constructed_node = PyMethodNode(graph,
-                                        constructed_body,
-                                        in_params,
-                                        pos_in_nodes,
-                                        kw_in_nodes,
-                                        name=name,
-                                        return_type=out_type,
-                                        latency=latency,
-                                        node_key=node_key,
-                                        in_port_size=in_port_size,
-                                        lvl=lvl)
+
+    constructed_node = PythonNode(graph,
+                                  [constructed_body],
+                                  in_params,
+                                  pos_in_nodes,
+                                  kw_in_nodes,
+                                  name=name,
+                                  out_type=out_type,
+                                  node_key=node_key,
+                                  in_port_size=in_port_size,
+                                  lvl=lvl)
 
     log.debug("making %s: %s", type(constructed_node), constructed_node.name)
 
@@ -233,11 +209,6 @@ def get_py_const_node_arg_num(pos_nodes: List[AbstractNode],
     """
     all_args = pos_nodes + list(kw_nodes.values())
 
-    num_args = sum([isinstance(node, PyConstNode) for node in all_args])
-    # for forked nodes, check if the referee is const
-    for node in all_args:
-        if isinstance(node, ForkedNode):
-            if isinstance(node.referee, PyConstNode):
-                num_args += 1
+    num_args = sum([node.is_const() for node in all_args])
 
     return num_args

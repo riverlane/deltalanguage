@@ -17,7 +17,7 @@ from deltalanguage._utils import NamespacedName
 from deltalanguage.data_types import (BaseDeltaType,
                                       DOptional,
                                       DInt,
-                                      NoMessage,
+                                      Void,
                                       as_delta_type)
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import (DeltaRuntimeExit,
@@ -29,13 +29,19 @@ from deltalanguage.wiring import (DeltaBlock,
                                   Interactive,
                                   OutPort,
                                   PythonBody,
+                                  PyConstBody,
+                                  PyInteractiveBody,
                                   PyFuncBody,
-                                  template_node_factory)
+                                  PyMethodBody,
+                                  template_node_factory,
+                                  TemplateBody)
+from deltalanguage.wiring._node_classes.node_bodies import PyMigenBody
+from deltalanguage.wiring._node_classes.migen_node import MigenNodeTemplate
 
 from deltalanguage.lib.hal import HardwareAbstractionLayerNode
 from deltalanguage.lib.quantum_simulators import (ProjectqQuantumSimulator,
                                                   QiskitQuantumSimulator)
-from test._utils import return_1
+from test._utils import assert_capnp_content_types, return_1
 
 
 class PortSerialisationTest(unittest.TestCase):
@@ -129,7 +135,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         DeltaGraph.clean_stack()
 
         @DeltaBlock(allow_const=False)
-        def add_print_exit(a: int, b: int) -> NoMessage:
+        def add_print_exit(a: int, b: int) -> Void:
             print(a + b)
             raise DeltaRuntimeExit
 
@@ -145,7 +151,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         self.assertEqual("_".join(prog.nodes[2].name.split("_")[:-1]),
                          "add_print_exit")
 
-        self.assertEqual(prog.nodes[2].body, 2)
+        self.assertEqual(prog.nodes[2].bodies[0], 2)
 
         self.assertEqual(prog.nodes[2].inPorts[0].name, "a")
         self.assertEqual(dill.loads(prog.nodes[2].inPorts[0].type),
@@ -186,7 +192,27 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         _, prog = serialize_graph(test_graph)
 
         self.assertEqual(len(prog.bodies), 5)
-        self.assertEqual(prog.nodes[2].body, prog.nodes[5].body)
+        self.assertEqual(prog.nodes[2].bodies[0], prog.nodes[5].bodies[0])
+
+    def test_node_serialisation_multi_body_node(self):
+        """If two blocks share the same body only keep one copy."""
+        with DeltaGraph() as test_graph:
+            self.func(2, 3)
+
+        class MigenTestTemp(MigenNodeTemplate):
+            def migen_body(self, template):
+                pass
+
+        test_graph.find_node_by_name("add_print_exit").add_body(PyFuncBody(self.func))
+        test_graph.find_node_by_name("add_print_exit").add_body(PyConstBody(self.func))
+        test_graph.find_node_by_name("add_print_exit").add_body(PyMethodBody(self.func, None))
+        test_graph.find_node_by_name("add_print_exit").add_body(PyMigenBody(self.func, MigenTestTemp()))
+        test_graph.find_node_by_name("add_print_exit").add_body(PyInteractiveBody(self.func))
+        test_graph.find_node_by_name("add_print_exit").add_body(TemplateBody({}))
+
+        _, prog = serialize_graph(test_graph)
+
+        self.assertEqual(len(prog.nodes[2].bodies), 7)
 
     def test_splitter_serialisation(self):
         """Splitter nodes should be added when serialising."""
@@ -210,7 +236,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         This is to distinguish their bodies from Python bodies, as they
         take different inputs.
         """
-        @Interactive(in_params={'a': int, 'b': int}, out_type=NoMessage)
+        @Interactive(in_params={'a': int, 'b': int}, out_type=Void)
         def add(node) -> int:
             a = node.receive('a')
             b = node.receive('b')
@@ -267,13 +293,13 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         node.eval(command=0x4000000)
 
     def test_template_node_capnp(self):
-        """Test TemplateNode.
+        """Test nodes with template body.
 
         TODO: use serialize_graph
         """
         with DeltaGraph() as test_graph:
             template_node_factory(
-                a=1, b=2, return_type=int, name="temp-test"
+                a=1, b=2, out_type=int, name="temp-test"
             )
 
         prog = dotdf_capnp.Program.new_message()
@@ -284,7 +310,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
 
         self.assertEqual(nodes[2].name.split("_")[0], "template")
         self.assertEqual(nodes[2].name.split("_")[1], "temp-test")
-        self.assertEqual(nodes[2].body, -1)
+        self.assertEqual(nodes[2].bodies[0], -1)
 
     def test_serialisation(self):
         """Serialize/deserialize a graph.
@@ -301,17 +327,24 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         data, _ = serialize_graph(graph)
         self.assertEqual(type(data), bytes)
         g_capnp = deserialize_graph(data).to_dict()
-        for body in g_capnp['bodies']:
-            if 'python' in body:
-                self.assertTrue(isinstance(dill.loads(
-                    body['python']['dillImpl']), PythonBody))
-                del body['python']['dillImpl']
-        for node in g_capnp['nodes']:
-            for port in node['inPorts'] + node['outPorts']:
-                self.assertTrue(isinstance(
-                    dill.loads(port['type']), BaseDeltaType))
-                del port['type']
+        assert_capnp_content_types(self, g_capnp)
         with open('test/data/graph_capnp.json', 'r') as file:
+            self.assertEqual(g_capnp, json.load(file))
+
+    def test_multi_body_serialisation(self):
+        """Tests a graph with a multi-body node is serialised and matches
+        a target capnp file.
+        """
+        with DeltaGraph() as graph:
+            self.func(40, 2)
+
+        graph.find_node_by_name("add_print_exit").add_body(PyFuncBody(self.func))
+
+        data, _ = serialize_graph(graph)
+        self.assertEqual(type(data), bytes)
+        g_capnp = deserialize_graph(data).to_dict()
+        assert_capnp_content_types(self, g_capnp)
+        with open('test/data/graph_multibody_capnp.json', 'r') as file:
             self.assertEqual(g_capnp, json.load(file))
 
 

@@ -11,14 +11,15 @@ sphinx~=3.3
 sphinx-copybutton
 sphinx-rtd-theme
 sphinx-toggleprompt
+sphinx_autodoc_typehints
 
 ## Development
 autopep8
-nose
-nose-randomly
-nosexcover
 pycodestyle
 pylint
+pytest
+pytest-cov
+pytest-random-order
 
 # Profiling
 viztracer>=0.11

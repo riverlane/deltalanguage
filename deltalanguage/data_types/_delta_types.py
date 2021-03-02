@@ -18,120 +18,12 @@ from typing import (Any,
 import attr
 import numpy as np
 
-from deltalanguage._utils import NamespacedName
 from deltalanguage.logging import make_logger
 
-from ._exceptions import NoMessage, DeltaTypeError
+from ._exceptions import DeltaTypeError
+from ._special import DSize, Void
 
 logger = make_logger(logging.WARNING, "Data Types")
-
-
-class DSize:
-    """Size of a Deltaflow type.
-
-    Main usage is in :py:attr:`BaseDeltaType.size` and
-    :py:attr:`DArray.length`.
-
-    Parameters
-    ----------
-    size : Union[int, NamespacedName]
-        It could be a definite size, or a
-        placeholder for the actual size to be specified later.
-    """
-
-    def __init__(self, size: Union[int, NamespacedName]):
-        self.is_placeholder = isinstance(size, NamespacedName)
-        self.val = size
-
-        if not self.is_placeholder and self.val < 0:
-            raise ValueError("Only non-negative sizes for types are allowed.")
-
-    def __repr__(self) -> str:
-        if self.is_placeholder:
-            return f"({self.val})"
-        else:
-            return f"{self.val}"
-
-    def __eq__(self, other):
-        if type(other) is DSize:
-            return (self.is_placeholder == other.is_placeholder
-                    and self.val == other.val)
-        return False
-
-    def __ge__(self, other):
-        if type(other) is DSize:
-            return (self.is_placeholder == other.is_placeholder
-                    and self.val >= other.val)
-        return False
-
-    def __gt__(self, other):
-        if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
-        return self.val > other.val
-
-    def __hash__(self):
-        return hash((self.is_placeholder, self.val))
-
-    def __add__(self, other):
-        if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
-        return DSize(self.val + other.val)
-
-    def __iadd__(self, other):
-        if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
-        self.val += other.val
-        return self
-
-    def __sub__(self, other):
-        if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
-        return DSize(self.val - other.val)
-
-    def __isub__(self, other):
-        if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
-
-        self.val -= other.val
-
-        if self.val < 0:
-            raise ValueError("Only non-negative sizes for types are allowed.")
-
-        return self
-
-    def __mul__(self, other):
-        if self.is_placeholder:
-            raise ValueError("Please define DSize")
-
-        if isinstance(other, int):
-            return DSize(self.val * other)
-        elif type(other) is DSize:
-            return DSize(self.val * other.val)
-        else:
-            raise DeltaTypeError("Unsupported data type")
-
-    def __rmul__(self, other):
-        return self.__mul__(other)
-
-    def __imul__(self, other):
-        if self.is_placeholder:
-            raise ValueError("Please define DSize")
-
-        if isinstance(other, int):
-            self.val *= other
-        elif type(other) is DSize:
-            self.val *= other.val
-        else:
-            raise DeltaTypeError("Unsupported data type")
-
-        return self
-
-    @property
-    def in_bytes(self) -> int:
-        if self.val % 8 == 0:
-            return self.val//8
-        else:
-            raise ValueError(f'{self} bits need a fractional number of bytes')
 
 
 class BaseDeltaType(ABC):
@@ -244,7 +136,7 @@ class BaseDeltaType(ABC):
         """Encode an object to a bit string.
 
         For compound data structures this method will be called
-        recursively for all subcomponnents.
+        recursively for all subcomponents.
 
         Parameters
         ----------
@@ -445,7 +337,6 @@ class DArray(CompoundDeltaType):
 
     def as_python_type(self):
         # python does not have fixed size List
-        # ._utils.Array is a potential fix
         return List[self.list_of.as_python_type()]
 
     def as_numpy_object(self, val):
@@ -553,19 +444,21 @@ class DUInt(PrimitiveDeltaType):
         elif self.size == DSize(64):
             return np.uint64
         else:
-            raise NotImplementedError(
-                f'Unsupported format: {self.size} - supported sizes are 8, 16, 32, 64')
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 8, 16, 32, 64')
 
     def set_pack_format(self):
         if self.size == DSize(8):
             self._pack_format = 'B'
+        elif self.size == DSize(16):
+            self._pack_format = 'H'
         elif self.size == DSize(32):
             self._pack_format = 'I'
         elif self.size == DSize(64):
             self._pack_format = 'Q'
         else:
-            raise NotImplementedError(
-                f'Unsupported format: {self.size} - supported sizes are 8, 32, 64')
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 8, 16, 32, 64')
 
 
 class DInt(PrimitiveDeltaType):
@@ -599,28 +492,25 @@ class DInt(PrimitiveDeltaType):
         elif self.size == DSize(64):
             return np.int64
         else:
-            raise NotImplementedError(
-                f'Unsupported format: {self.size} - supported sizes are 8, 16, 32, 64')
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 8, 16, 32, 64')
 
     def set_pack_format(self):
         if self.size == DSize(8):
             self._pack_format = 'b'
+        elif self.size == DSize(16):
+            self._pack_format = 'h'
         elif self.size == DSize(32):
             self._pack_format = 'i'
         elif self.size == DSize(64):
             self._pack_format = 'q'
         else:
-            raise NotImplementedError(
-                f'Unsupported format: {self.size} - supported sizes are 8, 32, 64')
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 8, 16, 32, 64')
 
 
 class DBool(PrimitiveDeltaType):
-    """Boolean type.
-
-    .. note::
-        Boolean implemented via 1-byte instead of 1-bit because of restriction
-        of packing formats in ``struct`` library.
-    """
+    """Boolean 1-bit type."""
 
     def __init__(self):
         super().__init__()
@@ -763,8 +653,8 @@ class DFloat(PrimitiveDeltaType):
         elif self.size == DSize(64):
             return np.float64
         else:
-            raise NotImplementedError(
-                f'Unsupported format: {self.size} - supported sizes are 32, 64')
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 32, 64')
 
     def set_pack_format(self):
         if self.size == DSize(32):
@@ -772,8 +662,8 @@ class DFloat(PrimitiveDeltaType):
         elif self.size == DSize(64):
             self._pack_format = 'd'
         else:
-            raise NotImplementedError(
-                f'Unsupported format: {self.size} - supported sizes are 32, 64')
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 32, 64')
 
 
 class DComplex(PrimitiveDeltaType):
@@ -799,8 +689,8 @@ class DComplex(PrimitiveDeltaType):
         elif self.size == DSize(128):
             return np.complex128
         else:
-            raise NotImplementedError(
-                f'Unsupported format: {self.size} - supported sizes are 64, 128')
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 64, 128')
 
     def set_pack_format(self):
         if self.size == DSize(64):
@@ -808,8 +698,8 @@ class DComplex(PrimitiveDeltaType):
         elif self.size == DSize(128):
             self._pack_format = 'dd'
         else:
-            raise NotImplementedError(
-                f'Unsupported format: {self.size} - supported sizes are 64, 128')
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 64, 128')
 
     def pack(self, val):
         return self.bytes_to_bits(struct.pack(self.pack_format,
@@ -924,7 +814,7 @@ class DTuple(CompoundDeltaType):
                 # Get first row of array
                 if len(val) != 1:
                     logger.warning(
-                        "Warning, NumPy array object for DTuple has length != 1")
+                        "NumPy array object for DTuple has length != 1")
                 val = val[0]
             return all(elem.is_packable(v) for elem, v in zip(self.elems, val))
         return False
@@ -949,13 +839,17 @@ class DRecord(CompoundDeltaType):
 
     .. code-block:: python
 
-        @attr.s(slots=True)
-        class RecBI:
+        >>> import attr
+        >>> import deltalanguage as dl
 
-            x: bool = attr.ib()
-            y: int = attr.ib()
+        >>> @attr.s(slots=True)
+        ... class RecBI:
+        ...
+        ...     x: bool = attr.ib()
+        ...     y: int = attr.ib()
 
-        DRecord(RecBI)
+        >>> dl.DRecord(RecBI)
+        {x: DBool, y: DInt32}
     """
 
     def __init__(self, attrs_type):
@@ -1101,13 +995,19 @@ class DUnion(CompoundDeltaType):
 
     Examples
     --------
-    >>> DUnion([int, bool])
-    <DBool | DInt32>
+    .. code-block:: python
+
+        >>> import deltalanguage as dl
+
+        >>> dl.DUnion([int, bool])
+        <DBool | DInt32>
 
     Note that the order or elements does not matter:
 
-    >>> DUnion([int, bool]) == DUnion([bool, int])
-    True
+    .. code-block:: python
+
+        >>> dl.DUnion([int, bool]) == dl.DUnion([bool, int])
+        True
     """
 
     def __init__(self, elems: Iterable[Union[Type, BaseDeltaType]]):
@@ -1151,8 +1051,9 @@ class DUnion(CompoundDeltaType):
         return array
 
     def from_numpy_object(self, val):
-        """.. warning::
-            While DUnion objects can be converted to NumPy objects, they
+        """
+        .. warning::
+            While ``DUnion`` objects can be converted to NumPy objects, they
             cannot be converted back. This is because NumPy unions do not
             specify which type is being used.
         """
@@ -1344,12 +1245,10 @@ class DOptional:
 
     .. code-block:: python
 
-        >>> from deltalanguage.lib import StateSaver
-        >>> from deltalanguage.runtime import DeltaPySimulator
-        >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
+        >>> import deltalanguage as dl
 
-        >>> @DeltaBlock()
-        ... def foo(a: int, b: DOptional(int)) -> int:
+        >>> @dl.DeltaBlock()
+        ... def foo(a: int, b: dl.DOptional(int)) -> int:
         ...     if b is None:
         ...         return a
         ...     else:
@@ -1370,19 +1269,20 @@ class DOptional:
 
     .. code-block:: python
 
-        >>> @DeltaBlock()
+        >>> @dl.DeltaBlock()
         ... def bar() -> int:
         ...     # this node will imitate an absence of input
         ...     pass
 
-        >>> s = StateSaver(int, verbose=True) # helper node that saves the result
+        # helper node that saves the result
+        >>> s = dl.lib.StateSaver(int, verbose=True)
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     foo_out = foo(42, bar())
         ...     s.save_and_exit(foo_out) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 42
 
@@ -1411,7 +1311,7 @@ class ForkedReturn:
     Thus this class is used in this case, as the Deltaflow language allows
     users to send a node's output to multiple destinations.
 
-    Use :func:`make_forked_return` factory.
+    Use :py:func:`make_forked_return` factory.
 
     Parameters
     ----------
@@ -1479,13 +1379,11 @@ def make_forked_return(elems: Dict[str, Union[Type, BaseDeltaType]]):
 
     .. code-block:: python
 
-        >>> from deltalanguage.data_types import NoMessage, make_forked_return
-        >>> from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-        >>> from deltalanguage.wiring import DeltaBlock, DeltaGraph
+        >>> import deltalanguage as dl
 
-        >>> TwoIntsT, TwoIntsC = make_forked_return({'x': int, 'y': int})
+        >>> TwoIntsT, TwoIntsC = dl.make_forked_return({'x': int, 'y': int})
 
-        >>> @DeltaBlock()
+        >>> @dl.DeltaBlock()
         ... def foo(a: int) -> TwoIntsT:
         ...     return TwoIntsC(a//2, a%2)
 
@@ -1495,7 +1393,7 @@ def make_forked_return(elems: Dict[str, Union[Type, BaseDeltaType]]):
 
     .. code-block:: python
 
-        >>> @DeltaBlock()
+        >>> @dl.DeltaBlock()
         ... def bar(a: int) -> TwoIntsT:
         ...     if a%2 == 0:
         ...         return TwoIntsC(a, None)
@@ -1508,17 +1406,17 @@ def make_forked_return(elems: Dict[str, Union[Type, BaseDeltaType]]):
 
     .. code-block:: python
 
-        >>> @DeltaBlock(allow_const=False)
-        ... def baz(a: int, b: int) -> NoMessage:
+        >>> @dl.DeltaBlock(allow_const=False)
+        ... def baz(a: int, b: int) -> dl.Void:
         ...     print(f"{a=}, {b=}")
-        ...     raise DeltaRuntimeExit
+        ...     raise dl.DeltaRuntimeExit
 
-        >>> with DeltaGraph() as graph:
+        >>> with dl.DeltaGraph() as graph:
         ...     foo_out = foo(20)
         ...     baz(a=foo_out.x, b=foo_out.y) # doctest:+ELLIPSIS
         baz...
 
-        >>> rt = DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         a=10, b=0
     """
@@ -1560,7 +1458,9 @@ def as_delta_type(t: Type) -> Union[BaseDeltaType, ForkedReturn, DOptional]:
 
     .. code-block:: python
 
-        >>> as_delta_type(int)
+        >>> import deltalanguage as dl
+
+        >>> dl.as_delta_type(int)
         DInt32
 
     Any complex or unsupported data type is recognized as an instance of
@@ -1568,17 +1468,17 @@ def as_delta_type(t: Type) -> Union[BaseDeltaType, ForkedReturn, DOptional]:
 
     .. code-block:: python
 
-        >>> as_delta_type(dict)
+        >>> dl.as_delta_type(dict)
         T
     """
     if isinstance(t, (BaseDeltaType, ForkedReturn, DOptional)):
         return t
 
-    elif t is NoMessage:
+    elif t is Void:
         return t
 
     elif t is None or t is type(None):
-        raise DeltaTypeError('Please use NoMessage instead.')
+        raise DeltaTypeError('Please use Void instead.')
 
     elif t in (bool, np.bool_) or t is np.dtype(np.bool_):
         return DBool()
@@ -1637,13 +1537,12 @@ def as_delta_type(t: Type) -> Union[BaseDeltaType, ForkedReturn, DOptional]:
     elif attr.has(t):
         return DRecord(t)
 
-    elif type(t) is np.dtype:
+    elif isinstance(t, np.dtype):
         if len(t.fields) == 1:
-            # => Array
-            return DArray(t.fields['f0'][0].base, DSize(t.fields['f0'][0].shape[0]))
+            return DArray(t.fields['f0'][0].base,
+                          DSize(t.fields['f0'][0].shape[0]))
 
         elif t.type is np.record:
-            # => DRecord
             t = attr.make_class(t.name, {name: attr.ib(
                 type=t.fields[name][0].base) for name in t.names})
             return DRecord(t)
@@ -1651,10 +1550,8 @@ def as_delta_type(t: Type) -> Union[BaseDeltaType, ForkedReturn, DOptional]:
         else:
             offsets = [f[1] for f in t.fields.values()]
             if offsets == [0 for _ in range(len(t.fields))]:
-                # => Union
                 return DUnion([t.fields[name][0].base for name in t.names])
             else:
-                # => Tuple
                 return DTuple([t.fields[name][0].base for name in t.names])
 
     elif t in (tuple, list):
@@ -1692,26 +1589,28 @@ def delta_type(val: object) -> Union[BaseDeltaType, ForkedReturn, DOptional]:
 
     .. code-block:: python
 
-        >>> delta_type(42)
+        >>> import deltalanguage as dl
+
+        >>> dl.delta_type(42)
         DInt32
 
     More complex items such as tuples are also recognised:
 
     .. code-block:: python
 
-        >>> delta_type((42, False, 0.73))
+        >>> dl.delta_type((42, False, 0.73))
         (DInt32, DBool, DFloat32)
 
     Any objects whose type is not supported defaults to :py:class:`Top`:
 
     .. code-block:: python
 
-        >>> delta_type({'a': False})
+        >>> dl.delta_type({'a': False})
         T
     """
 
     if val is None:
-        raise DeltaTypeError('Please use NoMessage.')
+        raise DeltaTypeError('Please use Void.')
 
     elif type(val) in (bool,
                        np.bool_,
@@ -1743,23 +1642,20 @@ def delta_type(val: object) -> Union[BaseDeltaType, ForkedReturn, DOptional]:
                        np.float64,
                        np.dtype(np.float32),
                        np.dtype(np.float64)):
-        # => DBool, DComplex, DInt, DFloat
+        # => DBool, DUInt, DInt, DFloat, DComplex
         return as_delta_type(type(val))
 
     elif type(val) in (str, np.string_):
-        # => DStr
         if len(val) == 1:
             return DChar()
         else:
             return DStr(DSize(len(val)))
 
     elif isinstance(val, Tuple):
-        # => DTuple
         sub_types = tuple(delta_type(e) for e in val)
         return DTuple(sub_types)
 
     elif isinstance(val, List):
-        # => DArray
         sub_types = tuple(delta_type(e) for e in val)
         if sub_types[1:] == sub_types[:-1]:
             return DArray(sub_types[0], DSize(len(sub_types)))
@@ -1770,7 +1666,6 @@ def delta_type(val: object) -> Union[BaseDeltaType, ForkedReturn, DOptional]:
     elif isinstance(val, np.ndarray):
         # NumPy transformations
         if len(val.dtype) == 0:
-            # => DArray
             return DArray(val.dtype, DSize(val.shape[0]))
 
         elif val.dtype.type is np.record:
@@ -1782,10 +1677,8 @@ def delta_type(val: object) -> Union[BaseDeltaType, ForkedReturn, DOptional]:
         else:
             offsets = [f[1] for f in val.dtype.fields.values()]
             if offsets == [0 for _ in range(len(val.dtype))]:
-                # => DUnion
                 return DUnion([f[0] for f in val.dtype.fields.values()])
             else:
-                # => DTuple
                 return DTuple([f[0] for f in val.dtype.fields.values()])
 
     # => Top

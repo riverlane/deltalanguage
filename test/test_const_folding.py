@@ -1,91 +1,161 @@
-"""Testing how constant nodes, such as PyConstNode, are created.
+"""Testing how nodes get turned to constant nodes, such as those with 
+a PyConstBody.
+
+A node can be tagged with allow_contan==True, but it's not the only condition.
+It's also important where this node takes the inputs from.
+Below we consided these cases.
+
+These tests do not test how the resulting graphs are executed, only
+their construction.
 """
 
 import unittest
 
-from test._utils import (printer,
-                         return_12,
-                         const_consumer,
+from test._utils import (return_12,
                          add,
                          add_non_const,
                          return_2)
 
-from deltalanguage.lib import StateSaver
-from deltalanguage.wiring import (DeltaGraph,
-                                  PyConstNode,
-                                  PyFuncNode,
-                                  PyMethodNode)
+from deltalanguage.wiring import (DeltaBlock,
+                                  DeltaGraph,
+                                  PyConstBody,
+                                  PyFuncBody)
+
+
+@DeltaBlock(allow_const=True)
+def foo_const(a: int) -> int:
+    return a
+
+
+@DeltaBlock(allow_const=False)
+def foo_non_const(a: int) -> int:
+    return a
 
 
 class ConstFolding(unittest.TestCase):
     """Test that nodes are folded during graph construction."""
 
-    def test_simple_folding(self):
+    def test_simple_folding_const_inputs(self):
+        """Test that nodes producing constants are constant nodes."""
 
-        with DeltaGraph() as my_graph:
+        with DeltaGraph() as graph:
             n1 = add(4, 3)
-            n2 = add_non_const(4, return_2())
+            n2 = add_non_const(4, 2)
 
-        self.graph = my_graph
-        self.folded = n1
-        self.not_folded = n2
+        # nodes producing constants are turned to constant nodes
+        for node in graph.find_node_by_name('node'):
+            self.assertIsInstance(node.body, PyConstBody)
 
-        self.assertIsInstance(self.folded, PyConstNode)
-        self.assertIsInstance(self.not_folded, PyFuncNode)
+        # this one is turned to a constant node as well
+        self.assertIsInstance(n1.body, PyConstBody)
 
-        self.assertTrue(self.graph.check())
+        # this one would have done so as well, but we disallowed it
+        self.assertIsInstance(n2.body, PyFuncBody)
 
-    def test_is_useful_simple(self):
-        """One branch is not const -> source must be useful."""
-        saver = StateSaver(int)
+        self.assertTrue(graph.check())
 
+    def test_simple_folding_non_const_inputs(self):
+        """Test that nodes producing constants are constant nodes."""
+
+        with DeltaGraph() as graph:
+            n1 = add(4, foo_non_const(3))
+            n2 = add_non_const(4, foo_non_const(2))
+
+        # nodes producing constants are turned to constant nodes
+        for node in graph.find_node_by_name('node'):
+            self.assertIsInstance(node.body, PyConstBody)
+
+        # this one is a non-constant one now
+        self.assertIsInstance(n1.body, PyFuncBody)
+
+        # this one is still a non-constant
+        self.assertIsInstance(n2.body, PyFuncBody)
+
+        self.assertTrue(graph.check())
+
+    def test_simple_folding_chain(self):
+        """Test that a chain of node tagged as constant will turn to
+        constant nodes.
+        """
+        with DeltaGraph() as graph:
+            n0 = return_2()
+            n1 = foo_const(n0)
+            n2 = foo_const(n1)
+
+        self.assertIsInstance(n0.body, PyConstBody)
+        self.assertIsInstance(n1.body, PyConstBody)
+        self.assertIsInstance(n2.body, PyConstBody)
+
+        self.assertTrue(graph.check())
+
+    def test_simple_folding_chain_splitting(self):
+        """Test that if an output of a constant node can be split between
+        a constant and non-constan nodes, i.e. the source stays constant and
+        only one of the destinations is constant.
+        """
+        with DeltaGraph() as graph:
+            n0 = return_2()
+            n1 = foo_const(n0)
+            n2 = foo_const(n1)
+            n3 = foo_non_const(n1)
+
+        self.assertIsInstance(n0.body, PyConstBody)
+        self.assertIsInstance(n1.body, PyConstBody)
+        self.assertIsInstance(n2.body, PyConstBody)
+        self.assertIsInstance(n3.body, PyFuncBody)
+
+        self.assertTrue(graph.check())
+
+    def test_forked_folding_all_const(self):
+        """Check the case with a forked return.
+
+        All the forked outputs go to const nodes ->
+        source is a constant node as well.
+        """
         with DeltaGraph():
             nums = return_12()
-            s1 = saver.save(nums.x)
-            p1 = printer(nums.y)
+            p1 = foo_const(nums.x)
+            p2 = foo_const(nums.y)
 
-        self.assertIsInstance(nums, PyConstNode)
-        self.assertIsInstance(s1, PyFuncNode)
-        self.assertIsInstance(p1, PyFuncNode)
+        self.assertIsInstance(nums.body, PyConstBody)
+        self.assertIsInstance(p1.body, PyConstBody)
+        self.assertIsInstance(p2.body, PyConstBody)
 
-    def test_not_useful_simple(self):
-        """Both branches are const -> source not useful."""
+    def test_forked_folding_one_non_const(self):
+        """Check the case with a forked return.
+
+        One forked output goes to a non-const node ->
+        the rest of destinations stay const.
+        """
+        with DeltaGraph() as graph:
+            nums = return_12()
+            p1 = foo_const(nums.x)
+            p2 = foo_non_const(nums.y)
+
+        self.assertIsInstance(nums.body, PyConstBody)
+        self.assertIsInstance(p1.body, PyConstBody)
+        self.assertIsInstance(p2.body, PyFuncBody)
+
+        self.assertTrue(graph.check())
+
+    def test_forked_folding_one_non_const_splitting(self):
+        """Check the case with a forked return.
+
+        Same as above but with splitting ->
+        no funny business.
+        """
         with DeltaGraph():
             nums = return_12()
-            p1 = const_consumer(nums.x)
-            p2 = const_consumer(nums.y)
+            p1 = foo_const(nums.x)
+            p2 = foo_non_const(nums.y)
+            p3 = foo_const(nums.x)
+            p4 = foo_const(nums.y)
 
-        self.assertIsInstance(nums, PyConstNode)
-        self.assertIsInstance(p1, PyConstNode)
-        self.assertIsInstance(p2, PyConstNode)
-
-    def test_is_useful_complex(self):
-        """One of the branches is a Method Node, making the source useful."""
-        saver = StateSaver(int)
-
-        with DeltaGraph():
-            nums = return_12()
-
-            p1 = printer(nums.x)
-            _ = printer(nums.x)
-            _ = printer(nums.x)
-            _ = printer(nums.y)
-            s1 = saver.save(nums.y)
-
-        with self.subTest(msg="Test correct instancing"):
-            self.assertIsInstance(p1, PyFuncNode)
-            self.assertIsInstance(s1, PyFuncNode)
-
-    def test_not_useful_complex(self):
-        """None all the branches are const -> the source is not useful."""
-        with DeltaGraph():
-            nums = return_12()
-            p1 = const_consumer(nums.x)
-            _ = const_consumer(nums.x)
-            _ = const_consumer(nums.y)
-            _ = const_consumer(nums.y)
-
-        self.assertIsInstance(p1, PyConstNode)
+        self.assertIsInstance(nums.body, PyConstBody)
+        self.assertIsInstance(p1.body, PyConstBody)
+        self.assertIsInstance(p2.body, PyFuncBody)
+        self.assertIsInstance(p3.body, PyConstBody)
+        self.assertIsInstance(p4.body, PyConstBody)
 
 
 if __name__ == "__main__":

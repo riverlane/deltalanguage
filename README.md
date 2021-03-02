@@ -2,10 +2,10 @@
 
 [![Build Status](http://jenkins-riverlane.northeurope.cloudapp.azure.com/buildStatus/icon?job=deltalanguage_multibranch_build%2Fdev)](http://jenkins-riverlane.northeurope.cloudapp.azure.com/job/deltalanguage_multibranch_build/job/dev/)
 
-Deltalanguage allows the programmer to define a graph of all the compute
-elements and declare the transport of data between them.
+Deltalanguage allows the programmer to represent their computational model as a graph. 
+It allows the definition of heterogenous compute elements as well the transport mechanism between them.
 Depending on which type of hardware a part of the program is running on,
-the nodes of this graph get filled with Python (for the CPU) or Migen
+the nodes of this graph get coded with Python (for the CPU) or Migen
 (for the FPGAs).
 A hardware abstraction layer is built into the language, that standardises
 which operations can be triggered on qubits. 
