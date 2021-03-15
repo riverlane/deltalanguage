@@ -26,7 +26,7 @@ Quick start
 (:download:`quick_start.ipynb`)
 is a tutorial designed to overview main components of the language
 and show the workflow in case of designing program in Deltalanguage.
-This tuturial can be skipped and revised at any point of time af a refresher.
+This tutorial can be skipped and revised at any point of time af a refresher.
 
 Main tutorial
 -------------
@@ -46,8 +46,8 @@ conditions must allow for non-determinism.
 Basics
 ^^^^^^
 
-- :py:class:`DeltaGraph<deltalanguage.wiring.DeltaGraph>` is the central part of
-  the Deltaflow language and consists of a collection of nodes connected
+- :py:class:`DeltaGraph<deltalanguage.wiring.DeltaGraph>` is the central part
+  of the Deltaflow language and consists of a collection of nodes connected
   with each other via directional links representing data channels.
   Please check out the examples section of this class.
 
@@ -124,6 +124,13 @@ users should be aware:
 - `Constant Nodes <const_nodes.html>`_ (:download:`const_nodes.ipynb`)
   talks about caching of node results for reducing the
   computation load on a runtime.
+
+HOWTOs
+^^^^^^
+
+- Tutorial on `Multi-body nodes <multi_body.html>`_
+  (:download:`multi_body.ipynb`) shows how to define and use nodes with
+  multiple bodies.
 
 Tips and tricks
 ^^^^^^^^^^^^^^^
@@ -252,8 +259,9 @@ Route tool, to achieve user specified optimization targets (speed, area
 or power dissipation).
 Meeting the timing constraints depend on several factors:
 
-- Primarily the way the logic is described in HDL, with the resulting combinational 
-  logic propagation time. This is essentially proportional to the number of cascaded 
+- Primarily the way the logic is described in HDL, with the resulting
+  combinational logic propagation time.
+  This is essentially proportional to the number of cascaded 
   logic gates on the most critical path between synchronous elements.
 
 - The physical interconnection length across the path.
@@ -275,7 +283,7 @@ tasks. This however comes at cost of a higher programming complexity, if
 compared to normal software: 
 with normal software the programmer’s task is to define instructions to be 
 sequentially run on a processor composed of a fixed amount of resources, which 
-is specific to the propessor architecture, and a well defined instruction set.
+is specific to the processor architecture, and a well defined instruction set.
 Because of the fix instruction set and processor resources, compilers can
 easily derive the optimal sequence of instructions to be executed, starting
 from any high-level programming language.
@@ -289,7 +297,8 @@ RTL design can be learned in a reasonable amount of time, although full mastery
 requires more effort than normal software design. With sufficient practice, a 
 VLSI designer develops a natural understanding of what kind of HDL descriptions 
 can be properly synthesised with a certain optimization target or trade-off in 
-mind: maximum clock frequency, minimal resource optimaization, power consumption. 
+mind: maximum clock frequency, minimal resource optimization, power
+consumption. 
 Code portability, scalability and design for testing should also be taken in 
 consideration.   
 
@@ -345,8 +354,7 @@ the actual evaluation happens on either Deltasimulator or Deltaruntime.
   :py:func:`deserialize_graph<deltalanguage.runtime.deserialize_graph>`.
   This idea is highlighted in this example :download:`serialisation_example.py`. 
 
-- Use
-  :py:func:`template_node_factory<deltalanguage.wiring.template_node_factory>`
-  to create templates for nodes that can be provided after
-  deserialization.
+- Use :py:class:`NodeTemplate<deltalanguage.wiring.NodeTemplate>`
+  to create nodes with no bodies, if the body can only be provided after
+  deserialization. 
   Please check out the examples section of this class.

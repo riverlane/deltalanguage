@@ -1,4 +1,4 @@
-import abc
+from abc import abstractmethod
 import atexit
 import logging
 from time import sleep
@@ -9,14 +9,17 @@ import migen
 from deltalanguage.data_types import (BaseDeltaType,
                                       DeltaTypeError,
                                       DOptional,
+                                      Void,
                                       as_delta_type,
                                       make_forked_return)
-from deltalanguage.wiring._delta_graph import DeltaGraph
-from deltalanguage.wiring._node_factories import py_method_node_factory
 from deltalanguage.logging import make_logger
+from .._body_templates import BodyTemplate
+from .._node_templates import NodeTemplate
+from .latency import Latency
+from .node_bodies import PyMigenBody
 
 
-class MigenNodeTemplate(abc.ABC):
+class MigenNodeTemplate(BodyTemplate):
     """Base class for nodes that use ``migen`` for generation of internal
     logic.
 
@@ -133,11 +136,11 @@ class MigenNodeTemplate(abc.ABC):
                  name: str = None,
                  lvl: int = logging.ERROR,
                  vcd_name: str = None,
-                 generics: dict = None):
+                 generics: dict = None,
+                 node_template: NodeTemplate = None):
         if name is None:
-            self.name = type(self).__name__
-        else:
-            self.name = name
+            name = type(self).__name__
+        super().__init__(name, Latency(clocks=1), lvl)
 
         self.module_name = self.name
         self.log = make_logger(lvl, f"{self.name}")
@@ -149,6 +152,7 @@ class MigenNodeTemplate(abc.ABC):
         # Predefining values to satisfy linting check.
         self.submodules = None
         self.inputs = None
+        # None for output implies there are no out-ports
         self.output = None
         self.specials = None
         self.comb = None
@@ -162,10 +166,14 @@ class MigenNodeTemplate(abc.ABC):
         self.__class__.migen_body(self=self._dut, template=self)
         self.rename_port_signals()
 
-        # Make all outputs named, as it's needed for verilog
-        self.ForkedOutsT, self.ForkedOuts = make_forked_return(
-            {name: type_ for name, (_, type_) in self._dut.out_ports.items()}
-        )
+        if len(self._dut.out_ports.items()) > 0:
+            # Make all outputs named, as it's needed for verilog
+            self._out_type, self._ForkedOutput = make_forked_return(
+                {name: type_ for name, (_, type_)
+                 in self._dut.out_ports.items()}
+            )
+        else:
+            self._out_type = Void
 
         # define a stimulus generator
         self._tb = self.tb_generator(tb_num_iter)
@@ -173,6 +181,13 @@ class MigenNodeTemplate(abc.ABC):
         # set up a simulator and perform run-once elaboration
         self._sim_object = None
         atexit.register(self.cleanup)
+
+        # Merge with or create a new NodeTemplate
+        in_params = dict()
+        for name, (_, type_) in self._dut.in_ports.items():
+            in_params[name] = type_
+        NodeTemplate.merge_migenblock(node_template, self, in_params,
+                                      self._out_type)
 
     def add_pa_in_port(self, name: str, t: DOptional):
         """Add input protocol adaptor v2.
@@ -286,12 +301,17 @@ class MigenNodeTemplate(abc.ABC):
         else:
             return self._sim_object
 
-    @abc.abstractmethod
+    @abstractmethod
     def migen_body(self, template):
         """This is where user defines the combinational and synchronous logic
         that describes the node.
         """
         pass
+
+    def construct_body(self):
+        """Construct the ``PyMigenBody`` this is a template for.
+        """
+        return PyMigenBody(self._py_sim_body, self, self._tags)
 
     def tb_generator(self, tb_num_iter: int = None):
         """Generator, a.k.a. testbench.
@@ -360,17 +380,20 @@ class MigenNodeTemplate(abc.ABC):
             # 4. Transfer data out_ports -> output
             #
             # If output data for a channel is not valid,
-            #  the corresponding output is set to None
-            out_tmp = {}
-            for name, (port, _) in self._dut.out_ports.items():
-                if (yield port.valid):
-                    out_tmp[name] = yield port.data
-                else:
-                    out_tmp[name] = None
-            self.output = self.ForkedOuts(**out_tmp)
+            # the corresponding output is set to None
+            if len(self._dut.out_ports.items()) > 0:
+                out_tmp = {}
+                for name, (port, _) in self._dut.out_ports.items():
+                    if (yield port.valid):
+                        out_tmp[name] = yield port.data
+                    else:
+                        out_tmp[name] = None
+                self.output = self._ForkedOutput(**out_tmp)
 
-            self.log.debug(
-                f"retrieved data output={self.output}")
+                self.log.debug(f"retrieved data output={self.output}")
+            else:
+                self.log.debug(f"no out_ports => no output")
+
             self.log.debug(f"end of iteration {tb_iter}")
 
             # 5. Evaluate one clock cycle
@@ -478,24 +501,11 @@ class MigenNodeTemplate(abc.ABC):
         .. todo::
             `args` are being ignored => raise an error if passed.
         """
-        if DeltaGraph.stack():
-            # there is currently an active DeltaGraph so use node factory
-            current_graph = DeltaGraph.current_graph()
 
-            in_params = dict()
-            for name, (_, type_) in self._dut.in_ports.items():
-                in_params[name] = type_
-            retval = py_method_node_factory(*args,
-                                            graph=current_graph,
-                                            node_func=self._py_sim_body,
-                                            obj=self,
-                                            in_params=in_params,
-                                            out_type=self.ForkedOutsT,
-                                            is_migen=True,
-                                            name=self.name,
-                                            latency=None,
-                                            lvl=self.log.level,
-                                            **kwargs)
+        from .._delta_graph import DeltaGraph
+        if DeltaGraph.stack():
+            graph = DeltaGraph.current_graph()
+            retval = self._call(graph, *args, **kwargs)
             self.module_name = retval.name
         else:
             # it does only one clock, so you need to place it in a loop

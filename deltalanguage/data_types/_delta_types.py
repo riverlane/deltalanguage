@@ -1292,6 +1292,12 @@ class DOptional:
     def __init__(self, t: Union[Type, BaseDeltaType]):
         self.type = as_delta_type(t)
 
+    def __eq__(self, other):
+        return isinstance(other, DOptional) and self.type == other.type
+
+    def __hash__(self):
+        return self.type.__hash__() + 1
+
     @staticmethod
     def as_python_type():
         raise DeltaTypeError('DOptional is not a data type')

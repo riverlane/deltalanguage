@@ -24,6 +24,8 @@ def get_graph():
     """
     result_storage = dl.lib.StateSaver(int)
     cmds_storage = dl.lib.StateSaver(dl.DUInt(dl.DSize(32)))
+    hal_template = dl.lib.hal_template
+
     with dl.DeltaGraph() as graph:
         ph_hal_result = dl.placeholder_node_factory()
         ph_commander = dl.placeholder_node_factory()
@@ -45,11 +47,7 @@ def get_graph():
             angle=result_aggregator.next_angle
         )
 
-        hal_result = dl.template_node_factory(
-            name='QSim',
-            command=command_sender.hal_command,
-            out_type=dl.DUInt(dl.DSize(32))
-        )
+        hal_result = hal_template.call(hal_command=command_sender.hal_command)
 
         # local store for experiment results
         result_storage.save(result_aggregator.agg_result)

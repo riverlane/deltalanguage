@@ -15,7 +15,7 @@ q_sim = dl.lib.HardwareAbstractionLayerNode(
     dl.lib.ProjectqQuantumSimulator(register_size=1)
 )
 template_node = graph.find_node_by_name('template_QSim')
-template_node.specify_by_func(q_sim.accept_command)
+template_node.add_body(q_sim.accept_command)
 
 print(graph)
 

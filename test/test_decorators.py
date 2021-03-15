@@ -1,44 +1,84 @@
 import unittest
 
-from deltalanguage.wiring import DeltaBlock, DeltaMethodBlock
+import deltalanguage as dl
 
 
-class DecoratorTest(unittest.TestCase):
-    """Test that decorators raise errors without explicit I/O typing."""
+class DecoratorNoInputTypeTest(unittest.TestCase):
+    """If input type is not provided in node definition error is raised."""
 
-    def test_no_arg_type(self):
+    def test_DeltaBlock(self):
         with self.assertRaises(TypeError):
-            @DeltaBlock(name="add")
-            def _add(a, b: int) -> int:
-                return a + b
+            @dl.DeltaBlock()
+            def foo(a) -> int:
+                return a
 
-    def test_no_out_type(self):
+    def test_DeltaMethodBlock(self):
         with self.assertRaises(TypeError):
-            @DeltaBlock(name="add")
-            def _add(a: int, b: int):
-                return a + b
+            class _AClass:
 
-    def test_class_no_arg_type(self):
+                @dl.DeltaMethodBlock()
+                def foo(self, a) -> int:
+                    return a
+
+    def test_Interactive(self):
         with self.assertRaises(TypeError):
-            class _AdderNoArgType:
+            @dl.Interactive({'a'})
+            def foo(node):
+                node.receive("a")
 
-                def __init__(self, x: int):
-                    self._x = x
+    def test_MigenNodeTemplate(self):
+        """This test will make more sense when migen nodes are created via
+        decorators.
+        """
+        class AMigenNode(dl.MigenNodeTemplate):
+            def migen_body(self, template):
+                template.add_pa_in_port('a')
 
-                @DeltaMethodBlock(name="add_x")
-                def add_x(self, a) -> int:
-                    return a + self._x
-
-    def test_class_no_out_type(self):
         with self.assertRaises(TypeError):
-            class _AdderNoReturnType:
+            AMigenNode()
 
-                def __init__(self, x: int):
-                    self._x = x
 
-                @DeltaMethodBlock(name="add_x")
-                def add_x(self, a: int):
-                    return a + self._x
+class DecoratorNoOutputTypeTest(unittest.TestCase):
+    """If output type is not provided in node definition Void is used."""
+
+    def test_DeltaBlock(self):
+        @dl.DeltaBlock()
+        def foo(a: int):
+            print(a)
+
+        with dl.DeltaGraph():
+            node = foo(1)
+
+        self.assertEqual(node.out_type, dl.Void)
+
+    def test_DeltaMethodBlock(self):
+        class AClass:
+
+            @dl.DeltaMethodBlock()
+            def foo(self, a: int):
+                print(a)
+
+        with dl.DeltaGraph():
+            node = AClass().foo(1)
+
+        self.assertEqual(node.out_type, dl.Void)
+
+    def test_Interactive(self):
+        @dl.Interactive({"a": int})
+        def foo(node):
+            print(node.receive("a"))
+
+        self.assertEqual(foo.out_type, dl.Void)
+
+    def test_MigenNodeTemplate(self):
+        """This test will make more sense when migen nodes are created via
+        decorators.
+        """
+        class AMigenNode(dl.MigenNodeTemplate):
+            def migen_body(self, template):
+                template.add_pa_in_port('a', dl.DOptional(int))
+
+        self.assertEqual(AMigenNode()._out_type, dl.Void)
 
 
 if __name__ == "__main__":

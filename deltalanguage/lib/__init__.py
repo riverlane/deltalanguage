@@ -15,7 +15,8 @@ from deltalanguage.lib.hal import (HardwareAbstractionLayerNode,
                                    Opcode,
                                    Shifts,
                                    command_creator,
-                                   measurement_unpacker)
+                                   measurement_unpacker,
+                                   hal_template)
 from deltalanguage.lib.primitives import (make_generator,
                                           make_splitter,
                                           StateSaver)

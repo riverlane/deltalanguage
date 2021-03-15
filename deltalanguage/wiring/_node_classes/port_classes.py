@@ -49,8 +49,11 @@ class InPort(
     """
 
     def __str__(self):
-        return f"({self.port_name.n_index}, {self.port_type}, " +\
-            f"{self.in_port_size}, {self.is_optional})"
+        ret = f"{self.port_name.n_index}, {self.port_type}"
+        if self.is_optional:
+            ret += ", optional"
+
+        return ret
 
     def __repr__(self):
         return f"({self.port_name}, {self.port_type}, " +\
@@ -144,7 +147,11 @@ class OutPort(
     """
 
     def __str__(self):
-        return f"({self.destination.port_name}, {self.port_type})"
+        name = self.port_name.n_index if self.port_name.n_index is not None \
+            else "output"
+
+        ret = f"{name}, {self.port_type} -> {self.destination.port_name}"
+        return ret
 
     def __repr__(self):
         return f"({self.destination.port_name}, {self.port_name}, " +\

@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from unittest.mock import Mock
 import zipfile
+from collections import OrderedDict
 
 import capnp
 import dill
@@ -24,17 +25,19 @@ from deltalanguage.runtime import (DeltaRuntimeExit,
                                    deserialize_graph,
                                    serialize_graph)
 from deltalanguage.wiring import (DeltaBlock,
+                                  DeltaMethodBlock,
                                   DeltaGraph,
                                   InPort,
                                   Interactive,
+                                  MigenNodeTemplate,
+                                  NodeTemplate,
                                   OutPort,
                                   PythonBody,
                                   PyConstBody,
                                   PyInteractiveBody,
                                   PyFuncBody,
                                   PyMethodBody,
-                                  template_node_factory,
-                                  TemplateBody)
+                                  RealNode)
 from deltalanguage.wiring._node_classes.node_bodies import PyMigenBody
 from deltalanguage.wiring._node_classes.migen_node import MigenNodeTemplate
 
@@ -42,6 +45,24 @@ from deltalanguage.lib.hal import HardwareAbstractionLayerNode
 from deltalanguage.lib.quantum_simulators import (ProjectqQuantumSimulator,
                                                   QiskitQuantumSimulator)
 from test._utils import assert_capnp_content_types, return_1
+
+
+class OpCacher():
+
+    def __init__(self):
+        self._add_cache = {}
+
+    @DeltaMethodBlock()
+    def cached_add(self, a: DOptional(int), b: DOptional(int)):
+        if (a, b) not in self._add_cache:
+            self._add_cache[(a, b)] = a+b
+        raise DeltaRuntimeExit
+
+
+class AMigenNode(MigenNodeTemplate):
+    def migen_body(self, template):
+        template.add_pa_in_port('a', DOptional(int))
+        template.add_pa_in_port('b', DOptional(int))
 
 
 class PortSerialisationTest(unittest.TestCase):
@@ -135,7 +156,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         DeltaGraph.clean_stack()
 
         @DeltaBlock(allow_const=False)
-        def add_print_exit(a: int, b: int) -> Void:
+        def add_print_exit(a: DOptional(int), b: DOptional(int)) -> Void:
             print(a + b)
             raise DeltaRuntimeExit
 
@@ -156,18 +177,18 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         self.assertEqual(prog.nodes[2].inPorts[0].name, "a")
         self.assertEqual(dill.loads(prog.nodes[2].inPorts[0].type),
                          as_delta_type(int))
-        self.assertEqual(prog.nodes[2].inPorts[0].optional, False)
+        self.assertEqual(prog.nodes[2].inPorts[0].optional, True)
 
         self.assertEqual(prog.nodes[2].inPorts[1].name, "b")
         self.assertEqual(dill.loads(prog.nodes[2].inPorts[1].type),
                          as_delta_type(int))
-        self.assertEqual(prog.nodes[2].inPorts[1].optional, False)
+        self.assertEqual(prog.nodes[2].inPorts[1].optional, True)
 
         self.assertEqual(len(prog.nodes[2].inPorts), 2)
         self.assertEqual(len(prog.nodes[2].outPorts), 0)
 
         self.assertEqual(prog.bodies[2].python.dillImpl,
-                         test_graph.nodes[2].body.as_serialised)
+                         test_graph.nodes[2].body.as_serialized)
 
         self.assertEqual(len(prog.graph), 2)
 
@@ -197,22 +218,27 @@ class PythonNodeSerialisationTest(unittest.TestCase):
     def test_node_serialisation_multi_body_node(self):
         """If two blocks share the same body only keep one copy."""
         with DeltaGraph() as test_graph:
-            self.func(2, 3)
+            n1 = self.func(2, 3)
 
-        class MigenTestTemp(MigenNodeTemplate):
-            def migen_body(self, template):
-                pass
+        @DeltaBlock(allow_const=False)
+        def over_complex_add(a: DOptional(int), b: DOptional(int)):
+            raise DeltaRuntimeExit
 
-        test_graph.find_node_by_name("add_print_exit").add_body(PyFuncBody(self.func))
-        test_graph.find_node_by_name("add_print_exit").add_body(PyConstBody(self.func))
-        test_graph.find_node_by_name("add_print_exit").add_body(PyMethodBody(self.func, None))
-        test_graph.find_node_by_name("add_print_exit").add_body(PyMigenBody(self.func, MigenTestTemp()))
-        test_graph.find_node_by_name("add_print_exit").add_body(PyInteractiveBody(self.func))
-        test_graph.find_node_by_name("add_print_exit").add_body(TemplateBody({}))
+        @Interactive(in_params=OrderedDict([('a', DOptional(int)),
+                                            ('b', DOptional(int))]))
+        def broken_adder(node: RealNode):
+            node.receive('a')
+            node.receive('b')
+            raise DeltaRuntimeExit
+
+        n1.add_body(AMigenNode())
+        n1.add_body(over_complex_add)
+        n1.add_body(OpCacher().cached_add)
+        n1.add_body(broken_adder)
 
         _, prog = serialize_graph(test_graph)
 
-        self.assertEqual(len(prog.nodes[2].bodies), 7)
+        self.assertEqual(len(prog.nodes[2].bodies), 5)
 
     def test_splitter_serialisation(self):
         """Splitter nodes should be added when serialising."""
@@ -250,21 +276,22 @@ class PythonNodeSerialisationTest(unittest.TestCase):
 
         self.assertEqual(prog.bodies[2].which(), 'interactive')
         interactive_body = prog.bodies[2].interactive.dillImpl
-        self.assertEqual(interactive_body, a.body.as_serialised)
+        self.assertEqual(interactive_body, a.body.as_serialized)
 
     def test_projectQ_serialisation(self):
         """Test ProjectQ nodes serialization/deserialization.
 
         ProjectQ can't be fully serialized, we need to exclude from dill the
-        engine (c++ libraries). This test is to guarantee that when we deserialize
-        everything works as expected.
+        engine (C++ libraries). This test is to guarantee that when we
+        deserialize everything works as expected.
         """
 
         with DeltaGraph() as test_graph:
-            projectQ = HardwareAbstractionLayerNode(
-                ProjectqQuantumSimulator(register_size=2)).accept_command(command=0x4000000)
+            HardwareAbstractionLayerNode(
+                ProjectqQuantumSimulator(register_size=2)).accept_command(
+                    hal_command=0x4000000)
 
-        data, prog = serialize_graph(test_graph)
+        data, _ = serialize_graph(test_graph)
         g_capnp = deserialize_graph(data)
 
         # Checking that we are investigating the right node.
@@ -272,54 +299,52 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         body = g_capnp.bodies[1].python.dillImpl
 
         node = dill.loads(body)
-        node.eval(command=0x4000000)
+        node.eval(hal_command=0x4000000)
 
     def test_qiskit_serialisation(self):
         """Test Qiskit nodes serialization/deserialization.
-
         """
 
         with DeltaGraph() as test_graph:
-            qiskit = HardwareAbstractionLayerNode(
-                QiskitQuantumSimulator(register_size=2)).accept_command(command=0x4000000)
+            HardwareAbstractionLayerNode(
+                QiskitQuantumSimulator(register_size=2)
+            ).accept_command(hal_command=0x4000000)
 
-        data, prog = serialize_graph(test_graph)
+        data, _ = serialize_graph(test_graph)
         g_capnp = deserialize_graph(data)
 
         # Checking that we are investigating the right node.
         self.assertEqual(g_capnp.nodes[1].name.split("_")[0], "accept")
         body = g_capnp.bodies[1].python.dillImpl
         node = dill.loads(body)
-        node.eval(command=0x4000000)
+        node.eval(hal_command=0x4000000)
 
     def test_template_node_capnp(self):
-        """Test nodes with template body.
-
-        TODO: use serialize_graph
+        """Test serialisation of nodes with no body.
         """
+        template = NodeTemplate(in_params={'a': int, 'b': int},
+                                out_type=int, name="temp-test")
+
         with DeltaGraph() as test_graph:
-            template_node_factory(
-                a=1, b=2, out_type=int, name="temp-test"
-            )
+            template.call(a=1, b=2)
 
-        prog = dotdf_capnp.Program.new_message()
-        bodies = prog.init_resizable_list("bodies")
-        nodes = prog.init("nodes", len(test_graph.nodes))
-        for node, capnp_node in zip(test_graph.nodes, nodes):
-            node.capnp(capnp_node, bodies)
+        data, _ = serialize_graph(test_graph)
+        g_capnp = deserialize_graph(data)
 
-        self.assertEqual(nodes[2].name.split("_")[0], "template")
-        self.assertEqual(nodes[2].name.split("_")[1], "temp-test")
-        self.assertEqual(nodes[2].bodies[0], -1)
+        for n in g_capnp.nodes:
+            if n.name.split("_")[1] == 'temp-test':
+                node = n
+                break
+        self.assertEqual(node.name.split("_")[0], 'template')
+        self.assertEqual(len(node.bodies), 0)
 
     def test_serialisation(self):
         """Serialize/deserialize a graph.
 
-        Notes
-        -----
-        The content of the bodies depends on the environment, i.e. how the test
-        is executed. For this reason we just compare the structure of the graph
-        here.
+        .. note::
+            The content of the bodies depends on the environment, i.e. how
+            the test is executed.
+            For this reason we just compare the structure of the graph here.
         """
         with DeltaGraph() as graph:
             self.func(40, 2)
@@ -336,9 +361,13 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         a target capnp file.
         """
         with DeltaGraph() as graph:
-            self.func(40, 2)
+            n1 = self.func(40, 2)
 
-        graph.find_node_by_name("add_print_exit").add_body(PyFuncBody(self.func))
+        @DeltaBlock(allow_const=False)
+        def simple_add_2(a: DOptional(int), b: DOptional(int)):
+            raise DeltaRuntimeExit
+
+        n1.add_body(simple_add_2)
 
         data, _ = serialize_graph(graph)
         self.assertEqual(type(data), bytes)

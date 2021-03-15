@@ -153,10 +153,7 @@ aggregator = Aggregator(repetitions=repetitions)
 with dl.DeltaGraph() as graph:
     ph = dl.placeholder_node_factory()
     sender_node = send_gate_sequence.call(input_params=params, repeat=ph)
-    hal_node = dl.template_node_factory(
-        command=sender_node,
-        out_type=dl.DUInt(dl.DSize(32))
-    )
+    hal_node = dl.lib.hal_template.call(hal_command=sender_node)
     agg = aggregator.result_collector(result=hal_node)
     ph.specify_by_node(agg)
 
@@ -164,7 +161,7 @@ with dl.DeltaGraph() as graph:
 q_sim = dl.lib.HardwareAbstractionLayerNode(
     dl.lib.QiskitQuantumSimulator(register_size=2, seed=9324)
 )
-hal_node.specify_by_func(q_sim.accept_command)
+hal_node.add_body(q_sim.accept_command)
 
 rt = dl.DeltaPySimulator(graph)
 rt.run()

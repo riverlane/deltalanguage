@@ -15,27 +15,27 @@ from typing import (TYPE_CHECKING,
 import attr
 
 from deltalanguage.data_types import (BaseDeltaType,
-                                      DeltaIOError,
                                       DeltaTypeError,
                                       DOptional,
                                       ForkedReturn,
-                                      Void,
-                                      as_delta_type)
+                                      as_delta_type,
+                                      Void)
 from ._delta_graph import DeltaGraph
 from ._node_classes.real_nodes import (as_node,
                                        get_func_in_params_out_type,
                                        PythonNode)
 from ._node_classes.node_bodies import PyInteractiveBody
-from ._node_factories import py_method_node_factory, py_node_factory
+from ._node_templates import NodeTemplate, InteractiveBodyTemplate
 
 if TYPE_CHECKING:
     from deltalanguage.wiring import Latency
 
 
 def DeltaBlock(
-    name: str = None,
+    template: NodeTemplate = None,
     allow_const: bool = True,
     node_key: Optional[str] = None,
+    name: str = None,
     in_port_size: int = 0,
     latency: Latency = None,
     lvl: int = logging.ERROR
@@ -60,6 +60,9 @@ def DeltaBlock(
 
     Parameters
     ----------
+    template : NodeTemplate
+        Associate this node constructor with this specfied existing node
+        template rather than a newly created one.
     name : str
         The name of the node to be made.
     allow_const : bool
@@ -141,13 +144,17 @@ def DeltaBlock(
     For multiple outputs please refer to examples for
     :py:func:`make_forked_return<deltalanguage.data_types.make_forked_return>`.
     """
-    def decorator(a_func):
+    def decorator(func):
+        my_template = NodeTemplate.merge_deltablock(template,
+                                                    func,
+                                                    allow_const,
+                                                    node_key,
+                                                    name or func.__name__,
+                                                    in_port_size,
+                                                    latency,
+                                                    lvl)
 
-        in_params, out_type = get_func_in_params_out_type(
-            a_func, False, node_key
-        )
-
-        @wraps(a_func)
+        @wraps(func)
         def decorated(*args, **kwargs):
             """If there is currently an active :py:class:`DeltaGraph`,
             return a node constructed using the node factory.
@@ -166,30 +173,18 @@ def DeltaBlock(
             the result of function evaluation or the created node
             """
             if DeltaGraph.stack():
-                # there is currently an active DeltaGraph so use node factory
-                current_graph = DeltaGraph.current_graph()
-                return py_node_factory(current_graph,
-                                       allow_const,
-                                       a_func,
-                                       in_params,
-                                       out_type,
-                                       *args,
-                                       name=name or a_func.__name__,
-                                       node_key=node_key,
-                                       in_port_size=in_port_size,
-                                       latency=latency,
-                                       lvl=lvl,
-                                       **kwargs)
+                # There is currently an active DeltaGraph so use tempalte
+                return my_template.call(*args, **kwargs)
             else:
                 # No DeltaGraph active so evaluate function as usual
-                return a_func(*args, **kwargs)
-
-        decorated.original = in_params, out_type, a_func
+                return func(*args, **kwargs)
+        decorated.template = my_template
         return decorated
     return decorator
 
 
 def DeltaMethodBlock(
+    template: NodeTemplate = None,
     name: str = None,
     node_key: Optional[str] = None,
     in_port_size: int = 0,
@@ -296,13 +291,17 @@ def DeltaMethodBlock(
     In case of multiple outputs please refer to examples for
     :py:func:`make_forked_return<deltalanguage.data_types.make_forked_return>`.
     """
-    def decorator(a_func):
 
-        in_params, out_type = get_func_in_params_out_type(
-            a_func, True, node_key
-        )
+    def decorator(func):
+        my_template = NodeTemplate.merge_deltamethod(template,
+                                                     func,
+                                                     node_key,
+                                                     name or func.__name__,
+                                                     in_port_size,
+                                                     latency,
+                                                     lvl)
 
-        @wraps(a_func)
+        @wraps(func)
         def decorated(obj, *args, **kwargs):
             """If there is currently an active DeltaGraph, return a node
             constructed using the node factory.
@@ -323,89 +322,25 @@ def DeltaMethodBlock(
             The result of function evaluation or the created node.
             """
             if DeltaGraph.stack():
-                # there is currently an active DeltaGraph so use node factory
-                current_graph = DeltaGraph.current_graph()
-                return py_method_node_factory(current_graph,
-                                              a_func,
-                                              obj,
-                                              in_params,
-                                              out_type,
-                                              *args,
-                                              name=name or a_func.__name__,
-                                              node_key=node_key,
-                                              in_port_size=in_port_size,
-                                              latency=latency,
-                                              lvl=lvl,
-                                              **kwargs)
+                # there is currently an active DeltaGraph so use template
+                return my_template.call(obj, *args, **kwargs)
             else:
                 # No DeltaGraph active so evaluate function as usual
-                return a_func(obj, *args, **kwargs)
-
-        decorated.original = a_func
+                return func(obj, *args, **kwargs)
+        decorated.template = my_template
         return decorated
     return decorator
 
 
-@attr.s
-class InteractiveProcess:
-    """The type of block running inside an interactive node, manually
-    annotated with input and output type.
-
-    Attributes
-    ----------
-    proc : Callable[[PythonNode], None]
-        Class instance this node operates on.
-    arg_types : Dict[str, Type]
-        The types of the in parameters to the node to be made.
-    out_type : Type
-        The type of the output for the node to be made.
-    name : str
-        The name of the node to be made.
-    in_port_size : int
-        The maximum size of the node's in ports. If 0 then unlimited size.
-    lvl : int
-        Logging level for the node.
-        By default only error logs are displayed.
-    """
-    proc: Callable[[PythonNode], None] = attr.ib()
-    arg_types: Dict[str, Type] = attr.ib()
-    out_type: Type = attr.ib()
-    name: str = attr.ib()
-    in_port_size: int = attr.ib(default=0)
-    lvl: int = attr.ib(default=logging.ERROR)
-
-    def call(self, *params, **kwargs):
-        """Turn this InteractiveProcess into a node, and wire it up to the
-        nodes given in kwargs as inputs.
-        """
-        if params:
-            raise ValueError(
-                "Please only use keyword arguments for interactive nodes."
-            )
-
-        graph = DeltaGraph.current_graph()
-        my_body = PyInteractiveBody(self.proc)
-
-        kw_in_nodes = {name: as_node(arg, graph)
-                       for (name, arg) in kwargs.items()}
-
-        new_node = PythonNode(graph,
-                              [my_body],
-                              self.arg_types,
-                              [],
-                              kw_in_nodes,
-                              out_type=self.out_type,
-                              name=self.name,
-                              lvl=self.lvl,
-                              in_port_size=self.in_port_size)
-        return new_node
-
-
-def Interactive(in_params: Dict[str, Type],
-                out_type: Type,
-                name: str = None,
-                in_port_size: int = 0,
-                lvl: int = logging.ERROR) -> Callable[..., InteractiveProcess]:
+def Interactive(
+    in_params: Dict[str, Type],
+    out_type: Type = Void,
+    template: NodeTemplate = None,
+    name: str = None,
+    in_port_size: int = 0,
+    latency: Latency = None,
+    lvl: int = logging.ERROR
+) -> Callable[..., InteractiveBodyTemplate]:
     """Decorator to turn a function of a special type (see examples)
     to an interactive node for use in :py:class:`DeltaGraph`.
 
@@ -539,17 +474,17 @@ def Interactive(in_params: Dict[str, Type],
         ...         else:
         ...             node.send(TwoIntsC(x=a, y=a))
     """
-    if len(in_params) == 0 and out_type == Void:
-        raise DeltaIOError('Interactive node must have either an input '
-                           'or an output. Otherwise it may freeze '
-                           'the runtime simulator.')
+    if not isinstance(in_params, dict):
+        raise TypeError('Please provide types of input parameters')
 
-    def decorator(a_func: Callable[[PythonNode], None]):
-        proc = InteractiveProcess(a_func,
-                                  in_params,
-                                  out_type,
-                                  name or a_func.__name__,
-                                  in_port_size,
-                                  lvl)
+    def decorator(func: Callable[[PythonNode], None]):
+        proc = NodeTemplate.merge_interactive(template,
+                                              func,
+                                              in_params,
+                                              out_type,
+                                              name or func.__name__,
+                                              in_port_size,
+                                              latency,
+                                              lvl)
         return proc
     return decorator

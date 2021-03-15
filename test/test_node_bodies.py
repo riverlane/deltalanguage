@@ -9,11 +9,17 @@ from deltalanguage.wiring import (PyConstBody,
                                   PyMethodBody)
 
 
+class MockCallback(Mock):
+    
+    @property
+    def __name__(self):
+        return "mock_callback"
+
 class TestPyConstBody(unittest.TestCase):
     """Unit tests for PyConstBody."""
 
     def setUp(self):
-        self.mock_callback = Mock()
+        self.mock_callback = MockCallback()
 
     def test_callback(self):
         """Callback should be called."""
@@ -38,7 +44,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_args_eval(self):
         """Arguments should be evaluated and used."""
-        mock_arg = Mock()
+        mock_arg = MockCallback()
         mock_arg.body.eval.return_value = 5
         mock_arg.index = None
         node_body = PyConstBody(self.mock_callback, mock_arg)
@@ -48,7 +54,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_args_evaluated_once(self):
         """Arguments should be evaluated and used only once."""
-        mock_arg = Mock()
+        mock_arg = MockCallback()
         mock_arg.body.eval.return_value = 5
         mock_arg.index = None
         node_body = PyConstBody(self.mock_callback, mock_arg)
@@ -58,7 +64,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_forked_args(self):
         """If argument node gives forked return, only used indexed argument."""
-        mock_arg = Mock()
+        mock_arg = MockCallback()
         mock_arg.body.eval.return_value = TwoInts(x=5, y=6)
         mock_arg.index = 'x'
         node_body = PyConstBody(self.mock_callback, mock_arg)
@@ -67,7 +73,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_kwargs_eval(self):
         """Keyword arguments should be evaluated and used."""
-        mock_kwarg = Mock()
+        mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = 5
         mock_kwarg.index = None
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
@@ -77,7 +83,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_kwargs_evaluated_once(self):
         """Keyword arguments should be evaluated and used only once."""
-        mock_kwarg = Mock()
+        mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = 5
         mock_kwarg.index = None
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
@@ -89,7 +95,7 @@ class TestPyConstBody(unittest.TestCase):
         """If keyword argument node gives forked return, only used indexed
         argument.
         """
-        mock_kwarg = Mock()
+        mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = TwoInts(x=5, y=6)
         mock_kwarg.index = 'x'
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
@@ -107,7 +113,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_receive_none_arg_nonoptional(self):
         """None should not be received for args."""
-        mock_arg = Mock()
+        mock_arg = MockCallback()
         mock_arg.body.eval.return_value = None
         mock_arg.index = None
         node_body = PyConstBody(self.mock_callback, mock_arg)
@@ -116,7 +122,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_receive_none_forked_arg_nonoptional(self):
         """None should not be received for args."""
-        mock_arg = Mock()
+        mock_arg = MockCallback()
         mock_arg.body.eval.return_value = TwoInts(None, 3)
         mock_arg.index = 'x'
         mock_arg.out_type = TwoIntsT
@@ -126,7 +132,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_receive_none_kwarg_nonoptional(self):
         """None should not be received for kwargs."""
-        mock_kwarg = Mock()
+        mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = None
         mock_kwarg.index = None
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
@@ -135,7 +141,7 @@ class TestPyConstBody(unittest.TestCase):
 
     def test_receive_none_forked_kwarg_nonoptional(self):
         """None should not be received for kwargs."""
-        mock_kwarg = Mock()
+        mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = TwoInts(None, 3)
         mock_kwarg.index = 'x'
         mock_kwarg.out_type = TwoIntsT
@@ -148,14 +154,14 @@ class TestPyFuncBody(unittest.TestCase):
 
     def test_callback(self):
         """Test function callback is called correctly."""
-        mock_callback = Mock()
+        mock_callback = MockCallback()
         node_body = PyFuncBody(mock_callback)
         node_body.eval(1, 2, 3, a=4, b=5)
         mock_callback.assert_called_with(1, 2, 3, a=4, b=5)
 
     def test_return(self):
         """Return value should be correct."""
-        mock_callback = Mock()
+        mock_callback = MockCallback()
         mock_callback.return_value = 6
         node_body = PyFuncBody(mock_callback)
         self.assertEqual(node_body.eval(1, 2, 3, a=4, b=5), 6)
@@ -175,14 +181,14 @@ class TestPyMethodBody(unittest.TestCase):
 
     def test_method_callback(self):
         """Test method callback is called correctly."""
-        mock_object = Mock()
+        mock_object = MockCallback()
         node_body = PyMethodBody(mock_object.mock_callback, mock_object)
         node_body.eval(1, 2, 3, a=4, b=5)
         mock_object.mock_callback.assert_called_with(
             mock_object, 1, 2, 3, a=4, b=5)
 
     def test_method_globals(self):
-        """Adding globals"""
+        """Adding globals."""
 
         a = 12
 

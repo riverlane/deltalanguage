@@ -13,12 +13,12 @@ from ..wiring import (DeltaBlock,
                       DeltaMethodBlock,
                       Interactive,
                       PythonNode,
-                      InteractiveProcess)
+                      InteractiveBodyTemplate)
 
 
 def make_generator(val: Union[object, Iterable],
                    reps: int = None,
-                   verbose: bool = False) -> InteractiveProcess:
+                   verbose: bool = False) -> InteractiveBodyTemplate:
     """Used to create a generator node that
     produces a series of messages of the same data type.
 

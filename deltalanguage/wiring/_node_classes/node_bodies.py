@@ -7,25 +7,25 @@ from typing import Any, Callable, List
 
 from .latency import Latency
 
+
 class Body(ABC):
 
-    def __init__(self, latency: Latency = Latency(time=300), extra_tags: List[str] = []):
+    def __init__(self, latency: Latency = Latency(time=300), tags: List[str] = []):
         """
         Parameters
         ----------
         latency : Latency
-            esimated time this body takes to run
-        extra_tags : List[str]
-            list of strings the user wants to add as extra access tags, 
-            by default []
+            Estimated time this body takes to run
+        tags : List[str]
+            List of strings to be added as access tags.
         """
-        self._access_tags = extra_tags + type(self).mro()
+        self._access_tags = tags + type(self).mro()
         self.latency = latency
 
     @property
     def access_tags(self) -> List[object]:
-        """List of ways this body wants to identify itself
-        These are usually a list of classes and a list of user added strings
+        """List of ways this body wants to identify itself.
+        These are usually a list of classes and a list of user added strings.
 
         Returns
         -------
@@ -47,7 +47,7 @@ class Body(ABC):
 
     @property
     @abstractmethod
-    def as_serialised(self) -> str:
+    def as_serialized(self) -> str:
         """Serialisation of body as string.
 
         Returns
@@ -70,7 +70,7 @@ class PythonBody(Body):
         return "Py"
 
     @property
-    def as_serialised(self) -> str:
+    def as_serialized(self) -> str:
         """Serialisation of body as string.
 
         Returns
@@ -93,8 +93,8 @@ class PyFuncBody(PythonBody):
 
     def __init__(self, fn: Callable,
                  latency: Latency = Latency(time=350),
-                 extra_tags: List[str] = []):
-        super().__init__(latency, extra_tags)
+                 tags: List[str] = []):
+        super().__init__(latency, tags + [fn.__name__])
         self.callback = fn
 
     def eval(self, *args, **kwargs):
@@ -121,8 +121,8 @@ class PyConstBody(PythonBody):
 
     def __init__(self, fn, *args,
                  latency: Latency = Latency(time=100),
-                 extra_tags: List[str] = [], **kwargs):
-        super().__init__(latency, extra_tags)
+                 tags: List[str] = [], **kwargs):
+        super().__init__(latency, tags + [fn.__name__])
         self.value = None
         self.callback = fn
         self.args = args
@@ -145,7 +145,8 @@ class PyConstBody(PythonBody):
                     if evaluated_arg is not None:
                         evaluated_args.append(evaluated_arg)
                     else:
-                        raise ValueError("ConstNode received None")
+                        raise ValueError("Node with a constant body cannot "
+                                         "receive \'None\' as input.")
 
             evaluated_kwargs = {}
             for key, arg in self.kwargs.items():
@@ -161,7 +162,8 @@ class PyConstBody(PythonBody):
                     if evaluated_kwarg is not None:
                         evaluated_kwargs[key] = evaluated_kwarg
                     else:
-                        raise ValueError("ConstNode received None")
+                        raise ValueError("Node with a constant body cannot "
+                                         "receive \'None\' as input.")
 
             self.value = self.callback(*evaluated_args, **evaluated_kwargs)
 
@@ -186,8 +188,8 @@ class PyMethodBody(PythonBody):
 
     def __init__(self, fn, instance,
                  latency: Latency = Latency(time=350),
-                 extra_tags: List[str] = []):
-        super().__init__(latency, extra_tags)
+                 tags: List[str] = []):
+        super().__init__(latency, tags + [fn.__name__])
         self.callback = fn
         self.instance = instance
 
@@ -199,7 +201,6 @@ class PyMigenBody(PyMethodBody):
     """Node body for migen methods.
 
     ..
-
         It's basically :py:class:`PyMethodBody`, but...
         the node is evaluated multiple times until we have an output.
 
@@ -223,8 +224,8 @@ class PyMigenBody(PyMethodBody):
 
     def __init__(self, fn, instance,
                  latency: Latency = Latency(clocks=1),
-                 extra_tags: List[str] = []):
-        super().__init__(fn, instance, latency, extra_tags)
+                 tags: List[str] = []):
+        super().__init__(fn, instance, latency, tags)
 
     def eval(self, *args, **kwargs):
         """Overwrites :meth:`PyMethodBody.eval`."""
@@ -234,7 +235,7 @@ class PyMigenBody(PyMethodBody):
                 return ret
 
     @property
-    def as_serialised(self) -> str:
+    def as_serialized(self) -> str:
         """Serialisation of body as string.
 
         Returns
@@ -249,43 +250,3 @@ class PyInteractiveBody(PyFuncBody):
     We explicitily define this class to enable custom-code creation in the
     runtimes.
     """
-
-
-class TemplateBody(PythonBody):
-    """Body class to represent a body that is yet to be specified, but that
-    has a pre-defined interface.
-
-    The main pourpose of this type of node is that its body can be defined
-    at a later stage of the Deltaflow programming, also known as running stage,
-    as opposed to the programming stage where the graph is defined.
-
-    Use :py:class:`template_node_factory` for construction in the
-    context of :py:class:`DeltaGraph`.
-
-    Parameters
-    ----------
-    kw_in_nodes : Dict[str, AbstractNode]
-        The input nodes to this template node, specified by kwargs
-    """
-
-    def __init__(self, kw_in_nodes, extra_tags: List[str] = []):
-        super().__init__(extra_tags)
-        self.kw_in_nodes = kw_in_nodes
-        self.inner_body = None
-
-    def specify_by_func(
-        self,
-        my_func: Callable,
-        allow_const: bool = True,
-    ):
-
-        if allow_const:
-            self.inner_body = PyConstBody(my_func, **self.kw_in_nodes)
-        else:
-            self.inner_body = PyFuncBody(my_func)
-
-    def eval(self, *args, **kwargs):
-
-        if self.inner_body is None:
-            raise ValueError("TemplateBody function is not defined!")
-        return self.inner_body.eval(*args, **kwargs)

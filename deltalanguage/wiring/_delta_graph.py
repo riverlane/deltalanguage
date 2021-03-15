@@ -5,6 +5,7 @@ nodes and placeholders.
 from __future__ import annotations
 from collections import OrderedDict
 from copy import deepcopy
+import inspect
 from typing import TYPE_CHECKING, Dict, List, Set, Tuple, Union
 import logging
 import textwrap
@@ -23,7 +24,7 @@ from ..data_types import (BaseDeltaType,
 from ._node_classes.abstract_node import AbstractNode
 from ._node_classes.node_bodies import Latency, PyConstBody, PyInteractiveBody
 from ._node_classes.real_nodes import OutPort
-from ._node_factories import py_node_factory
+from ._node_templates import NodeTemplate
 
 if TYPE_CHECKING:
     from ._node_classes.placeholder_node import PlaceholderNode
@@ -81,7 +82,7 @@ class DeltaGraph:
 
     Note that this graph has 2 nodes, as a dummy node has been created for
     a constant.
-    Also note that the name of each node has its index appended in the end:    
+    Also note that the name of each node has its index appended in the end:
 
     One can also use the interface with ``matplotlib`` to draw
     the same graph:
@@ -152,6 +153,9 @@ class DeltaGraph:
         """End of the graph context, pops from top of graph stack as this
         graph is no longer active.
         """
+        if not self.select_bodies(override=False):
+            self.log.info(f'Graph {self.name} contains a node without a body, '
+                          'please define it before execution.')
         DeltaGraph.global_stack.pop()
 
     def __str__(self) -> str:
@@ -239,6 +243,14 @@ class DeltaGraph:
             def _splitter(to_split: merged_type) -> _SplitterT:
                 return _SplitterC(*(deepcopy(to_split) for _ in range(_reps)))
 
+            # Dynamically annotated function does not get signature set
+            # properly, so to use normal interface we have to manually set it
+            params = [inspect.Parameter('to_split',
+                                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                        annotation=merged_type)]
+            _splitter.__signature__ = inspect.Signature(parameters=params,
+                                                        return_annotation=_SplitterT)
+
             # If merged_node has forked output only get the relevant argument
             # TODO This duplicates PyConstBody.eval and should be refactored
             if out_ports[0].index is None:
@@ -246,18 +258,14 @@ class DeltaGraph:
             else:
                 merged_node_output = getattr(merged_node, out_ports[0].index)
 
-            # create a const splitter node if merged_node is const
-            new_node = py_node_factory(
-                self,
-                merged_node.is_const(),
-                _splitter,
-                OrderedDict([('to_split', merged_type)]),
-                _SplitterT,
-                merged_node_output,
-                name='splitter',
-                latency=Latency(time=100),
-                lvl=merged_node.log.level
-            )
+            # Construct the node using NodeTemplate
+            template = NodeTemplate.merge_deltablock(None,
+                                                     _splitter,
+                                                     merged_node.is_const(),
+                                                     name='splitter',
+                                                     latency=Latency(time=100),
+                                                     lvl=merged_node.log.level)
+            new_node = template.call_with_graph(self, merged_node_output)
 
             # send splitters outputs to the original destinations
             for i, dest in enumerate(all_destinations):
@@ -360,16 +368,16 @@ class DeltaGraph:
         # nodes with interactive bodies cannot be portless,
         # as they block simulation, until scheduling is implemented
         for node in self.nodes:
-            # after multibody extension: check all bodies
-            if (isinstance(node.body, PyInteractiveBody)
-                    and len(node.in_ports) == 0
-                    and len(node.out_ports) == 0):
-                raise DeltaIOError(
-                    f"Node {node} does not have I/O has an interactive body "
-                    f"{node.body}. At the moment this is not supported.\n"
-                    "Please either remove this body or connect this node "
-                    "to another one."
-                )
+            for body in node.bodies:
+                if (isinstance(body, PyInteractiveBody)
+                        and len(node.in_ports) == 0
+                        and len(node.out_ports) == 0):
+                    raise DeltaIOError(
+                        f"Node {node} without any I/O has an interactive body "
+                        f"{body}. At the moment this is not supported.\n"
+                        "Please either remove this body or connect this node "
+                        "to another one."
+                    )
 
         # check missing inputs
         in_ports_unused = [port
@@ -391,6 +399,25 @@ class DeltaGraph:
                     port_type_err.args[0] + f'\n{port=}') from port_type_err
 
         return True
+
+    def select_bodies(self,
+                      exclusions: List[object] = [],
+                      preferred: List[object] = [],
+                      override=True):
+        """Shortcut to selecting bodies accross whole graph.
+        Applies exclusion rules then selects the first valid body for each
+        node, preferred bodies selected if available.
+
+        Returns
+        -------
+        bool
+            ``True`` if all nodes now have a ``body``.
+        """
+        all_selected = True
+        for node in self.nodes:
+            is_selected = node.select_body(exclusions, preferred, override)
+            all_selected = all_selected and is_selected
+        return all_selected
 
     @staticmethod
     def check_wire(type_s: BaseDeltaType, type_r: BaseDeltaType):
@@ -579,15 +606,15 @@ class DeltaGraph:
         for Deltaflow graphs is given in `deltalanguage/DeltaStyle.xml`.
 
         After calling this method, with a path pointing to an empty .gml
-        file, install and open Cytoscape. 
+        file, install and open Cytoscape.
         Select your .gml file from the import dialog via:
         File > Import > Network from file
-        Ensure the 'Network' panel is selected on the left toolbar, in which 
+        Ensure the 'Network' panel is selected on the left toolbar, in which
         you can select which network/graph you are visualising.
         To import a style select your .xml file via:
         File > Import > Style from file
         Along the left toolbar, select the 'Style' panel.
-        In this panel there is a drop-down menu that allows you to pick 
+        In this panel there is a drop-down menu that allows you to pick
         which style you are editing or using to visualise graphs.
         To spread nodes out, you can apply a layout function.
         Layout -> Edge-weighted Spring Embedded Layout -> (none)

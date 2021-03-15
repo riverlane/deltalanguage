@@ -13,14 +13,14 @@ from typing import (TYPE_CHECKING,
 
 from deltalanguage.logging import make_logger
 from .._decorators import get_func_in_params_out_type
-from .._node_factories import py_method_node_factory, py_node_factory
+from .._node_templates import NodeTemplate
 
 from .abstract_node import ForkedNode, ProxyNode
 from .node_bodies import PyInteractiveBody
 from .real_nodes import as_node, PythonNode
 
 if TYPE_CHECKING:
-    from .._decorators import InteractiveProcess
+    from .._node_templates import InteractiveBodyTemplate
     from .._delta_graph import DeltaGraph
     from .abstract_node import AbstractNode
     from .port_classes import InPort
@@ -122,9 +122,10 @@ class PlaceholderNode(ProxyNode):
         allow_const : bool
             Flag to specify if the node body can be constant.
         node_key : Optional[str]
-            Keyword argument used for providing the node to the block, in case the
-            user wants to debug sending & receiving messages in an interactive
-            console. Note that this should only be used for debugging; for
+            Keyword argument used for providing the node to the block, in case
+            the user wants to debug sending & receiving messages in an
+            interactive console.
+            Note that this should only be used for debugging; for
             Deltaflow programs in production it should be sufficient to use the
             inputs and return values of a block for communications.
         lvl : int
@@ -132,22 +133,16 @@ class PlaceholderNode(ProxyNode):
             By default only error logs are displayed.
         """
 
-        in_params, out_type = get_func_in_params_out_type(
-            my_func, False, node_key
-        )
+        template = NodeTemplate.merge_deltablock(None,
+                                                 my_func,
+                                                 allow_const,
+                                                 node_key,
+                                                 name=self.key,
+                                                 lvl=lvl)
 
-        # Construct a real node then set it as my referee
-        my_referee = py_node_factory(self.graph,
-                                     allow_const,
-                                     my_func,
-                                     in_params,
-                                     out_type,
-                                     *self.future_in_port_args,
-                                     name=self.key,
-                                     node_key=node_key,
-                                     lvl=lvl,
-                                     **self.future_in_port_kwargs)
-        self.referee = my_referee
+        self.referee = template.call_with_graph(self.graph,
+                                                *self.future_in_port_args,
+                                                **self.future_in_port_kwargs)
 
         # Add the out ports needed for the specified node
         for destination, index in self.future_out_ports:
@@ -156,37 +151,25 @@ class PlaceholderNode(ProxyNode):
         # remove myself from the list of active placeholders for my graph
         self.graph.placeholders.pop(self.key)
 
-    def specify_by_process(self, process: InteractiveProcess, **kwargs):
+    def specify_by_process(self, process_template: InteractiveBodyTemplate,
+                           **kwnodes):
         """Make this placeholder into a node with interactive body
         with the given process function, and the given type of inputs and 
         outputs.
 
         Parameters
         ----------
-        process : InteractiveProcess
+        process_template : InteractiveBodyTemplate
             Function of type (PythonNode -> None) packed with its
             input and output types.
-        extra_kwargs
-            Additional inputs to pass to the Interactive Node constructor.
+        kwnodes
+            Input nodes to this process specified by keyword.
         """
         if self.future_in_port_args:
             log.warning("Positional arguments dropped when specifying "
                         "placeholder as interactive node")
 
-        referee_body = PyInteractiveBody(process.proc)
-        kw_in_nodes = {name: as_node(arg, self.graph)
-                       for (name, arg) in kwargs.items()}
-
-        my_referee = PythonNode(self.graph,
-                                [referee_body],
-                                process.arg_types,
-                                [],
-                                kw_in_nodes,
-                                out_type=process.out_type,
-                                name=process.name,
-                                lvl=process.lvl,
-                                in_port_size=process.in_port_size)
-        self.referee = my_referee
+        self.referee = process_template.call(**kwnodes)
 
         # Add destination out-ports
         for destination, index in self.future_out_ports:
@@ -212,29 +195,20 @@ class PlaceholderNode(ProxyNode):
         method_func : Callable
             Method function to run.
         node_key : Optional[str]
-            Keyword argument used for providing the node to the block, in case the
-            user wants to debug sending & receiving messages in an interactive
-            console. Note that this should only be used for debugging; for
+            Keyword argument used for providing the node to the block, in case
+            the user wants to debug sending & receiving messages in an
+            interactive console.
+            Note that this should only be used for debugging; for
             Deltaflow programs in production it should be sufficient to use the
             inputs and return values of a block for communications.
         """
+        template = NodeTemplate.merge_deltamethod(None, method_func, node_key,
+                                                  name=self.key, lvl=lvl)
 
-        in_params, out_type = get_func_in_params_out_type(
-            method_func, True, node_key
-        )
-
-        # Construct a real node then set it as my referee
-        my_referee = py_method_node_factory(self.graph,
-                                            method_func,
-                                            instance,
-                                            in_params,
-                                            out_type,
-                                            *self.future_in_port_args,
-                                            name=self.key,
-                                            node_key=node_key,
-                                            lvl=lvl,
-                                            **self.future_in_port_kwargs)
-        self.referee = my_referee
+        self.referee = template.call_with_graph(self.graph,
+                                                instance,
+                                                *self.future_in_port_args,
+                                                **self.future_in_port_kwargs)
 
         # Add the out ports needed for the specified node
         for destination, index in self.future_out_ports:
@@ -264,7 +238,8 @@ class PlaceholderNode(ProxyNode):
         if self.future_in_port_args or self.future_in_port_kwargs:
             # specify_by_func should be used instead if this occurs
             log.warning("Placeholder at %s is being specified by "
-                        "node but it already has input nodes itself.", self.key)
+                        "node but it already has input nodes itself.",
+                        self.key)
 
         # Add the out ports needed for the specified node
         for destination, index in self.future_out_ports:

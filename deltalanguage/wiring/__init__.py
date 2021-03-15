@@ -11,7 +11,6 @@ Deltaflow graph and contains the following user-facing parts:
 
 - Wiring routines:
   :py:func:`placeholder_node_factory`
-  :py:func:`template_node_factory`
 
 - Node classes 
   :py:class:`RealNode`
@@ -37,19 +36,18 @@ from ._node_classes.node_bodies import (PyConstBody,
                                         PyFuncBody,
                                         PyInteractiveBody,
                                         PyMethodBody,
-                                        PythonBody,
-                                        TemplateBody)
+                                        PyMigenBody,
+                                        PythonBody)
 from ._node_classes.placeholder_node import PlaceholderNode
 from ._node_classes.port_classes import InPort, OutPort
 from ._node_classes.real_nodes import PythonNode, RealNode, as_node
+from ._body_templates import InteractiveBodyTemplate
+from ._node_templates import NodeTemplate
 from ._decorators import (DeltaBlock,
                           DeltaMethodBlock,
-                          Interactive,
-                          InteractiveProcess)
+                          Interactive)
 from ._delta_graph import DeltaGraph
-from ._node_factories import py_method_node_factory, py_node_factory
 from ._placeholder_factory import placeholder_node_factory
-from ._template_factory import template_node_factory
 
 
 # user-facing classes
@@ -59,7 +57,6 @@ __all__ = ["DeltaBlock",
            "DeltaGraph",
            "RealNode",
            "PythonNode",
-           "TemplateBody",
            "MigenNodeTemplate",
            "placeholder_node_factory",
-           "template_node_factory"]
+           "NodeTemplate"]

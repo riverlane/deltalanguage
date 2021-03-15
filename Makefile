@@ -186,7 +186,7 @@ pycodestyle: container ## Run PEP8 checker
 
 
 .PHONY: build-package
-build-package: clean-package container ## Make the package
+build-package: dev-clean container ## Make the package
 	${DEXEC} ${MAKEPACKAGE}
 	${DEXEC} ${CHECKPACKAGE}
 
@@ -273,7 +273,7 @@ dev-pycodestyle: ## See non-dev version
 	${PYCODESTYLE}
 
 .PHONY: dev-build-package
-dev-build-package: clean-package ## See non-dev version
+dev-build-package: dev-clean ## See non-dev version
 	${MAKEPACKAGE}
 	${CHECKPACKAGE}
 
@@ -290,4 +290,4 @@ dev-test-package: ## See non-dev version
 	${TESTPACKAGE}
 
 .PHONY: dev-clean
-dev-clean: clean-cache clean-artifacts clean-docs## See non-dev version
+dev-clean: clean-cache clean-artifacts clean-docs ## See non-dev version

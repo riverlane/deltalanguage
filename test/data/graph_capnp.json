@@ -38,11 +38,11 @@
             "inPorts": [
                 {
                     "name": "a",
-                    "optional": false
+                    "optional": true
                 },
                 {
                     "name": "b",
-                    "optional": false
+                    "optional": true
                 }
             ],
             "outPorts": []

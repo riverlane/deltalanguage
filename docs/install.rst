@@ -10,7 +10,8 @@ those who would like to use the package as it is and do not change it.
 For those who would like to get involved into development we suggest following
 steps in :doc:`development`.
 
-You can find the github repo corresponding to this manual `here <https://github.com/riverlane/deltalanguage>`_.
+You can find the github repo corresponding to this manual
+`here <https://github.com/riverlane/deltalanguage>`_.
 
 Prerequisites
 ^^^^^^^^^^^^^
@@ -32,7 +33,7 @@ python development tools.
 We are in the process of extending both the supported operating systems and 
 python versions.
 For Windows-10 you can refer to our step-by-step guide :doc:`wininstall`.
-If you have specfic requirements, you are welcome request support. Get in 
+If you have specific requirements, you are welcome request support. Get in 
 contact by `emailing us <mailto:deltaflow@riverlane.com>`_.
 
 Installing with pip
@@ -49,7 +50,7 @@ This can be installed using the in-built python package manager, :code:`pip`:
 
 This will fetch all python package dependencies and install Deltalanguage. 
 
-If you want to be able to use Jupyter notebooks and visualise deltagraphs,
+If you want to be able to use Jupyter notebooks and visualise graphs,
 use the following to install the additional dependencies.
 
 .. code-block:: console

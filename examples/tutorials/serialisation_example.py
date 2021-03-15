@@ -22,7 +22,7 @@ with dl.DeltaGraph() as graph:
 node = graph.nodes[2]
 
 # serialise it
-serialised = node.body.as_serialised
+serialised = node.body.as_serialized
 
 # <send serialised object down the wire here>
 

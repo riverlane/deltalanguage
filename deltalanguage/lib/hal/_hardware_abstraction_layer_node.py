@@ -1,8 +1,13 @@
 from deltalanguage.data_types import DUInt, DSize
-from deltalanguage.wiring import DeltaMethodBlock
+from deltalanguage.wiring import DeltaMethodBlock, NodeTemplate
 
 from ..quantum_simulators import IQuantumSimulator
 
+hal_template = NodeTemplate(
+    name="QSim",
+    in_params={'hal_command': DUInt(DSize(32))},
+    out_type=DUInt(DSize(32))
+)
 
 class HardwareAbstractionLayerNode:
     """Encapsulates a node which receives HAL commands and uses them to
@@ -22,7 +27,7 @@ class HardwareAbstractionLayerNode:
         self._quantum_simulator = quantum_simulator
 
     @DeltaMethodBlock(name="accept_command")
-    def accept_command(self, command: DUInt(DSize(32))) -> DUInt(DSize(32)):
+    def accept_command(self, hal_command: DUInt(DSize(32))) -> DUInt(DSize(32)):
         """Interface for ``quantum_simulator.accept_command`` that is used
         to create a graph node.
 
@@ -36,6 +41,6 @@ class HardwareAbstractionLayerNode:
         DUInt(DSize(32))
             Result of a measurement command.
         """
-        result = self._quantum_simulator.accept_command(command)
+        result = self._quantum_simulator.accept_command(hal_command)
 
         return result

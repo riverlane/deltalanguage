@@ -12,8 +12,7 @@ from deltalanguage.wiring import (DeltaGraph,
                                   PyInteractiveBody,
                                   PyMethodBody,
                                   PythonNode,
-                                  RealNode,
-                                  TemplateBody)
+                                  RealNode)
 from deltalanguage.logging import MessageLog, clear_loggers, make_logger
 
 from ._queues import ConstQueue, DeltaQueue
@@ -310,14 +309,7 @@ class DeltaPySimulator:
 
         try:
             for node in self.graph.nodes:
-                if isinstance(node.body, TemplateBody):
-                    if node.body.inner_body is None:
-                        raise RuntimeError(
-                            f"Must specify template body on node {node.name}"
-                        )
-
-                if isinstance(node.body, self.run_once_body_cls) \
-                        or (isinstance(node.body, TemplateBody) and node.is_const()):
+                if isinstance(node.body, self.run_once_body_cls):
                     node.run_once(self)
 
         except DeltaRuntimeExit:
@@ -329,12 +321,10 @@ class DeltaPySimulator:
                 + "Exiting simulator.") from exc
 
         for node in self.graph.nodes:
-            if isinstance(node.body, self.run_once_body_cls) \
-                    or (isinstance(node.body, TemplateBody) and node.is_const()):
+            if isinstance(node.body, self.run_once_body_cls):
                 continue
 
-            elif isinstance(node.body, self.running_body_cls) \
-                    or (isinstance(node.body, TemplateBody) and not node.is_const()):
+            elif isinstance(node.body, self.running_body_cls):
                 self.log.info(f"Starting node {node.name}")
                 self.threads[node.name] = DeltaThread(
                     target=node.thread_worker,
