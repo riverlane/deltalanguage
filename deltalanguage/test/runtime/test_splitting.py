@@ -4,13 +4,13 @@ adds splitter nodes if needed.
 
 import unittest
 
-from test._utils import (add_non_const, add1_or0,
-                         return_12, return_12_non_const)
-
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator, DeltaQueue
 from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
                                   placeholder_node_factory)
+
+from deltalanguage.test._utils import (add_non_const, add1_or0,
+                                       return_12, return_12_non_const)
 
 
 @DeltaBlock(allow_const=True)

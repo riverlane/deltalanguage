@@ -3,13 +3,13 @@
 from queue import Empty, Full, Queue
 import unittest
 
-from test._utils import TwoInts, TwoIntsT
-
 from deltalanguage.data_types import DOptional, DInt
 from deltalanguage.runtime import ConstQueue, DeltaQueue
 from deltalanguage.runtime._queues import Flusher
 from deltalanguage._utils import NamespacedName, QueueMessage
 from deltalanguage.wiring import InPort, OutPort
+
+from deltalanguage.test._utils import TwoInts, TwoIntsT
 
 
 class TestDeltaQueue(unittest.TestCase):
@@ -46,6 +46,7 @@ class TestDeltaQueue(unittest.TestCase):
         self.msg1 = QueueMessage(1)
         self.msg2 = QueueMessage(2)
         self.msg_with_none = QueueMessage(None)
+        self.msg_unpackable = QueueMessage("abcde")
 
         # these messages should be received
         self.msg1_answer = QueueMessage(1)
@@ -102,11 +103,18 @@ class TestDeltaQueue(unittest.TestCase):
                 q.put(self.msg2)
 
     def test_put_queue_message_exception(self):
-        """Test that ValueError is raised if input is not QueueMessage."""
+        """Test that TypeError is raised if input is not QueueMessage."""
         for q in (self.delta_queue_obl, self.delta_queue_opt,
                   self.const_queue_obl, self.const_queue_opt):
             with self.assertRaises(TypeError):
                 q.put(self.msg1.msg)
+
+    def test_put_unpackable_message(self):
+        """Test that TypeError is raised if input cannot be packed."""
+        for q in (self.delta_queue_obl, self.delta_queue_opt,
+                  self.const_queue_obl, self.const_queue_opt):
+            with self.assertRaises(TypeError):
+                q.put(self.msg_unpackable)
 
     def test_get(self):
         """The queues always return one message."""
@@ -203,6 +211,7 @@ class TestDeltaQueueForkedReturn(TestDeltaQueue):
         self.msg1 = QueueMessage(TwoInts(1, 20))
         self.msg2 = QueueMessage(TwoInts(2, 30))
         self.msg_with_none = QueueMessage(TwoInts(None, 20))
+        self.msg_unpackable = QueueMessage(TwoInts("abcde", 20))
 
         # these messages should be received
         self.msg1_answer = QueueMessage(1)

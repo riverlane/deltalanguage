@@ -7,8 +7,6 @@ import unittest
 import attr
 import numpy as np
 
-from test._utils import TwoIntsT
-
 from deltalanguage._utils import NamespacedName
 from deltalanguage.data_types import (
     BaseDeltaType,
@@ -33,6 +31,8 @@ from deltalanguage.data_types import (
     delta_type
 )
 from deltalanguage.wiring import DeltaGraph
+
+from deltalanguage.test._utils import TwoIntsT
 
 
 @attr.s(slots=True)
@@ -351,6 +351,18 @@ class DeltaTypesPackTest(unittest.TestCase):
                 self.check(random.randint(-2**(bits-1), 2**(bits-1) - 1),
                            DInt(DSize(bits)))
 
+            # Booleans can be packed
+            self.check(True, DInt(DSize(bits)))
+            self.check(False, DInt(DSize(bits)))
+
+            # Floats, strings and overflowing or
+            # complex numbers are not packable
+            self.assertFalse(DInt(DSize(bits)).is_packable(3.5))
+            self.assertFalse(DInt(DSize(bits)).is_packable(3.0))
+            self.assertFalse(DInt(DSize(bits)).is_packable("abc"))
+            self.assertFalse(DInt(DSize(bits)).is_packable(2**bits-1))
+            self.assertFalse(DInt(DSize(bits)).is_packable(3+5j))
+
     def test_DUInt(self):
         """Only 8, 16, 32, and 64 bits are supported."""
         for bits in (8, 16, 32, 64):
@@ -360,11 +372,31 @@ class DeltaTypesPackTest(unittest.TestCase):
                 self.check(random.randint(0, 2**bits - 1),
                            DUInt(DSize(bits)))
 
+            # Booleans can be packed
+            self.check(True, DUInt(DSize(bits)))
+            self.check(False, DUInt(DSize(bits)))
+
+            # Floats, strings and negative or complex numbers are not packable
+            self.assertFalse(DUInt(DSize(bits)).is_packable(3.5))
+            self.assertFalse(DUInt(DSize(bits)).is_packable(3.0))
+            self.assertFalse(DUInt(DSize(bits)).is_packable("abc"))
+            self.assertFalse(DUInt(DSize(bits)).is_packable(-2))
+            self.assertFalse(DUInt(DSize(bits)).is_packable(3+5j))
+
     def test_DBool(self):
         self.check(False, DBool())
         self.check(0, DBool())
         self.check(True, DBool())
         self.check(1, DBool())
+
+        # Floats, strings, complex numbers and integers
+        # other than 0/1 are not packable
+        self.assertFalse(DBool().is_packable(3.5))
+        self.assertFalse(DBool().is_packable(3.0))
+        self.assertFalse(DBool().is_packable("abc"))
+        self.assertFalse(DBool().is_packable(3+5j))
+        self.assertFalse(DBool().is_packable(4))
+        self.assertFalse(DBool().is_packable(-2))
 
     def test_DFloat(self):
         """Only 32 and 64 bits are supported."""
@@ -376,6 +408,15 @@ class DeltaTypesPackTest(unittest.TestCase):
 
             self.check(1 + 2**precision, DFloat(DSize(bits)))
 
+            # Booleans and ints can be packed
+            self.check(True, DFloat(DSize(bits)))
+            self.check(False, DFloat(DSize(bits)))
+            self.check(3, DFloat(DSize(bits)))
+
+            # Strings and complex numbers are not packable
+            self.assertFalse(DFloat(DSize(bits)).is_packable("abc"))
+            self.assertFalse(DFloat(DSize(bits)).is_packable(3+5j))
+
     def test_DComplex(self):
         """Only 64 and 128 bits are supported."""
         for bits in (64, 128):
@@ -384,23 +425,26 @@ class DeltaTypesPackTest(unittest.TestCase):
                                    random.uniform(-1, 1) * 1j,
                                    DComplex(DSize(bits)))
 
+            # Booleans, ints and floats can be packed
+            self.check(True, DComplex(DSize(bits)))
+            self.check(False, DComplex(DSize(bits)))
+            self.check(3, DComplex(DSize(bits)))
+            self.check(3.5, DComplex(DSize(bits)))
+
+            # Strings are not packable
+            self.assertFalse(DComplex(DSize(bits)).is_packable("abc"))
+
     def test_DArray(self):
         # primitive elements are properly handled
         # int are passed as DInt, not DUInt
         self.check([1, 2, 3], DArray(DInt(), DSize(3)))
-        with self.assertRaises(DeltaTypeError):
-            self.check([1, 2, 3], DArray(DUInt(), DSize(3)))
 
         # for floats use a dot
         # might be a potential problem, due to python silent type downcasting
         self.check([1.0, 2.0, 3.0], DArray(DFloat(), DSize(3)))
-        with self.assertRaises(DeltaTypeError):
-            self.check([1, 2, 3], DArray(DFloat(), DSize(3)))
 
         # bool are passed as DBool, not DInt
         self.check([True, False, False], DArray(DBool(), DSize(3)))
-        with self.assertRaises(DeltaTypeError):
-            self.check([1, 0, 0], DArray(DBool(), DSize(3)))
 
         # encapsulation of compound types
         self.check([[1, 2, 3], [4, 5, 6]],

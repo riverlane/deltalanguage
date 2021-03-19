@@ -14,7 +14,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   PyFuncBody,
                                   PyMethodBody)
 
-from test._utils import return_2
+from deltalanguage.test._utils import return_2
 
 
 class Adder:

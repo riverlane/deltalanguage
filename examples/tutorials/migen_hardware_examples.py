@@ -38,7 +38,7 @@ class LengthChecker:
         return True
 
 
-@dl.Interactive({"status": bool}, int)
+@dl.Interactive([("status", bool)], int)
 def one_shot_run(node):
     """Sends a simple pulse 010 and then sits and waits.
 

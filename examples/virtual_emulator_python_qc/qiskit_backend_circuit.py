@@ -5,7 +5,7 @@ import deltalanguage as dl
 ### ---------------------------- CONSTRUCT NODES -------------------------- ###
 # One node to send circuit to HAL node, another to digest result from HAL node
 @dl.Interactive(
-    {"input_params": dl.DArray(int, dl.DSize(2)), "repeat": bool},
+    [("input_params", dl.DArray(int, dl.DSize(6))), ("repeat", bool)],
     dl.DUInt(dl.DSize(32))
 )
 def send_gate_sequence(node):

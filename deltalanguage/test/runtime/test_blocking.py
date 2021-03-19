@@ -9,7 +9,7 @@ SLEEPTIME = 1e-3
 STORE = []
 
 
-@dl.Interactive({}, int, name="send_and_check_time")
+@dl.Interactive([], int, name="send_and_check_time")
 def send_and_check_time(node: dl.PythonNode):
     """This node should be blocked at ``send`` if the receiving node is busy
     and the queue is full.
@@ -142,7 +142,7 @@ class RuntimeBlockingTest(unittest.TestCase):
         gen = dl.lib.make_generator(1, reps=N_ITER)
         s = dl.lib.StateSaver(int)
 
-        @dl.Interactive({'a': int}, int)
+        @dl.Interactive([('a', int)], int)
         def aggregator(node):
             result = 0
             for _ in range(N_ITER):
@@ -174,7 +174,7 @@ class RuntimeBlockingTest(unittest.TestCase):
         they always call ``send``.
         """
 
-        @dl.Interactive({'a': dl.DOptional(int)}, dl.Void)
+        @dl.Interactive([('a', dl.DOptional(int))], dl.Void)
         def node_to_investigate(node):
             while True:
                 a = node.receive('a')
@@ -182,7 +182,7 @@ class RuntimeBlockingTest(unittest.TestCase):
                     STORE.append(a)
                     raise dl.DeltaRuntimeExit
 
-        @dl.Interactive({}, int)
+        @dl.Interactive([], int)
         def rest_of_graph(node):
             """This node imitates the rest of the graph that does some
             computations and occasionally provides an input."""
@@ -212,7 +212,7 @@ class RuntimeBlockingTest(unittest.TestCase):
         """Similar to the test above, but here the tests node does not have
         inputs.
         """
-        @dl.Interactive(in_params={}, out_type=int)
+        @dl.Interactive(inputs=[], outputs=int)
         def unstoppable(node):
             i = 0
             while True:

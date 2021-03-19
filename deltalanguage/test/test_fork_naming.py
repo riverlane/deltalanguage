@@ -30,7 +30,7 @@ class ForkNameTestClass:
         return Fork(1, 2)
 
 
-@Interactive(in_params={}, out_type=ForkT, name="ForkedInteractive")
+@Interactive(inputs=[], outputs=ForkT, name="ForkedInteractive")
 def interactive_forked(node):
     node.send(Fork(3, 4))
 

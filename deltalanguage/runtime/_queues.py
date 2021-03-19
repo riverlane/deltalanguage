@@ -3,6 +3,7 @@ import logging
 from queue import Empty, Full, Queue
 from typing import Any
 
+from deltalanguage.data_types import ForkedReturn
 from deltalanguage.wiring import OutPort
 from deltalanguage.logging import make_logger
 from deltalanguage._utils import QueueMessage
@@ -65,9 +66,14 @@ class DeltaQueue(Queue):
         self._queue_interval = queue_interval
         self.optional = out_port.destination.is_optional
 
-        self._index = None
         if out_port.port_name.n_index is not None:
             self._index = out_port.port_name.n_index
+        else:
+            self._index = None
+
+        self._type = out_port.port_type
+        if isinstance(self._type, ForkedReturn):
+            self._type = self._type.elem_dict[self._index]
 
     def _index_and_put(self,
                        item: QueueMessage,
@@ -96,6 +102,9 @@ class DeltaQueue(Queue):
             to_put = item
 
         if to_put.msg is not None:
+            if not self._type.is_packable(to_put.msg):
+                raise TypeError(
+                    f"Message {to_put.msg} cannot be packed into {self._type}")
             if timeout is None:
                 Queue.put(self, to_put, block, timeout=self._queue_interval)
             else:

@@ -18,11 +18,11 @@ AccumT, AccumC = dl.make_forked_return({'DAC_command': int,
 TIME_RES = 30
 
 
-@dl.Interactive({'new_time': int,
-                 'DAC_status': int,
-                 'DAC_voltage': int,
-                 'experiment_start': dl.DOptional(bool)
-                 }, AccumT)
+@dl.Interactive([('new_time', dl.DUInt()),
+                 ('DAC_status', int),
+                 ('DAC_voltage', int),
+                 ('experiment_start', dl.DOptional(bool))
+                 ], AccumT)
 def accumulator(node):
     """ Accumulator Node
 

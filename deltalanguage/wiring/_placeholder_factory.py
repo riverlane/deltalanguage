@@ -42,7 +42,7 @@ def placeholder_node_factory(*args, name=None, **kwargs) -> PlaceholderNode:
         ...     else:
         ...         return -a
 
-        >>> @dl.Interactive(in_params={"a": int}, out_type=int)
+        >>> @dl.Interactive(inputs=[("a", int)], outputs=int)
         ... def bar(node):
         ...     internal_memory = 0
         ...

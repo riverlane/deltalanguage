@@ -69,8 +69,8 @@ class TestNodeKey(unittest.TestCase):
 
 
 test_template1 = NodeTemplate(name="NodeKeyTestTemplate",
-                              in_params=OrderedDict([('a', int), ('b', int)]),
-                              out_type=Void, node_key='node')
+                              inputs=[('a', int), ('b', int)],
+                              outputs=Void, node_key='node')
 
 
 class Foo_T:

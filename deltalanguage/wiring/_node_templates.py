@@ -1,5 +1,13 @@
 import logging
-from typing import TYPE_CHECKING, Callable, Dict, Union, Optional, Type
+from typing import (TYPE_CHECKING,
+                    Callable,
+                    Dict,
+                    List,
+                    Optional,
+                    OrderedDict,
+                    Union,
+                    Type,
+                    Tuple)
 
 from deltalanguage.data_types import (as_delta_type,
                                       BaseDeltaType,
@@ -11,8 +19,8 @@ from ._node_classes.latency import Latency
 from ._node_classes.node_bodies import Body
 from ._node_classes.real_nodes import (PythonNode,
                                        as_node,
-                                       get_func_in_params_out_type,
-                                       in_params_as_delta_types)
+                                       get_func_inputs_outputs,
+                                       inputs_as_delta_types)
 from ._body_templates import (BodyTemplate,
                               FuncBodyTemplate,
                               InteractiveBodyTemplate,
@@ -35,9 +43,11 @@ class NodeTemplate():
     ----------
     name : str
         Default name for the nodes created using this node template
-    in_params : Dict[str, Union[BaseDeltaType, DOptional]]
-        List of input parameters for nodes created using this template
-    out_type : Type
+    inputs : Union[List[Tuple[str, Type]],
+                      OrderedDict[str, Type]],
+        List or OrderedDict of input parameters for nodes created using this
+        template
+    outputs : Type
         Out type for nodes created using this template
     node_key : Optional[str]
         Node key to allow node object to be accessed inside bodies
@@ -47,8 +57,9 @@ class NodeTemplate():
     """
 
     def __init__(self,
-                 in_params: Dict[str, Type],
-                 out_type: Type = Void,
+                 inputs: Union[List[Tuple[str, Type]],
+                                  OrderedDict[str, Type]],
+                 outputs: Type = Void,
                  name: str = None,
                  lvl: int = logging.ERROR,
                  node_key: Optional[str] = None,
@@ -60,11 +71,19 @@ class NodeTemplate():
 
         self._body_templates = []
 
-        self.in_params = in_params_as_delta_types(in_params)
-        self.out_type = as_delta_type(out_type)
+        # Cast list inputs to OrderedDict if not already
+        if not isinstance(inputs, OrderedDict):
+            if isinstance(inputs, list):
+                inputs = OrderedDict(inputs)
+            else:
+                raise TypeError(
+                    'Please provide types of input parameters as list')
+
+        self.inputs = inputs_as_delta_types(inputs)
+        self.outputs = as_delta_type(outputs)
 
         self._has_optional_inputs = False
-        for in_type in in_params.values():
+        for in_type in self.inputs.values():
             if isinstance(in_type, DOptional):
                 self._has_optional_inputs = True
 
@@ -126,10 +145,10 @@ class NodeTemplate():
         # Node creation and return
         ret_node = PythonNode(graph,
                               bodies,
-                              self.in_params,
+                              self.inputs,
                               pos_in_nodes,
                               kw_in_nodes,
-                              out_type=self.out_type,
+                              outputs=self.outputs,
                               name=name,
                               in_port_size=self.in_port_size,
                               node_key=self.node_key,
@@ -148,7 +167,7 @@ class NodeTemplate():
         """
         if other is not self:
             if other.compatible(self.node_key, self.in_port_size,
-                                self.in_params, self.out_type):
+                                self.inputs, self.outputs):
                 for other_body_t in other._body_templates:
                     other_body_t.set_node_template(self)
                     self._body_templates.append(other_body_t)
@@ -176,7 +195,7 @@ class NodeTemplate():
                         f" node template {self.name} more than one time")
         else:
             if body_template.compatible(self.node_key, self.in_port_size,
-                                        self.in_params, self.out_type):
+                                        self.inputs, self.outputs):
                 self._body_templates.append(body_template)
                 body_template.set_node_template(self)
 
@@ -186,8 +205,8 @@ class NodeTemplate():
         body_template: BodyTemplate,
         node_key: Optional[str],
         in_port_size: int,
-        in_params: Dict[str, Union[BaseDeltaType, DOptional]],
-        out_type: Union[BaseDeltaType, DOptional]
+        inputs: OrderedDict[str, Union[BaseDeltaType, DOptional]],
+        outputs: Union[BaseDeltaType, DOptional]
     ) -> BodyTemplate:
         """Internal method used by template merging and creation methods
         Contains the common behaviour for checking other_template is compatible
@@ -210,10 +229,10 @@ class NodeTemplate():
             a newly created NodeTemplate.
         """
         if other and other.compatible(node_key, in_port_size,
-                                      in_params, out_type):
+                                      inputs, outputs):
             main_template = other
         else:
-            main_template = NodeTemplate(in_params, out_type,
+            main_template = NodeTemplate(inputs, outputs,
                                          name=body_template.name,
                                          node_key=node_key,
                                          in_port_size=in_port_size)
@@ -221,11 +240,13 @@ class NodeTemplate():
         main_template._body_templates.append(body_template)
         return body_template
 
-    def compatible(self,
-                   node_key: Optional[str],
-                   in_port_size: int,
-                   in_params: Dict[str, Union[BaseDeltaType, DOptional]],
-                   out_type: Union[BaseDeltaType, DOptional]) -> bool:
+    def compatible(
+        self,
+        node_key: Optional[str],
+        in_port_size: int,
+        inputs: OrderedDict[str, Union[BaseDeltaType, DOptional]],
+        outputs: Union[BaseDeltaType, DOptional]
+    ) -> bool:
         """Checks compatibility between this ``NodeTemplate`` and some params
         that are important for node creation.
 
@@ -234,10 +255,10 @@ class NodeTemplate():
         bool
             ``True`` if paramaters are compatible with this ``NodeTemplate``.
         """
-        if self.in_params != in_params:
+        if self.inputs != inputs:
             raise ValueError(f"Node template {self.name} "
                              "incompatible with given input parameters.")
-        if self.out_type != out_type:
+        if self.outputs != outputs:
             raise ValueError(f"Node template {self.name} "
                              "incompatible with given out type.")
         if self.node_key != node_key:
@@ -256,23 +277,24 @@ class NodeTemplate():
                          name: str = None,
                          in_port_size: int = 0,
                          latency: Latency = None,
-                         lvl: int = logging.ERROR) -> BodyTemplate:
+                         lvl: int = logging.ERROR,
+                         tags: List[str] = []) -> BodyTemplate:
         """Create a :py:class:`BodyTemplate` for the bodies and constructor
         created using the ``@DeltaBlock`` decorator. Associate this with an
         existing or newly created :py:class:`NodeTemplate`.
         """
-        in_params, out_type = get_func_in_params_out_type(
+        inputs, outputs = get_func_inputs_outputs(
             body_func, False, node_key
         )
 
         body_template = FuncBodyTemplate(
-            name, latency, lvl, body_func, allow_const)
+            name, latency, lvl, body_func, allow_const, tags)
         return NodeTemplate._standardised_merge(other,
                                                 body_template,
                                                 node_key,
                                                 in_port_size,
-                                                in_params,
-                                                out_type)
+                                                inputs,
+                                                outputs)
 
     @staticmethod
     def merge_deltamethod(other: Optional['NodeTemplate'],
@@ -281,67 +303,72 @@ class NodeTemplate():
                           name: str = None,
                           in_port_size: int = 0,
                           latency: Latency = None,
-                          lvl: int = logging.ERROR) -> BodyTemplate:
+                          lvl: int = logging.ERROR,
+                          tags: List[str] = []) -> BodyTemplate:
         """Create a :py:class:`BodyTemplate` for the bodies and constructor
         created using the ``@DeltaMethodBlock`` decorator. Associate this with
         an existing or newly created ``NodeTemplate``.
         """
-        in_params, out_type = get_func_in_params_out_type(
+        inputs, outputs = get_func_inputs_outputs(
             body_func, True, node_key,
         )
 
-        body_template = MethodBodyTemplate(name, latency, lvl, body_func)
+        body_template = MethodBodyTemplate(name, latency, lvl, body_func, tags)
         return NodeTemplate._standardised_merge(other,
                                                 body_template,
                                                 node_key,
                                                 in_port_size,
-                                                in_params,
-                                                out_type)
+                                                inputs,
+                                                outputs)
 
     @staticmethod
     def merge_interactive(other: Optional['NodeTemplate'],
                           func: Callable[[PythonNode], None],
-                          in_params: Dict[str, Type],
-                          out_type: Type,
+                          inputs: List[Tuple[str, Type]],
+                          outputs: Type,
                           name: str = None,
                           in_port_size: int = 0,
                           latency: Latency = None,
-                          lvl: int = logging.ERROR) -> BodyTemplate:
+                          lvl: int = logging.ERROR,
+                          tags: List[str] = []) -> BodyTemplate:
         """Create a :py:class:`BodyTemplate` for the bodies and constructor
         created using the ``@Interactive`` decorator. Associate this with an
         existing or newly created ``NodeTemplate``.
         """
-        if len(in_params) == 0 and out_type == Void:
+        if len(inputs) == 0 and outputs == Void:
             raise DeltaIOError('Interactive node must have either an input '
                                'or an output. Otherwise it may freeze '
                                'the runtime simulator.')
 
-        in_params = in_params_as_delta_types(in_params)
-        out_type = as_delta_type(out_type)
-        body_template = InteractiveBodyTemplate(name, latency, lvl, func)
+        if not isinstance(inputs, list):
+            raise TypeError('Please provide types of input parameters as list')
+
+        inputs = inputs_as_delta_types(OrderedDict(inputs))
+        outputs = as_delta_type(outputs)
+        body_template = InteractiveBodyTemplate(name, latency, lvl, func, tags)
         return NodeTemplate._standardised_merge(other,
                                                 body_template,
                                                 node_key=None,
                                                 in_port_size=in_port_size,
-                                                in_params=in_params,
-                                                out_type=out_type)
+                                                inputs=inputs,
+                                                outputs=outputs)
 
     @staticmethod
     def merge_migenblock(other: Optional['NodeTemplate'],
                          body_template: BodyTemplate,
-                         in_params: Dict[str, Type],
-                         out_type: Type,) -> BodyTemplate:
+                         inputs: OrderedDict[str, Type],
+                         outputs: Type,) -> BodyTemplate:
         """Create a :py:class:`BodyTemplate` for the bodies and constructor
         for migen based bodies. Associate this with an existing or newly
         created :py:class:`NodeTemplate`.
         """
-        in_params = in_params_as_delta_types(in_params)
-        out_type = as_delta_type(out_type)
+        inputs = inputs_as_delta_types(inputs)
+        outputs = as_delta_type(outputs)
 
         return NodeTemplate._standardised_merge(other=other,
                                                 body_template=body_template,
-                                                in_params=in_params,
-                                                out_type=out_type,
+                                                inputs=inputs,
+                                                outputs=outputs,
                                                 node_key=None,
                                                 in_port_size=0)
 

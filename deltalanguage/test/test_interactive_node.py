@@ -3,13 +3,6 @@ import threading
 import time
 import unittest
 
-from test._utils import (TwoInts,
-                         TwoIntsT,
-                         add_non_const,
-                         const_consumer,
-                         return_1,
-                         return_2)
-
 from deltalanguage.data_types import as_delta_type, Void, DeltaIOError
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
@@ -20,13 +13,20 @@ from deltalanguage.wiring import (DeltaBlock,
                                   PythonNode,
                                   placeholder_node_factory)
 
+from deltalanguage.test._utils import (TwoInts,
+                                       TwoIntsT,
+                                       add_non_const,
+                                       const_consumer,
+                                       return_1,
+                                       return_2)
+
 
 @DeltaBlock(name="node")
 def int_to_str(n: int) -> str:
     return str(n)
 
 
-@Interactive(in_params={"num": str}, out_type=int, name="blah")
+@Interactive(inputs=[("num", str)], outputs=int, name="blah")
 def interactive_func(node: PythonNode):
     node.send(3)
     num = node.receive()["num"]
@@ -34,7 +34,7 @@ def interactive_func(node: PythonNode):
     node.send(num + 1)
 
 
-@Interactive(in_params={"num": int}, out_type=int)
+@Interactive(inputs=[("num", int)], outputs=int)
 def forward(node: PythonNode):
     for _ in range(10):
         num = node.receive("num")
@@ -42,7 +42,7 @@ def forward(node: PythonNode):
     raise DeltaRuntimeExit
 
 
-@Interactive(in_params={'num': int}, out_type=TwoIntsT)
+@Interactive(inputs=[("num", int)], outputs=TwoIntsT)
 def add_until_10(node: PythonNode):
     """Sends num on the left port until it is greater than 10, then sends it
     on the right port.
@@ -68,7 +68,7 @@ class InteractiveNodeGeneralTest(unittest.TestCase):
         """
 
         with self.assertRaises(DeltaIOError):
-            @Interactive({}, Void)
+            @Interactive([], Void)
             def bar(node):
                 while True:
                     pass
@@ -77,7 +77,7 @@ class InteractiveNodeGeneralTest(unittest.TestCase):
         """An interactive node with I/O can be just forgotten during graph
         construction. We check that it is connected.
         """
-        @Interactive({}, int)
+        @Interactive([], int)
         def bar(node):
             node.send(1)
 
@@ -86,6 +86,35 @@ class InteractiveNodeGeneralTest(unittest.TestCase):
 
         with self.assertRaises(DeltaIOError):
             graph.check()
+
+    def test_interactive_inputs_by_position(self):
+        """Test that interactive inputs can now be given positionally in wiring
+        """
+        @Interactive([('a', int), ('b', float)], int)
+        def add_int_float(node):
+            a = node.receive('a')
+            b = node.receive('b')
+            node.send(a + b)
+
+        with DeltaGraph() as graph:
+            add_int_float.call(1, 2.2)
+
+        self.assertTrue(graph.check())
+
+    def test_interactive_inputs_by_hybrid(self):
+        """Test that interactive inputs can now be given positionally and 
+        by keyword at the same time in wiring
+        """
+        @Interactive([('a', int), ('b', float)], int)
+        def add_int_float(node):
+            a = node.receive('a')
+            b = node.receive('b')
+            node.send(a + b)
+
+        with DeltaGraph() as graph:
+            add_int_float.call(90, b=7.7)
+
+        self.assertTrue(graph.check())
 
 
 class SimpleGraph(unittest.TestCase):

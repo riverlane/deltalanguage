@@ -12,16 +12,16 @@ their construction.
 import unittest
 from collections import OrderedDict
 
-from test._utils import (return_12,
-                         add,
-                         add_non_const,
-                         return_2)
-
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
                                   PyConstBody,
                                   PyFuncBody,
                                   NodeTemplate)
+
+from deltalanguage.test._utils import (return_12,
+                                       add,
+                                       add_non_const,
+                                       return_2)
 
 
 @DeltaBlock(allow_const=True)
@@ -170,8 +170,8 @@ class ConstFolding(unittest.TestCase):
 
 
 const_template = NodeTemplate(name="ConstFoldTestTemplate",
-                              in_params=OrderedDict([('a', int)]),
-                              out_type=int)
+                              inputs=[('a', int)],
+                              outputs=int)
 
 
 @DeltaBlock(template=const_template, allow_const=True)
@@ -185,8 +185,8 @@ def foo_const_2_t(a: int) -> int:
 
 
 non_const_template = NodeTemplate(name="NonConstFoldTestTemplate",
-                                  in_params=OrderedDict([('a', int)]),
-                                  out_type=int)
+                                  inputs=[('a', int)],
+                                  outputs=int)
 
 
 @DeltaBlock(template=non_const_template, allow_const=False)
@@ -200,8 +200,8 @@ def foo_non_const_2_t(a: int) -> int:
 
 
 semi_const_template = NodeTemplate(name="SemiConstFoldTestTemplate",
-                                   in_params=OrderedDict([('a', int)]),
-                                   out_type=int)
+                                   inputs=[('a', int)],
+                                   outputs=int)
 
 
 @DeltaBlock(template=semi_const_template, allow_const=False)

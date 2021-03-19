@@ -39,7 +39,7 @@ class Aggregator(dl.MigenNodeTemplate):
         completed = template.add_pa_out_port('completed', dl.DInt(dl.DSize(8)))
         next_angle = template.add_pa_out_port(
             'next_angle',
-            dl.DUInt(dl.DSize(ANGLE_MEMORY_WIDTH))
+            dl.DRaw(dl.DUInt(dl.DSize(ANGLE_MEMORY_WIDTH)))
         )
 
         # generate a ROM of 10-bit angle values

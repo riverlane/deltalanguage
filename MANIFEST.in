@@ -1,4 +1,3 @@
 include LICENSE.rst
 include environment/install_requirements.txt
 include environment/visualisation_requirements.txt
-include test/data/*

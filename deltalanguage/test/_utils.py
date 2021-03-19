@@ -232,7 +232,7 @@ def const_consumer(obj: Top) -> Void:
     pass
 
 
-@Interactive({"n": int}, TwoIntsT)
+@Interactive([('n', int)], TwoIntsT)
 def opt_increment(node: PythonNode):
 
     n = 0

@@ -26,7 +26,7 @@ TestBenchForkT, TestBenchFork = make_forked_return(
 )
 
 
-@Interactive({}, TestBenchForkT)
+@Interactive([], TestBenchForkT)
 def test_bench_no_trigger(node: PythonNode):
     """This node sends 2 consecutive messages, the first is a data signal, the
     second is a trigger to move out of a specific state of the migen FSM.
@@ -36,7 +36,7 @@ def test_bench_no_trigger(node: PythonNode):
     node.send(TestBenchFork(0, 1))
 
 
-@Interactive({}, TestBenchForkT)
+@Interactive([], TestBenchForkT)
 def test_bench_yes_trigger(node: PythonNode):
     """This node sends 3 consecutive messages, the first is a data signal, the
     second is the same data signal, and the third is a trigger to move out of

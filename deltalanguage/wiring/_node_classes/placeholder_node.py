@@ -12,7 +12,7 @@ from typing import (TYPE_CHECKING,
                     Tuple)
 
 from deltalanguage.logging import make_logger
-from .._decorators import get_func_in_params_out_type
+from .._decorators import get_func_inputs_outputs
 from .._node_templates import NodeTemplate
 
 from .abstract_node import ForkedNode, ProxyNode

@@ -155,7 +155,7 @@ class DACController(dl.MigenNodeTemplate):
 TbT, TbC = dl.make_forked_return({'cmd': dl.DInt(), 'param': dl.DInt()})
 
 
-@dl.Interactive({'dac_status': dl.DInt(), 'dac_voltage': dl.DInt()}, TbT)
+@dl.Interactive([('dac_status', dl.DInt()), ('dac_voltage', dl.DInt())], TbT)
 def testbench(node):
     """ Testbench for the DAC controller node, coverage of all commands
     and parameters, out of range values, assertion of expected results

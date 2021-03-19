@@ -6,15 +6,15 @@ import unittest
 
 import deltalanguage as dl
 
-from test._utils import (OtherClass,
-                         SomeClass,
-                         add,
-                         add1_or0,
-                         async_err_if_4,
-                         do_nothing,
-                         opt_increment,
-                         return_2,
-                         return_4)
+from deltalanguage.test._utils import (OtherClass,
+                                       SomeClass,
+                                       add,
+                                       add1_or0,
+                                       async_err_if_4,
+                                       do_nothing,
+                                       opt_increment,
+                                       return_2,
+                                       return_4)
 
 
 class RuntimeTest(unittest.TestCase):
@@ -291,7 +291,7 @@ class RuntimeConstantNodeAndDOptionalTest(unittest.TestCase):
             else:
                 return a + b
 
-        @dl.Interactive({'a': int}, int)
+        @dl.Interactive([('a', int)], int)
         def aggregator(node):
             result = 0
             for _ in range(n_iter):

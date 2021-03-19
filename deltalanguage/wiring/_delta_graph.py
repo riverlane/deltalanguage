@@ -101,7 +101,7 @@ class DeltaGraph:
         >>> import deltalanguage as dl
 
         >>> rt = dl.DeltaPySimulator(graph)
-        >>> rt.run()
+        >>> rt.run() # doctest: +SKIP
         42
 
     Node inputs and outputs must be typed (in case of no output

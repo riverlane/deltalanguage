@@ -5,7 +5,7 @@ import os
 import subprocess
 import unittest
 
-from test._utils import get_full_filelist, run_notebook
+from deltalanguage.test._utils import get_full_filelist, run_notebook
 
 
 class TestTutorials(unittest.TestCase):

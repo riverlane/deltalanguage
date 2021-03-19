@@ -21,7 +21,7 @@ class Commander(dl.MigenNodeTemplate):
         # creation of input/output ports
         angle = template.add_pa_in_port(
             'angle',
-            dl.DOptional(dl.DUInt(dl.DSize(ANGLE_MEMORY_WIDTH)))
+            dl.DOptional(dl.DRaw(dl.DUInt(dl.DSize(ANGLE_MEMORY_WIDTH))))
         )
 
         hal_command = template.add_pa_out_port('hal_command',

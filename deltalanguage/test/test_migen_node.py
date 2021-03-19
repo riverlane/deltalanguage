@@ -3,10 +3,9 @@
 import io
 import json
 import logging
+import os
 import unittest
 import unittest.mock
-
-from test._utils import InputCheckerWithExit, add_non_const
 
 import dill
 import migen
@@ -26,7 +25,8 @@ from examples.tutorials.migen_hardware_examples import (
     generate_graph_interactive_input
 )
 
-from test._utils import assert_capnp_content_types
+from deltalanguage.test._utils import (InputCheckerWithExit, add_non_const,
+                                       assert_capnp_content_types)
 
 
 class AlternatingOutputsMigen(MigenNodeTemplate):
@@ -136,6 +136,7 @@ class MigenNodeSerialisationTest(unittest.TestCase):
 
     def setUp(self):
         DeltaGraph.clean_stack()
+        self.datapath = os.path.join('deltalanguage', 'test', 'data')
 
     def test_serialisation(self):
         """Serialize/deserialize a graph with a node with a PyMigenBody.
@@ -162,7 +163,9 @@ class MigenNodeSerialisationTest(unittest.TestCase):
         self.assertEqual(type(data), bytes)
         g_capnp = deserialize_graph(data).to_dict()
         assert_capnp_content_types(self, g_capnp)
-        with open('test/data/graph_with_migen_capnp.json', 'r') as file:
+
+        with open(os.path.join(self.datapath, 'graph_with_migen_capnp.json'),
+                  'r') as file:
             self.assertEqual(g_capnp, json.load(file))
 
     def test_one_migen_node_with_2_outs(self):

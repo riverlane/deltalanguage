@@ -28,7 +28,7 @@ class NoBodyNodeTest(unittest.TestCase):
 
     def test_forked_input(self):
         ForkedReturnT, ForkedReturn = make_forked_return({'a': int, 'b': bool})
-        template_2 = NodeTemplate(in_params={'a': int, 'b': bool})
+        template_2 = NodeTemplate(inputs=[('a', int), ('b', bool)])
 
         @DeltaBlock()
         def add_1_true(n: int) -> ForkedReturnT:
@@ -41,7 +41,7 @@ class NoBodyNodeTest(unittest.TestCase):
         self.assertTrue(graph.check())
 
     def test_placeholder_input(self):
-        template_3 = NodeTemplate(in_params=OrderedDict([('a', int)]))
+        template_3 = NodeTemplate(inputs=[('a', int)])
 
         with DeltaGraph() as graph:
             a = placeholder_node_factory()
@@ -51,7 +51,7 @@ class NoBodyNodeTest(unittest.TestCase):
         self.assertTrue(graph.check())
 
     def test_partial_arg_types(self):
-        template_4 = NodeTemplate(in_params={'a': int, 'b': bool})
+        template_4 = NodeTemplate(inputs=[('a', int), ('b', bool)])
 
         @DeltaBlock()
         def bool_and(a: bool, b: bool) -> bool:
@@ -69,7 +69,7 @@ class NoBodyNodeTest(unittest.TestCase):
         def add(a: int, b: int) -> int:
             return a+b
 
-        template_1 = NodeTemplate(in_params={'a': bool})
+        template_1 = NodeTemplate(inputs=[('a', bool)])
 
         with self.assertRaises(DeltaTypeError):
             with DeltaGraph() as graph:
@@ -99,9 +99,8 @@ class NoBodyAddBody(unittest.TestCase):
 
     def test_add_func(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(allow_const=False)
         def simple_add(a: int, b: int) -> int:
@@ -117,9 +116,8 @@ class NoBodyAddBody(unittest.TestCase):
 
     def test_add_method(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
         with DeltaGraph():
             n1 = test_template1.call(2, 3)
 
@@ -130,9 +128,8 @@ class NoBodyAddBody(unittest.TestCase):
 
     def test_add_multiple(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(allow_const=False)
         def simple_add(a: int, b: int) -> int:
@@ -149,12 +146,11 @@ class NoBodyAddBody(unittest.TestCase):
 
     def test_add_interactive(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
-        @Interactive(in_params=OrderedDict([('a', int), ('b', int)]),
-                     out_type=int)
+        @Interactive(inputs=[('a', int), ('b', int)],
+                     outputs=int)
         def broken_adder(node: RealNode):
             a = node.receive('a')
             b = node.receive('b')
@@ -171,7 +167,7 @@ class NoBodyAddBody(unittest.TestCase):
     def test_add_migen(self):
         test_template1 = NodeTemplate(
             name="test_1",
-            in_params={'a': DOptional(int), 'b': DOptional(int)}
+            inputs=[('a', DOptional(int)), ('b', DOptional(int))]
         )
 
         class AMigenNode(MigenNodeTemplate):
@@ -189,9 +185,8 @@ class NoBodyAddBody(unittest.TestCase):
 
     def test_add_invalid_body(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(allow_const=False)
         def simple_add_to_bool(a: int, b: int) -> bool:

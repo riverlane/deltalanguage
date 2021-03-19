@@ -6,6 +6,7 @@ import logging
 from typing import (TYPE_CHECKING,
                     Callable,
                     Dict,
+                    List,
                     Optional,
                     OrderedDict,
                     Tuple,
@@ -22,7 +23,7 @@ from deltalanguage.data_types import (BaseDeltaType,
                                       Void)
 from ._delta_graph import DeltaGraph
 from ._node_classes.real_nodes import (as_node,
-                                       get_func_in_params_out_type,
+                                       get_func_inputs_outputs,
                                        PythonNode)
 from ._node_classes.node_bodies import PyInteractiveBody
 from ._node_templates import NodeTemplate, InteractiveBodyTemplate
@@ -38,7 +39,8 @@ def DeltaBlock(
     name: str = None,
     in_port_size: int = 0,
     latency: Latency = None,
-    lvl: int = logging.ERROR
+    lvl: int = logging.ERROR,
+    tags: List[str] = []
 ):
     """Decorator to turn a function to a block for use in
     :py:class:`DeltaGraph`.
@@ -117,7 +119,7 @@ def DeltaBlock(
         save_and_exit...
 
         >>> rt = dl.DeltaPySimulator(graph)
-        >>> rt.run()
+        >>> rt.run() # doctest: +SKIP
         saving 10
 
     Nodes can also have multiple inputs:
@@ -138,7 +140,7 @@ def DeltaBlock(
         save_and_exit...
 
         >>> rt = dl.DeltaPySimulator(graph)
-        >>> rt.run()
+        >>> rt.run() # doctest: +SKIP
         saving 81
 
     For multiple outputs please refer to examples for
@@ -152,7 +154,8 @@ def DeltaBlock(
                                                     name or func.__name__,
                                                     in_port_size,
                                                     latency,
-                                                    lvl)
+                                                    lvl,
+                                                    tags)
 
         @wraps(func)
         def decorated(*args, **kwargs):
@@ -189,7 +192,8 @@ def DeltaMethodBlock(
     node_key: Optional[str] = None,
     in_port_size: int = 0,
     latency: Latency = None,
-    lvl: int = logging.ERROR
+    lvl: int = logging.ERROR,
+    tags: List[str] = []
 ):
     """Decorator to turn a class method to a block for use in
     :py:class:`DeltaGraph`.
@@ -271,7 +275,7 @@ def DeltaMethodBlock(
         save_and_exit...
 
         >>> rt = dl.DeltaPySimulator(graph)
-        >>> rt.run()
+        >>> rt.run() # doctest: +SKIP
         saving 15
 
     However if the internal state of the object changes (before or during),
@@ -282,7 +286,7 @@ def DeltaMethodBlock(
         >>> my_obj.x = 15
 
         >>> rt = dl.DeltaPySimulator(graph)
-        >>> rt.run()
+        >>> rt.run() # doctest: +SKIP
         saving 20
 
     Nodes can also have multiple inputs exactly as
@@ -299,7 +303,8 @@ def DeltaMethodBlock(
                                                      name or func.__name__,
                                                      in_port_size,
                                                      latency,
-                                                     lvl)
+                                                     lvl,
+                                                     tags)
 
         @wraps(func)
         def decorated(obj, *args, **kwargs):
@@ -333,13 +338,14 @@ def DeltaMethodBlock(
 
 
 def Interactive(
-    in_params: Dict[str, Type],
-    out_type: Type = Void,
+    inputs: List[Tuple[str, Type]],
+    outputs: Type = Void,
     template: NodeTemplate = None,
     name: str = None,
     in_port_size: int = 0,
     latency: Latency = None,
-    lvl: int = logging.ERROR
+    lvl: int = logging.ERROR,
+    tags: List[str] = []
 ) -> Callable[..., InteractiveBodyTemplate]:
     """Decorator to turn a function of a special type (see examples)
     to an interactive node for use in :py:class:`DeltaGraph`.
@@ -348,8 +354,8 @@ def Interactive(
     (i.e. outside of the graph) in contrast with
     :py:class:`DeltaBlock` and :py:class:`DeltaMethodBlock`.
 
-    The types of inputs and outputs have to be defined using ``in_params`` and
-    ``out_type``. By default each input is compulsory, in order to make it
+    The types of inputs and outputs have to be defined using ``inputs`` and
+    ``outputs``. By default each input is compulsory, in order to make it
     optional use :py:class:`DOptional<deltalanguage.data_types.DOptional>`
     wrapper.
 
@@ -377,9 +383,9 @@ def Interactive(
 
     Parameters
     ----------
-    in_params : Dict[str, Type]
+    inputs : List[Tuple[str, Type]]
         The types of the in parameters to the node to be made.
-    out_type : Type
+    outputs : Type
         The type of the output for the node to be made.
     name : str
         The name of the node to be made.
@@ -399,7 +405,7 @@ def Interactive(
 
         >>> import deltalanguage as dl
 
-        >>> @dl.Interactive(in_params={"a": int, "b": int}, out_type=int)
+        >>> @dl.Interactive(inputs=[("a", int), ("b", int)], outputs=int)
         ... def foo(node: PythonNode):
         ...     internal_memory = 0
         ...
@@ -433,7 +439,7 @@ def Interactive(
 
     .. code-block:: python
 
-        >>> @dl.Interactive(in_params={"a": int, "b": int}, out_type=int)
+        >>> @dl.Interactive(inputs=[("a", int), ("b", int)], outputs=int)
         ... def bar(node: PythonNode):
         ...     internal_memory = 0
         ...
@@ -463,7 +469,7 @@ def Interactive(
 
         >>> TwoIntsT, TwoIntsC = dl.make_forked_return({'x': int, 'y': int})
 
-        >>> @dl.Interactive(in_params={"a": int}, out_type=TwoIntsT)
+        >>> @dl.Interactive(inputs=[("a", int)], outputs=TwoIntsT)
         ... def baz(node: PythonNode):
         ...     for i in range(10):
         ...         a = node.receive("a")
@@ -474,17 +480,15 @@ def Interactive(
         ...         else:
         ...             node.send(TwoIntsC(x=a, y=a))
     """
-    if not isinstance(in_params, dict):
-        raise TypeError('Please provide types of input parameters')
-
     def decorator(func: Callable[[PythonNode], None]):
         proc = NodeTemplate.merge_interactive(template,
                                               func,
-                                              in_params,
-                                              out_type,
+                                              inputs,
+                                              outputs,
                                               name or func.__name__,
                                               in_port_size,
                                               latency,
-                                              lvl)
+                                              lvl,
+                                              tags)
         return proc
     return decorator

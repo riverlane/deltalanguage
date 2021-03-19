@@ -230,7 +230,11 @@ class PrimitiveDeltaType(BaseDeltaType):
         return self.as_python_type()(val)
 
     def is_packable(self, val):
-        return delta_type(val) == self
+        try:
+            self.pack(val)
+            return True
+        except:
+            return False
 
 
 class CompoundDeltaType(BaseDeltaType):
@@ -569,6 +573,12 @@ class DChar(PrimitiveDeltaType):
     def from_numpy_object(self, val):
         return chr(val)
 
+    def pack(self, val):
+        return super().pack(val.encode('ascii'))
+
+    def unpack(self, val):
+        return super().unpack(val.decode('ascii'))
+
     def set_pack_format(self):
         self._pack_format = 'c'
 
@@ -622,7 +632,12 @@ class DStr(DArray):
 
     def is_packable(self, val):
         val_df_type = delta_type(val)
-        return type(val_df_type) is DStr and val_df_type.length <= self.length
+        if type(val_df_type) is DStr and val_df_type.length <= self.length:
+            return True
+        elif type(val_df_type) is DChar:
+            return True
+        else:
+            return False
 
     def set_pack_format(self):
         self._pack_format = str(self.length) + 's'

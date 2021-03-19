@@ -25,7 +25,8 @@ def read_requirements_txt(file_name: str):
 
 setuptools.setup(
     name="deltalanguage",
-    packages=setuptools.find_packages(include=['deltalanguage', 'deltalanguage.*']),
+    packages=setuptools.find_packages(include=['deltalanguage',
+                                               'deltalanguage.*']),
     version=about_info['__version__'],
     author="Riverlane",
     author_email=about_info['__email__'],
@@ -36,7 +37,7 @@ setuptools.setup(
     license=about_info['__license__'],
     url=about_info['__url__'],
     platforms=about_info['__platforms__'],
-    test_suite="test",
+    test_suite="deltalanguage.test",
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
@@ -46,8 +47,13 @@ setuptools.setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3'
     ],
-    package_data={'deltalanguage': [
-        'DeltaStyle.xml', 'data_types/dotdf.capnp']},
+    package_data={
+        'deltalanguage': [
+            'DeltaStyle.xml',
+            'data_types/dotdf.capnp',
+            'test/data/*'
+        ]
+    },
     setup_requires=['pybind11'],
     install_requires=read_requirements_txt(install_reqs_path),
     extras_require={'visualisation':

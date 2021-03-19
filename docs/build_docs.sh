@@ -28,7 +28,7 @@ echo ${PYTHONPATH}
 # Make sure dev is the last one as it has the latest version of conf.py
 # LATESTVERSION is also used as the default version
 # TODO: automate this process
-LATESTVERSION="v0.5.1"
+LATESTVERSION="v0.5.2"
 DOCSVERSIONS="${LATESTVERSION} dev"
 export DOCSVERSIONS=${DOCSVERSIONS}
 # This variable is defined in docs/Makefile

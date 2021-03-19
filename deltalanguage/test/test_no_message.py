@@ -5,7 +5,7 @@ import unittest
 
 import deltalanguage as dl
 
-from test._utils import printer
+from deltalanguage.test._utils import printer
 
 
 class VoidTest(unittest.TestCase):

@@ -154,9 +154,8 @@ TbT, TbVals = dl.make_forked_return(
      'data': dl.DInt(dl.DSize(C_VECTOR_LEN))})
 
 
-@dl.Interactive({'result': dl.DInt(),
-                 'error': dl.DInt(),
-                 }, TbT)
+@dl.Interactive([('result', dl.DInt()),
+                 ('error', dl.DInt())], TbT)
 def testbench(node):
 
     data_array = generate_data_vector(C_N_BITS, C_N_INPUTS)

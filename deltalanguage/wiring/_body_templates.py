@@ -1,6 +1,13 @@
 from abc import ABC, abstractmethod
 import logging
-from typing import TYPE_CHECKING, Callable, List, Dict, Type, Optional, Union
+from typing import (TYPE_CHECKING,
+                    Callable,
+                    List,
+                    Dict,
+                    Type,
+                    Optional,
+                    OrderedDict,
+                    Union)
 
 from deltalanguage.data_types import BaseDeltaType, DOptional
 
@@ -63,12 +70,12 @@ class BodyTemplate(ABC):
         self._node_template = node_template
 
     @property
-    def out_type(self) -> Type:
-        return self._node_template.out_type
+    def outputs(self) -> Type:
+        return self._node_template.outputs
 
     @property
-    def in_params(self) -> Dict[str, Type]:
-        return self._node_template.in_params
+    def inputs(self) -> Dict[str, Type]:
+        return self._node_template.inputs
 
     @property
     def in_port_size(self) -> int:
@@ -81,8 +88,8 @@ class BodyTemplate(ABC):
     def compatible(self,
                    node_key: Optional[str],
                    in_port_size: int,
-                   in_params: Dict[str, Union[BaseDeltaType, DOptional]],
-                   out_type: Union[BaseDeltaType, DOptional]) -> bool:
+                   inputs: OrderedDict[str, Union[BaseDeltaType, DOptional]],
+                   outputs: Union[BaseDeltaType, DOptional]) -> bool:
         """Checks compatibility between the ``NodeTemplate`` of this 
         ``BodyTemplate`` and some params that are important for node creation.
 
@@ -92,7 +99,7 @@ class BodyTemplate(ABC):
             ``True`` if paramaters are compatible with this ``NodeTemplate``
         """
         return self._node_template.compatible(node_key, in_port_size,
-                                              in_params, out_type)
+                                              inputs, outputs)
 
     @abstractmethod
     def construct_body(self):
@@ -261,12 +268,9 @@ class InteractiveBodyTemplate(BodyTemplate):
         """Construct the :py:class:`PyInteractiveBody` that this 
         ``BodyTemplate`` is a template for.
         """
-        return PyInteractiveBody(self._proc, self._tags)
+        return PyInteractiveBody(self._proc, self.latency, self._tags)
 
     def _call(self, graph, *args, **kwargs):
-        if args:
-            raise ValueError("Please use keywords for interactive node "
-                             "input specification.")
         body = self.construct_body()
         return self._node_template._standardised_call(graph, self.name,
                                                       self.lvl, self, body,

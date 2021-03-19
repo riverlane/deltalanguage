@@ -15,8 +15,8 @@ from deltalanguage.wiring._node_classes.node_bodies import PyMigenBody
 
 
 test_template1 = NodeTemplate(name="AdderTemplate",
-                              in_params=OrderedDict([('a', int), ('b', int)]),
-                              out_type=int)
+                              inputs=[('a', int), ('b', int)],
+                              outputs=int)
 
 
 @DeltaBlock(test_template1, allow_const=False)
@@ -30,8 +30,8 @@ def over_complex_add(a: int, b: int) -> int:
 
 
 @Interactive(template=test_template1,
-             in_params=OrderedDict([('a', int), ('b', int)]),
-             out_type=int)
+             inputs=[('a', int), ('b', int)],
+             outputs=int)
 def broken_adder(node: RealNode):
     a = node.receive('a')
     b = node.receive('b')
@@ -91,8 +91,8 @@ class NodeTempalteViaDecoratorsTest(unittest.TestCase):
 
 
 m_template = NodeTemplate(name="MTemplate",
-                          in_params=OrderedDict([('a', int), ('b', int)]),
-                          out_type=int)
+                          inputs=[('a', int), ('b', int)],
+                          outputs=int)
 
 
 class AMigenNode(MigenNodeTemplate):
@@ -110,8 +110,8 @@ class NodeTemplateViaMigenClass(unittest.TestCase):
 
         m_template = NodeTemplate(
             name="MTemplate",
-            in_params=OrderedDict([('a', DOptional(int)),
-                                   ('b', DOptional(int))])
+            inputs=[('a', DOptional(int)),
+                       ('b', DOptional(int))]
         )
 
         @DeltaBlock(m_template, allow_const=False)
@@ -212,9 +212,8 @@ class NodeTemplateAddConstructor(unittest.TestCase):
 
     def test_add_func(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(allow_const=False)
         def simple_add_2(a: int, b: int) -> int:
@@ -230,9 +229,8 @@ class NodeTemplateAddConstructor(unittest.TestCase):
 
     def test_add_method(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(template=test_template1, allow_const=False)
         def simple_add_2(a: int, b: int) -> int:
@@ -248,12 +246,11 @@ class NodeTemplateAddConstructor(unittest.TestCase):
 
     def test_add_interactive(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
-        @Interactive(in_params=OrderedDict([('a', int), ('b', int)]),
-                     out_type=int)
+        @Interactive(inputs=[('a', int), ('b', int)],
+                     outputs=int)
         def broken_adder_2(node: RealNode):
             a = node.receive('a')
             b = node.receive('b')
@@ -270,8 +267,8 @@ class NodeTemplateAddConstructor(unittest.TestCase):
     def test_add_migen(self):
         test_template1 = NodeTemplate(
             name="test_1",
-            in_params=OrderedDict([('a', DOptional(int)),
-                                   ('b', DOptional(int))])
+            inputs=[('a', DOptional(int)),
+                       ('b', DOptional(int))]
         )
 
         test_template1.add_constructor(AMigenNode2())
@@ -287,14 +284,12 @@ class NodeTemplateAddConstructor(unittest.TestCase):
         with some other ``NodeTemplate``.
         """
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         test_template2 = NodeTemplate(name="test_2",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(test_template2, allow_const=False)
         def simple_add_2(a: int, b: int) -> int:
@@ -313,9 +308,8 @@ class NodeTemplateAddConstructor(unittest.TestCase):
         ``NodeTemplate``. The constructor should not be added twice.
         """
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(test_template1, allow_const=False)
         def simple_add_2(a: int, b: int) -> int:
@@ -331,9 +325,8 @@ class NodeTemplateAddConstructor(unittest.TestCase):
 
     def test_add_invalid_constructor(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(allow_const=False)
         def simple_add_to_bool(a: int, b: int) -> bool:
@@ -348,14 +341,13 @@ class InvalidNodeTemplate(unittest.TestCase):
     are created in some way that is invalid.
     """
 
-    def test_in_params_enforced(self):
+    def test_inputs_enforced(self):
         """Test to ensure in params must match when associating
         constructors with a NodeTemplate
         """
         test_template2 = NodeTemplate(name="test",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         with self.assertRaises(ValueError):
             @DeltaBlock(test_template2, allow_const=False)
@@ -367,15 +359,14 @@ class InvalidNodeTemplate(unittest.TestCase):
             def _test2(wrong_name: int, b: int) -> int:
                 return wrong_name + b
 
-    def test_in_params_enforced_optional(self):
+    def test_inputs_enforced_optional(self):
         """Test to ensure in params must match when associating
         constructors with a NodeTemplate
         """
         test_template2 = NodeTemplate(
             name="test",
-            in_params=OrderedDict(
-                [('a', DOptional(int)), ('b', DOptional(int))]),
-            out_type=int
+            inputs=[('a', DOptional(int)), ('b', DOptional(int))],
+            outputs=int
         )
 
         with self.assertRaises(ValueError):
@@ -388,14 +379,13 @@ class InvalidNodeTemplate(unittest.TestCase):
             def _test2(wrong_name: int, b: int) -> int:
                 return wrong_name + b
 
-    def test_out_type_enforced(self):
+    def test_outputs_enforced(self):
         """Test to ensure out type must match when associating
         constructors with a NodeTemplate
         """
         test_template2 = NodeTemplate(name="test",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         with self.assertRaises(ValueError):
             @DeltaBlock(test_template2, allow_const=False)
@@ -411,9 +401,8 @@ class NodeTemplateMerge(unittest.TestCase):
     def __init__(self, methodName):
         super().__init__(methodName)
         test_template1 = NodeTemplate(name="test_1",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(test_template1, allow_const=False)
         def simple_add(a: int, b: int) -> int:
@@ -427,18 +416,16 @@ class NodeTemplateMerge(unittest.TestCase):
         constructors with a NodeTemplate.
         """
         test_template3 = NodeTemplate(name="test_3",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(test_template3, allow_const=False)
         def simple_add(a: int, b: int) -> int:
             return a + b
 
         test_template2 = NodeTemplate(name="test_2",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(test_template2, allow_const=False)
         def simple_add_2(a: int, b: int) -> int:
@@ -454,18 +441,16 @@ class NodeTemplateMerge(unittest.TestCase):
         constructors with a NodeTemplate.
         """
         test_template3 = NodeTemplate(name="test_3",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(test_template3, allow_const=False)
         def simple_add(a: int, b: int) -> int:
             return a + b
 
         test_template2 = NodeTemplate(name="test_2",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=int)
 
         @DeltaBlock(test_template2, allow_const=False)
         def simple_add_2(a: int, b: int) -> int:
@@ -485,14 +470,13 @@ class NodeTemplateMerge(unittest.TestCase):
         DeltaPySimulator(graph).run()
         self.assertEqual([77], saver.saved)
 
-    def test_in_params_enforced_merge(self):
+    def test_inputs_enforced_merge(self):
         """Test to ensure in params must match when associating
         constructors with a NodeTemplate.
         """
         test_template2 = NodeTemplate(name="test_2",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('c', int)]),
-                                      out_type=int)
+                                      inputs=[('a', int), ('c', int)],
+                                      outputs=int)
 
         with self.assertRaises(ValueError):
             self.test_template1.merge(test_template2)
@@ -500,14 +484,13 @@ class NodeTemplateMerge(unittest.TestCase):
         with self.assertRaises(ValueError):
             test_template2.merge(self.test_template1)
 
-    def test_out_type_enforced_merge(self):
+    def test_outputs_enforced_merge(self):
         """Test to ensure in params must match when associating
         constructors with a NodeTemplate.
         """
         test_template2 = NodeTemplate(name="test_2",
-                                      in_params=OrderedDict(
-                                          [('a', int), ('b', int)]),
-                                      out_type=bool)
+                                      inputs=[('a', int), ('b', int)],
+                                      outputs=bool)
 
         with self.assertRaises(ValueError):
             self.test_template1.merge(test_template2)

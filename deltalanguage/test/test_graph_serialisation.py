@@ -44,7 +44,7 @@ from deltalanguage.wiring._node_classes.migen_node import MigenNodeTemplate
 from deltalanguage.lib.hal import HardwareAbstractionLayerNode
 from deltalanguage.lib.quantum_simulators import (ProjectqQuantumSimulator,
                                                   QiskitQuantumSimulator)
-from test._utils import assert_capnp_content_types, return_1
+from deltalanguage.test._utils import assert_capnp_content_types, return_1
 
 
 class OpCacher():
@@ -161,6 +161,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             raise DeltaRuntimeExit
 
         self.func = add_print_exit
+        self.datapath = os.path.join('deltalanguage', 'test', 'data')
 
     def test_node_serialisation(self):
         """Generate graph and check serialisation is correct."""
@@ -224,8 +225,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         def over_complex_add(a: DOptional(int), b: DOptional(int)):
             raise DeltaRuntimeExit
 
-        @Interactive(in_params=OrderedDict([('a', DOptional(int)),
-                                            ('b', DOptional(int))]))
+        @Interactive(inputs=[('a', DOptional(int)), ('b', DOptional(int))])
         def broken_adder(node: RealNode):
             node.receive('a')
             node.receive('b')
@@ -262,7 +262,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         This is to distinguish their bodies from Python bodies, as they
         take different inputs.
         """
-        @Interactive(in_params={'a': int, 'b': int}, out_type=Void)
+        @Interactive(inputs=[('a', int), ('b', int)], outputs=Void)
         def add(node) -> int:
             a = node.receive('a')
             b = node.receive('b')
@@ -322,8 +322,8 @@ class PythonNodeSerialisationTest(unittest.TestCase):
     def test_template_node_capnp(self):
         """Test serialisation of nodes with no body.
         """
-        template = NodeTemplate(in_params={'a': int, 'b': int},
-                                out_type=int, name="temp-test")
+        template = NodeTemplate(inputs=[('a', int), ('b', int)],
+                                outputs=int, name="temp-test")
 
         with DeltaGraph() as test_graph:
             template.call(a=1, b=2)
@@ -353,7 +353,9 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         self.assertEqual(type(data), bytes)
         g_capnp = deserialize_graph(data).to_dict()
         assert_capnp_content_types(self, g_capnp)
-        with open('test/data/graph_capnp.json', 'r') as file:
+
+        with open(os.path.join(self.datapath, 'graph_capnp.json'),
+                  'r') as file:
             self.assertEqual(g_capnp, json.load(file))
 
     def test_multi_body_serialisation(self):
@@ -373,7 +375,9 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         self.assertEqual(type(data), bytes)
         g_capnp = deserialize_graph(data).to_dict()
         assert_capnp_content_types(self, g_capnp)
-        with open('test/data/graph_multibody_capnp.json', 'r') as file:
+
+        with open(os.path.join(self.datapath, 'graph_multibody_capnp.json'),
+                  'r') as file:
             self.assertEqual(g_capnp, json.load(file))
 
 

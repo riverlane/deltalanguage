@@ -15,7 +15,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 
 @dl.Interactive(
-    {"input_params": dl.DArray(int, dl.DSize(2)), "repeat": bool},
+    [("input_params", dl.DArray(int, dl.DSize(2))), ("repeat", bool)],
     dl.DUInt(dl.DSize(32))
 )
 def send_gate_sequence(node):

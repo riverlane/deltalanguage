@@ -5,8 +5,8 @@ from ..quantum_simulators import IQuantumSimulator
 
 hal_template = NodeTemplate(
     name="QSim",
-    in_params={'hal_command': DUInt(DSize(32))},
-    out_type=DUInt(DSize(32))
+    inputs=[('hal_command', DUInt(DSize(32)))],
+    outputs=DUInt(DSize(32))
 )
 
 class HardwareAbstractionLayerNode:

@@ -172,7 +172,7 @@ class TimestamperModel(dl.MigenNodeTemplate):
         self.photon = template.add_pa_in_port('photon', dl.DOptional(int))
 
         # Node outputs
-        self.time = template.add_pa_out_port('time', dl.DInt())
+        self.time = template.add_pa_out_port('time', dl.DUInt())
         self.error = template.add_pa_out_port('error', dl.DInt())
 
         self.rf_trigger = Signal(1)
@@ -226,7 +226,7 @@ TbT, TbC = dl.make_forked_return({'reset': dl.DInt(),
                                   'photon': dl.DInt()})
 
 
-@dl.Interactive({'time': dl.DInt(), 'error': dl.DInt()}, TbT)
+@dl.Interactive([('time', dl.DUInt()), ('error', dl.DInt())], TbT)
 def testbench(node):
     """ Testbench for Timestamper model node. Starts with random testing
     and ends with corner cases

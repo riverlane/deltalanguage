@@ -1,19 +1,20 @@
 import unittest
 from unittest.mock import Mock
 
-from test._utils import TwoIntsT, TwoInts
-
 from deltalanguage.data_types import make_forked_return
 from deltalanguage.wiring import (PyConstBody,
                                   PyFuncBody,
                                   PyMethodBody)
 
+from deltalanguage.test._utils import TwoIntsT, TwoInts
+
 
 class MockCallback(Mock):
-    
+
     @property
     def __name__(self):
         return "mock_callback"
+
 
 class TestPyConstBody(unittest.TestCase):
     """Unit tests for PyConstBody."""
@@ -125,7 +126,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_arg = MockCallback()
         mock_arg.body.eval.return_value = TwoInts(None, 3)
         mock_arg.index = 'x'
-        mock_arg.out_type = TwoIntsT
+        mock_arg.outputs = TwoIntsT
         node_body = PyConstBody(self.mock_callback, mock_arg)
         with self.assertRaises(ValueError):
             node_body.eval()
@@ -144,7 +145,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = TwoInts(None, 3)
         mock_kwarg.index = 'x'
-        mock_kwarg.out_type = TwoIntsT
+        mock_kwarg.outputs = TwoIntsT
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
         with self.assertRaises(ValueError):
             node_body.eval()

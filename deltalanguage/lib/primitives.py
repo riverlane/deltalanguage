@@ -54,7 +54,7 @@ def make_generator(val: Union[object, Iterable],
         >>> generator = dl.lib.make_generator(10, reps=5)
 
         # Receive 5 integers and send their sum
-        >>> @dl.Interactive({"a": int}, int)
+        >>> @dl.Interactive([("a", int)], int)
         ... def accumulator(node):
         ...     memory = []
         ...     for _ in range(5):
@@ -104,7 +104,7 @@ def make_generator(val: Union[object, Iterable],
         elem_type = delta_type(val)
         vals_to_send = (deepcopy(val) for _ in range(reps))
 
-    @Interactive({}, elem_type)
+    @Interactive([], elem_type)
     def generator(node: PythonNode):
         for v in vals_to_send:
             if verbose:

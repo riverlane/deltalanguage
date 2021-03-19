@@ -2,7 +2,8 @@ from abc import abstractmethod
 import atexit
 import logging
 from time import sleep
-from typing import Callable, Type, Union
+from collections import OrderedDict
+from typing import Callable, List, Type, Union
 
 import migen
 
@@ -137,10 +138,11 @@ class MigenNodeTemplate(BodyTemplate):
                  lvl: int = logging.ERROR,
                  vcd_name: str = None,
                  generics: dict = None,
-                 node_template: NodeTemplate = None):
+                 node_template: NodeTemplate = None,
+                 tags: List[str] = []):
         if name is None:
             name = type(self).__name__
-        super().__init__(name, Latency(clocks=1), lvl)
+        super().__init__(name, Latency(clocks=1), lvl, tags)
 
         self.module_name = self.name
         self.log = make_logger(lvl, f"{self.name}")
@@ -151,9 +153,10 @@ class MigenNodeTemplate(BodyTemplate):
 
         # Predefining values to satisfy linting check.
         self.submodules = None
-        self.inputs = None
-        # None for output implies there are no out-ports
-        self.output = None
+        self.in_buffer = None
+
+        # None for out buffer implies there are no out-ports
+        self.out_buffer = None
         self.specials = None
         self.comb = None
         self.sync = None
@@ -168,12 +171,12 @@ class MigenNodeTemplate(BodyTemplate):
 
         if len(self._dut.out_ports.items()) > 0:
             # Make all outputs named, as it's needed for verilog
-            self._out_type, self._ForkedOutput = make_forked_return(
+            self._outputs, self._ForkedOutput = make_forked_return(
                 {name: type_ for name, (_, type_)
                  in self._dut.out_ports.items()}
             )
         else:
-            self._out_type = Void
+            self._outputs = Void
 
         # define a stimulus generator
         self._tb = self.tb_generator(tb_num_iter)
@@ -183,11 +186,11 @@ class MigenNodeTemplate(BodyTemplate):
         atexit.register(self.cleanup)
 
         # Merge with or create a new NodeTemplate
-        in_params = dict()
+        inputs = OrderedDict()
         for name, (_, type_) in self._dut.in_ports.items():
-            in_params[name] = type_
-        NodeTemplate.merge_migenblock(node_template, self, in_params,
-                                      self._out_type)
+            inputs[name] = type_
+        NodeTemplate.merge_migenblock(node_template, self, inputs,
+                                      self._outputs)
 
     def add_pa_in_port(self, name: str, t: DOptional):
         """Add input protocol adaptor v2.
@@ -311,7 +314,7 @@ class MigenNodeTemplate(BodyTemplate):
     def construct_body(self):
         """Construct the ``PyMigenBody`` this is a template for.
         """
-        return PyMigenBody(self._py_sim_body, self, self._tags)
+        return PyMigenBody(self._py_sim_body, self, self.latency, self._tags)
 
     def tb_generator(self, tb_num_iter: int = None):
         """Generator, a.k.a. testbench.
@@ -341,7 +344,7 @@ class MigenNodeTemplate(BodyTemplate):
                     break
 
             self.log.debug(f"all _dut.in_ports ready: {is_module_ready}")
-            self.log.debug(f"inputs available: {bool(self.inputs)}")
+            self.log.debug(f"inputs available: {bool(self.in_buffer)}")
 
             # 2. If yes: transfer data inputs -> in_ports
             #
@@ -349,10 +352,10 @@ class MigenNodeTemplate(BodyTemplate):
             # Currently all inputs are considered valid as long as they are
             # provided. This is not the case in general, for instance
             # the input can have all sort of junk if valid == False.
-            if bool(self.inputs) and is_module_ready:
+            if bool(self.in_buffer) and is_module_ready:
                 for name, (port, _) in self._dut.in_ports.items():
-                    if name in self.inputs:
-                        data = self.inputs[name]
+                    if name in self.in_buffer:
+                        data = self.in_buffer[name]
                         if data is None:
                             data = 0
                             valid = 0
@@ -388,9 +391,9 @@ class MigenNodeTemplate(BodyTemplate):
                         out_tmp[name] = yield port.data
                     else:
                         out_tmp[name] = None
-                self.output = self._ForkedOutput(**out_tmp)
+                self.out_buffer = self._ForkedOutput(**out_tmp)
 
-                self.log.debug(f"retrieved data output={self.output}")
+                self.log.debug(f"retrieved data output={self.out_buffer}")
             else:
                 self.log.debug(f"no out_ports => no output")
 
@@ -401,7 +404,7 @@ class MigenNodeTemplate(BodyTemplate):
 
             # 6. Status after the cycle
             self.log.debug(f'<<<<<<<<<<< STATUS AFTER YIELD IN ITER {tb_iter}')
-            self.log.debug(f'{self.inputs=}')
+            self.log.debug(f'{self.in_buffer=}')
             self.log.debug('in_ports:')
             for name, (port, _) in self._dut.in_ports.items():
                 data = yield port.data
@@ -420,7 +423,7 @@ class MigenNodeTemplate(BodyTemplate):
                 valid = yield port.valid
                 ready = yield port.ready
                 self.log.debug(f'{name=}: {data=} {valid=} {ready=}')
-            self.log.debug(f'{self.output=}')
+            self.log.debug(f'{self.out_buffer=}')
             self.log.debug('>>>>>>>>>>>')
 
             tb_iter += 1
@@ -462,14 +465,14 @@ class MigenNodeTemplate(BodyTemplate):
         """This method is handled over to the node body constructor, and it
         will be evaluated by the testbench at each clock cycle.
         """
-        self.inputs = kwargs  # enqueue the input
-        self.output = None
+        self.in_buffer = kwargs  # enqueue the input
+        self.out_buffer = None
 
         # runs until the generator terminates.
         # for this impl, this will happen when inputs is empty
         self._clock()
 
-        return self.output
+        return self.out_buffer
 
     def call(self, *args, **kwargs):
         """This performs the same action as ``Interactive.call``,

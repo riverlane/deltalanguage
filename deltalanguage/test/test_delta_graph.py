@@ -1,11 +1,12 @@
 """Test of DeltaGraph class."""
 
+import os
 from typing import OrderedDict
 import unittest
 
 import deltalanguage as dl
 
-from test._utils import return_1, TwoIntsT, TwoInts
+from deltalanguage.test._utils import return_1, TwoIntsT, TwoInts
 
 
 @dl.DeltaBlock()
@@ -19,7 +20,8 @@ ForkedReturnT, ForkedReturn = dl.make_forked_return({
 
 
 @dl.DeltaBlock()
-def forked_return_output(x: dl.DInt(dl.DSize(8)), y: dl.DInt(dl.DSize(8))) -> ForkedReturnT:
+def forked_return_output(x: dl.DInt(dl.DSize(8)),
+                         y: dl.DInt(dl.DSize(8))) -> ForkedReturnT:
     return ForkedReturn(a=0, b=1, c=1, d=0)
 
 
@@ -48,15 +50,15 @@ class MigenFoo(dl.MigenNodeTemplate):
         template.add_pa_in_port('i', dl.DOptional(dl.DInt(dl.DSize(8))))
 
 
-@dl.Interactive({'i': dl.DInt(dl.DSize(8))}, out_type=dl.Void)
+@dl.Interactive([('i', dl.DInt(dl.DSize(8)))], outputs=dl.Void)
 def interactive_func_no_output(node: dl.RealNode):
     a = node.receive('i')
 
 
 template_no_output_no_body = dl.NodeTemplate(
     name="template_no_output_no_body",
-    in_params=OrderedDict([('i', dl.DInt(dl.DSize(8)))]),
-    out_type=dl.Void
+    inputs=[('i', dl.DInt(dl.DSize(8)))],
+    outputs=dl.Void
 )
 
 
@@ -102,8 +104,8 @@ class DeltaGraphTest(unittest.TestCase):
 
 
 def to_union_of_one(node: dl.RealNode) -> dl.RealNode:
-    org_t = node.out_type
-    node.out_type = dl.DUnion([org_t])
+    org_t = node.outputs
+    node.outputs = dl.DUnion([org_t])
 
     return node
 
@@ -127,7 +129,8 @@ class DeltaGraphStrTest(unittest.TestCase):
         n3.add_body(obj.method_func_no_output)
         n3.add_body(interactive_func_no_output)
 
-        with open('test/data/graph_str.txt', 'r') as file:
+        f = os.path.join('deltalanguage', 'test', 'data', 'graph_str.txt')
+        with open(f, 'r') as file:
             correct_str = file.read()
 
         self.assertEqual(str(graph), correct_str)
@@ -159,7 +162,7 @@ class DeltaGraphWiringWrongInputTest(unittest.TestCase):
                 AClass().add_x(b=1)
 
     def test_Interactive(self):
-        @dl.Interactive({'a': int}, dl.Void)
+        @dl.Interactive([('a', int)], dl.Void)
         def foo(node):
             node.receive("a")
 
@@ -203,7 +206,7 @@ class DeltaGraphWiringNoOutputTest(unittest.TestCase):
                 AClass().foo(AClass().foo(1))
 
     def test_Interactive(self):
-        @dl.Interactive({"a": int}, dl.Void)
+        @dl.Interactive([('a', int)], dl.Void)
         def foo(node):
             print(node.receive("a"))
 
@@ -247,7 +250,7 @@ class DeltaGraphWiringWrongOutputTest(unittest.TestCase):
                 AClass().foo(AClass().foo(1).z)
 
     def test_Interactive(self):
-        @dl.Interactive({"a": int}, TwoIntsT)
+        @dl.Interactive([('a', int)], TwoIntsT)
         def foo(node):
             node.send(TwoInts(x=1, y=2))
 
