@@ -32,6 +32,17 @@ python development tools.
 
 We are in the process of extending both the supported operating systems and 
 python versions.
+
+For MacOS users, we have tested the installation on 11.x (Big Sur) and Mojave 10.5. 
+Please be aware that brew might try to install python 3.9 by default
+(not supported by us yet).
+To install Python 3.8:
+
+.. code-block: console
+
+    $ brew install python@3.8
+    
+    
 For Windows-10 you can refer to our step-by-step guide :doc:`wininstall`.
 If you have specific requirements, you are welcome request support. Get in 
 contact by `emailing us <mailto:deltaflow@riverlane.com>`_.

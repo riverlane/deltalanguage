@@ -53,12 +53,12 @@ class CombTree(dl.MigenNodeTemplate):
 
         # inputs
         self.d_in = template.add_pa_in_port(
-            'd_in', dl.DOptional(dl.DInt(dl.DSize(N_BITS*N_INPUTS))))
-        self.cmd = template.add_pa_in_port('cmd', dl.DOptional(dl.DInt()))
+            'd_in', dl.Optional(dl.Int(dl.Size(N_BITS*N_INPUTS))))
+        self.cmd = template.add_pa_in_port('cmd', dl.Optional(dl.Int()))
 
         # outputs
-        self.d_out = template.add_pa_out_port('d_out', dl.DInt())
-        self.err = template.add_pa_out_port('error', dl.DInt())
+        self.d_out = template.add_pa_out_port('d_out', dl.Int())
+        self.err = template.add_pa_out_port('error', dl.Int())
 
         # input length correction [need a power of 2 sized tree]
         N_INPUTS_CORR = pow(2, TREE_DEPTH)
@@ -150,22 +150,22 @@ def generate_data_vector(N_BITS, N_INPUTS):
 
 
 TbT, TbVals = dl.make_forked_return(
-    {'cmd': dl.DInt(),
-     'data': dl.DInt(dl.DSize(C_VECTOR_LEN))})
+    {'cmd': dl.Int(),
+     'data': dl.Int(dl.Size(C_VECTOR_LEN))})
 
 
-@dl.Interactive([('result', dl.DInt()),
-                 ('error', dl.DInt())], TbT)
+@dl.Interactive([('result', dl.Int()),
+                 ('error', dl.Int())], TbT)
 def testbench(node):
 
     data_array = generate_data_vector(C_N_BITS, C_N_INPUTS)
-    # Temporary - needs df.DArray => migen.Array support
+    # Temporary - needs df.Array => migen.Array support
     data_vector = 0
     logging.debug(f'data sent to DUT {data_array}')
     for i in range(C_N_INPUTS):
         data_vector += data_array[i] << C_N_BITS*i
 
-    data_vector = dl.DInt(dl.DSize(C_VECTOR_LEN)
+    data_vector = dl.Int(dl.Size(C_VECTOR_LEN)
                           ).from_numpy_object(data_vector)
 
     for cmd in range(0x01, 0x06):

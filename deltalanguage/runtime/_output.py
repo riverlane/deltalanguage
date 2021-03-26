@@ -71,6 +71,7 @@ def serialize_graph(
         req_list[i] = req
 
     graph.do_automatic_splitting()
+    graph.check(allow_top=False, allow_node_key=False)
 
     bodies = schema.init_resizable_list("bodies")
     nodes = schema.init("nodes", len(graph.nodes))

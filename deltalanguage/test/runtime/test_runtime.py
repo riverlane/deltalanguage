@@ -262,7 +262,7 @@ class RuntimeConstantNodeAndPlaceholderTest(unittest.TestCase):
             self.assertIsInstance(node.body, dl.wiring.PyFuncBody)
 
 
-class RuntimeConstantNodeAndDOptionalTest(unittest.TestCase):
+class RuntimeConstantNodeAndOptionalTest(unittest.TestCase):
     """Testing that a constant node _always_ provides messages, even if the
     receiving port is optional (case 1).
     It's ensured by evaluating constant nodes before runtime simulation.
@@ -285,7 +285,7 @@ class RuntimeConstantNodeAndDOptionalTest(unittest.TestCase):
             return 10
 
         @dl.DeltaBlock()
-        def adder(a: dl.DOptional(int), b: int) -> int:
+        def adder(a: dl.Optional(int), b: int) -> int:
             if a is None:
                 return b
             else:

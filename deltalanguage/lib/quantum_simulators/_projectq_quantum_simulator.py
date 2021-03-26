@@ -9,7 +9,7 @@ from projectq.ops import (All, C, DaggeredGate, H, Measure, R,
                           Rx, Ry, Rz, S, SqrtX, T, X, Y, Z)
 from projectq.ops._basics import BasicGate, BasicRotationGate
 
-from deltalanguage.data_types import DUInt, DSize
+from deltalanguage.data_types import UInt, Size
 
 from . import IQuantumSimulator
 from ..hal import Masks, Opcode, Shifts
@@ -243,8 +243,8 @@ class ProjectqQuantumSimulator(IQuantumSimulator):
 
     def accept_command(
         self,
-        command: DUInt(DSize(32))
-    ) -> DUInt(DSize(32)):
+        command: UInt(Size(32))
+    ) -> UInt(Size(32)):
 
         op = command >> Shifts.OPCODE.value
         qubit_index = (command & Masks.QUBIT_INDEX.value)

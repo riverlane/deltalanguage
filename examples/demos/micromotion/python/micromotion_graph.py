@@ -41,7 +41,7 @@ def triggers(node):
             node.send(ExpVal(pmt_trigger=False, rf_trigger=False))
 
 
-@dl.Interactive([('pmt', dl.DOptional(bool)), ('rf', dl.DOptional(bool))], int)
+@dl.Interactive([('pmt', dl.Optional(bool)), ('rf', dl.Optional(bool))], int)
 def counter(node):
     """ counter
     The counter node receives the 2 trigger pulses from hardware and counts the
@@ -65,7 +65,7 @@ DACT, DACVals = dl.make_forked_return(
 )
 
 
-@dl.Interactive([('command', dl.DOptional(int)), ('params', int)], DACT)
+@dl.Interactive([('command', dl.Optional(int)), ('params', int)], DACT)
 def DAC_control(node):
     """ DAC_control
     This node is the interface between our graph and the DAC hardware. rx_data
@@ -133,7 +133,7 @@ AccumT, AccumVals = dl.make_forked_return({'DAC_command': int,
 @dl.Interactive([('new_time', int),
                  ('DAC_status', int),
                  ('DAC_voltage', int),
-                 ('experiment_start', dl.DOptional(bool))
+                 ('experiment_start', dl.Optional(bool))
                  ], AccumT)
 def accumulator(node):
     """ Accumulator Node

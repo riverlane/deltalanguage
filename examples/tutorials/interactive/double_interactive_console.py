@@ -22,7 +22,7 @@ Z = 6
 
 @dl.DeltaBlock(node_key="node", allow_const=False)
 def interact(a: int,
-             b:  dl.DOptional(int) = None,
+             b:  dl.Optional(int) = None,
              node: dl.PythonNode = None) -> int:
     """Node that will set up an interactive console.
 

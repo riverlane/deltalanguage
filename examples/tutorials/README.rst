@@ -106,7 +106,7 @@ This section overviews various intricacies of connecting a complex graph:
   to create loops in the graph.
   Please check out the examples section of this class.
 
-- :py:class:`DOptional<deltalanguage.data_types.DOptional>` is used to make
+- :py:class:`Optional<deltalanguage.data_types.Optional>` is used to make
   inputs optional, so the absence of input from them will not change the
   behavioural rules of the node.
   Please check out the examples section of this class.

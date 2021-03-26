@@ -7,7 +7,7 @@ from typing import Callable, Iterable, Type, Union
 
 from ..data_types import (BaseDeltaType, Void,
                           delta_type, make_forked_return,
-                          DComplex, DArray, DRecord, DTuple)
+                          Complex, Array, Record, Tuple)
 from ..runtime import DeltaRuntimeExit
 from ..wiring import (DeltaBlock,
                       DeltaMethodBlock,
@@ -164,11 +164,11 @@ def make_splitter(t: Union[Type, BaseDeltaType],
 class DeltaJsonEncoder(json.JSONEncoder):
     def default(self, obj):
         obj_type = delta_type(obj)
-        if isinstance(obj_type, DComplex):
+        if isinstance(obj_type, Complex):
             return {"real": obj.real, "imaginary": obj.imag}
-        elif isinstance(obj_type, (DArray, DTuple)):
+        elif isinstance(obj_type, (Array, Tuple)):
             return [self.default(o) for o in obj]
-        elif isinstance(obj_type, DRecord):
+        elif isinstance(obj_type, Record):
             props = obj.__annotations__.keys()
             d = {p: self.default(getattr(obj, p)) for p in props}
             return d

@@ -73,13 +73,13 @@ class HwResetShaper(dl.MigenNodeTemplate):
     """
 
     def migen_body(self, template):
-        # We are using a DOptional here because the code should run
+        # We are using a Optional here because the code should run
         # no matter the input. If you were to use an int (so a
         # not-optional input) we would stall the migen simulation until
         # an input is received. In this example, we have a cyclical graph
         # in which the hardware node (migenNode) must produce an output
         # (a reset signal) no matter the input.
-        pulse_in = template.add_pa_in_port('pulse_in', dl.DOptional(int))
+        pulse_in = template.add_pa_in_port('pulse_in', dl.Optional(int))
         reset_out = template.add_pa_out_port('reset_out', int)
 
         # Constants

@@ -7,7 +7,7 @@ from typing import NamedTuple, Union
 import dill
 
 from deltalanguage._utils import NamespacedName
-from deltalanguage.data_types import BaseDeltaType, DOptional
+from deltalanguage.data_types import BaseDeltaType, Optional
 
 from .abstract_node import AbstractNode
 
@@ -17,7 +17,7 @@ class InPort(
         "InPort",
         [
             ("port_name", NamespacedName),
-            ("port_type_", Union[BaseDeltaType, DOptional]),
+            ("port_type_", Union[BaseDeltaType, Optional]),
             ("node", AbstractNode),
             ("in_port_size", int)
         ]
@@ -71,7 +71,7 @@ class InPort(
 
     @property
     def port_type(self):
-        if isinstance(self.port_type_, DOptional):
+        if isinstance(self.port_type_, Optional):
             return self.port_type_.type
         else:
             return self.port_type_
@@ -79,7 +79,7 @@ class InPort(
     @property
     def is_optional(self):
         """Returns ``True`` if this port is created for an optional input."""
-        return isinstance(self.port_type_, DOptional)
+        return isinstance(self.port_type_, Optional)
 
     def capnp(self, capnp_in_port):
         """Serialise this port in ``capnp`` structure.
@@ -159,7 +159,7 @@ class OutPort(
 
     @property
     def port_type(self):
-        if isinstance(self.port_type_, DOptional):
+        if isinstance(self.port_type_, Optional):
             raise TypeError('OutPort cannot be optional')
         else:
             return self.port_type_

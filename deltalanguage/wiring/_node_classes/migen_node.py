@@ -9,7 +9,7 @@ import migen
 
 from deltalanguage.data_types import (BaseDeltaType,
                                       DeltaTypeError,
-                                      DOptional,
+                                      Optional,
                                       Void,
                                       as_delta_type,
                                       make_forked_return)
@@ -86,8 +86,8 @@ class MigenNodeTemplate(BodyTemplate):
         ...
         ...     def migen_body(self, template):
         ...         # define I/O: each port gets `data`, `valid`, and `ready`
-        ...         a = template.add_pa_in_port('a', DOptional(int))
-        ...         b = template.add_pa_in_port('b', DOptional(int))
+        ...         a = template.add_pa_in_port('a', Optional(int))
+        ...         b = template.add_pa_in_port('b', Optional(int))
         ...         out = template.add_pa_out_port('out', int)
         ...
         ...         # LOGIC: identical to `migen.Module` syntax
@@ -192,13 +192,13 @@ class MigenNodeTemplate(BodyTemplate):
         NodeTemplate.merge_migenblock(node_template, self, inputs,
                                       self._outputs)
 
-    def add_pa_in_port(self, name: str, t: DOptional):
+    def add_pa_in_port(self, name: str, t: Optional):
         """Add input protocol adaptor v2.
 
         Parameters
         ----------
-        t : DOptional
-            Data type must be marked with DOptional.
+        t : Optional
+            Data type must be marked with Optional.
 
         Returns
         -------
@@ -206,13 +206,13 @@ class MigenNodeTemplate(BodyTemplate):
 
 
         .. todo::
-            Possibly use DSize for data/valid/ready instead of int.
+            Possibly use Size for data/valid/ready instead of int.
         """
-        if isinstance(t, DOptional):
+        if isinstance(t, Optional):
             df_t = t.type
         else:
             raise DeltaTypeError('Migen works only with optional inputs.\n'
-                                 'Please use DOptional wrapper.')
+                                 'Please use Optional wrapper.')
 
         in_port = migen.Record([
             ("data", df_t.size.val, migen.DIR_M_TO_S),
@@ -238,11 +238,11 @@ class MigenNodeTemplate(BodyTemplate):
 
 
         .. todo::
-            Possibly use DSize for data/valid/ready instead of int.
+            Possibly use Size for data/valid/ready instead of int.
         """
         df_t = as_delta_type(t)
-        if isinstance(df_t, DOptional):
-            raise DeltaTypeError('out_port cannot be DOptional')
+        if isinstance(df_t, Optional):
+            raise DeltaTypeError('out_port cannot be Optional')
 
         out_port = migen.Record([
             ("data", df_t.size.val, migen.DIR_S_TO_M),

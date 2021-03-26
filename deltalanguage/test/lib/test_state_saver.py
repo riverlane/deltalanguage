@@ -4,7 +4,7 @@ import unittest
 from deltalanguage.lib import StateSaver
 from deltalanguage.wiring import DeltaGraph, DeltaBlock
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.data_types import DRecord, DUnion, DArray, DSize, DTuple
+from deltalanguage.data_types import Record, Union, Array, Size, Tuple
 import attr
 
 
@@ -24,7 +24,7 @@ class ComplexRecord:
 @attr.s(slots=True)
 class ArrayRecord:
 
-    x: DArray([ComplexRecord], length=DSize(1)) = attr.ib()
+    x: Array(ComplexRecord, length=Size(1)) = attr.ib()
 
 
 @attr.s(slots=True)
@@ -48,9 +48,9 @@ class TestStateSaver(unittest.TestCase):
             (str, "Hello", '"Hello"'),
             (bool, True, "true"),
             (float, 3.91, "3.91"),
-            (DTuple([int, int]), (1, 2), "[1, 2]"),
-            (DUnion([int, float]), 90, "90"),
-            (DUnion([int, float]), 90.0, "90.0"),
+            (Tuple([int, int]), (1, 2), "[1, 2]"),
+            (Union([int, float]), 90, "90"),
+            (Union([int, float]), 90.0, "90.0"),
             (complex, 1j, '{"real": 0.0, "imaginary": 1.0}'),
             (SimpleRecord, SimpleRecord(x=1, y=True), '{"x": 1, "y": true}'),
             (

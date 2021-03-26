@@ -81,7 +81,7 @@ class DecoratorSetTagsTest(unittest.TestCase):
         """
         class AMigenNode(dl.MigenNodeTemplate):
             def migen_body(self, template):
-                template.add_pa_in_port('a', dl.DOptional(int))
+                template.add_pa_in_port('a', dl.Optional(int))
 
         with dl.DeltaGraph():
             node = AMigenNode(tags=['test_4']).call(a=1)
@@ -127,7 +127,7 @@ class DecoratorNoOutputTypeTest(unittest.TestCase):
         """
         class AMigenNode(dl.MigenNodeTemplate):
             def migen_body(self, template):
-                template.add_pa_in_port('a', dl.DOptional(int))
+                template.add_pa_in_port('a', dl.Optional(int))
 
         self.assertEqual(AMigenNode()._outputs, dl.Void)
 

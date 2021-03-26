@@ -8,7 +8,7 @@ from qiskit.circuit.library import (HGate, SdgGate, SGate, TGate,
 from qiskit.extensions.unitary import UnitaryGate
 from qiskit.providers.aer.noise import NoiseModel
 
-from deltalanguage.data_types import DUInt, DSize
+from deltalanguage.data_types import UInt, Size
 
 from . import IQuantumSimulator
 from ..hal import Masks, Opcode, Shifts
@@ -237,8 +237,8 @@ class QiskitQuantumSimulator(IQuantumSimulator):
 
     def accept_command(
         self,
-        command: DUInt(DSize(32))
-    ) -> DUInt(DSize(32)):
+        command: UInt(Size(32))
+    ) -> UInt(Size(32)):
 
         op = command >> Shifts.OPCODE.value
         qubit_index = (command & Masks.QUBIT_INDEX.value)

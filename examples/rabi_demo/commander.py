@@ -21,13 +21,13 @@ class Commander(dl.MigenNodeTemplate):
         # creation of input/output ports
         angle = template.add_pa_in_port(
             'angle',
-            dl.DOptional(dl.DRaw(dl.DUInt(dl.DSize(ANGLE_MEMORY_WIDTH))))
+            dl.Optional(dl.Raw(dl.UInt(dl.Size(ANGLE_MEMORY_WIDTH))))
         )
 
         hal_command = template.add_pa_out_port('hal_command',
-                                               dl.DUInt(dl.DSize(32)))
+                                               dl.UInt(dl.Size(32)))
         shot_completed = template.add_pa_out_port('shot_completed',
-                                               dl.DBool())
+                                               dl.Bool())
         # set up  internal signals
         _rotation_command = Signal(32)
 

@@ -17,7 +17,7 @@ import attr
 
 from deltalanguage.data_types import (BaseDeltaType,
                                       DeltaTypeError,
-                                      DOptional,
+                                      Optional,
                                       ForkedReturn,
                                       as_delta_type,
                                       Void)
@@ -52,7 +52,7 @@ def DeltaBlock(
 
     The node is evaluated when all compulsory inputs are provided.
     By default each input is compulsory, in order to make it optional use
-    :py:class:`DOptional<deltalanguage.data_types.DOptional>` wrapper.
+    :py:class:`Optional<deltalanguage.data_types.Optional>` wrapper.
 
     .. warning::
         If a node does not have compulsory inputs then it will be evaluated
@@ -118,7 +118,7 @@ def DeltaBlock(
         ...     s.save_and_exit(foo_out) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = dl.DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
         >>> rt.run() # doctest: +SKIP
         saving 10
 
@@ -139,7 +139,7 @@ def DeltaBlock(
         ...     s.save_and_exit(bar(a=9, b=9)) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = dl.DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
         >>> rt.run() # doctest: +SKIP
         saving 81
 
@@ -212,7 +212,7 @@ def DeltaMethodBlock(
 
     The node is evaluated when all compulsory inputs are provided.
     By default each input is compulsory, in order to make it optional use
-    :py:class:`DOptional<deltalanguage.data_types.DOptional>` wrapper.
+    :py:class:`Optional<deltalanguage.data_types.Optional>` wrapper.
 
     .. warning::
         If a node does not have compulsory inputs then it will be evaluated
@@ -274,7 +274,7 @@ def DeltaMethodBlock(
         ...     s.save_and_exit(my_obj.bar(5)) # doctest:+ELLIPSIS
         save_and_exit...
 
-        >>> rt = dl.DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
         >>> rt.run() # doctest: +SKIP
         saving 15
 
@@ -285,7 +285,7 @@ def DeltaMethodBlock(
 
         >>> my_obj.x = 15
 
-        >>> rt = dl.DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
         >>> rt.run() # doctest: +SKIP
         saving 20
 
@@ -356,7 +356,7 @@ def Interactive(
 
     The types of inputs and outputs have to be defined using ``inputs`` and
     ``outputs``. By default each input is compulsory, in order to make it
-    optional use :py:class:`DOptional<deltalanguage.data_types.DOptional>`
+    optional use :py:class:`Optional<deltalanguage.data_types.Optional>`
     wrapper.
 
     Unlike nodes created via :py:class:`DeltaBlock` and

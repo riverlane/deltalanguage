@@ -1,0 +1,2 @@
+[report]
+omit = deltalanguage/test/*

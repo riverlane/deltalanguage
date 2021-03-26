@@ -10,7 +10,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   NodeTemplate,
                                   Interactive,
                                   RealNode)
-from deltalanguage.data_types import DOptional
+from deltalanguage.data_types import Optional
 from deltalanguage.wiring._node_classes.node_bodies import PyMigenBody
 
 
@@ -97,8 +97,8 @@ m_template = NodeTemplate(name="MTemplate",
 
 class AMigenNode(MigenNodeTemplate):
     def migen_body(self, template):
-        template.add_pa_in_port('a', DOptional(int))
-        template.add_pa_in_port('b', DOptional(int))
+        template.add_pa_in_port('a', Optional(int))
+        template.add_pa_in_port('b', Optional(int))
 
 
 class NodeTemplateViaMigenClass(unittest.TestCase):
@@ -110,12 +110,12 @@ class NodeTemplateViaMigenClass(unittest.TestCase):
 
         m_template = NodeTemplate(
             name="MTemplate",
-            inputs=[('a', DOptional(int)),
-                       ('b', DOptional(int))]
+            inputs=[('a', Optional(int)),
+                    ('b', Optional(int))]
         )
 
         @DeltaBlock(m_template, allow_const=False)
-        def m_simple_add(a: DOptional(int), b: DOptional(int)):
+        def m_simple_add(a: Optional(int), b: Optional(int)):
             raise DeltaRuntimeExit
 
         m_maker = AMigenNode(node_template=m_template)
@@ -201,8 +201,8 @@ class OpCacher2():
 
 class AMigenNode2(MigenNodeTemplate):
     def migen_body(self, template):
-        template.add_pa_in_port('a', DOptional(int))
-        template.add_pa_in_port('b', DOptional(int))
+        template.add_pa_in_port('a', Optional(int))
+        template.add_pa_in_port('b', Optional(int))
 
 
 class NodeTemplateAddConstructor(unittest.TestCase):
@@ -267,8 +267,8 @@ class NodeTemplateAddConstructor(unittest.TestCase):
     def test_add_migen(self):
         test_template1 = NodeTemplate(
             name="test_1",
-            inputs=[('a', DOptional(int)),
-                       ('b', DOptional(int))]
+            inputs=[('a', Optional(int)),
+                    ('b', Optional(int))]
         )
 
         test_template1.add_constructor(AMigenNode2())
@@ -365,13 +365,13 @@ class InvalidNodeTemplate(unittest.TestCase):
         """
         test_template2 = NodeTemplate(
             name="test",
-            inputs=[('a', DOptional(int)), ('b', DOptional(int))],
+            inputs=[('a', Optional(int)), ('b', Optional(int))],
             outputs=int
         )
 
         with self.assertRaises(ValueError):
             @DeltaBlock(test_template2, allow_const=False)
-            def _test1(a: DOptional(int), b: int) -> int:
+            def _test1(a: Optional(int), b: int) -> int:
                 return a + b
 
         with self.assertRaises(ValueError):

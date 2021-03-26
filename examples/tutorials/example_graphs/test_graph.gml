@@ -30,7 +30,7 @@ graph [
     target 1
     key 0
     src ""
-    type "DInt32"
+    type "Int32"
     dest "a"
   ]
   edge [
@@ -38,7 +38,7 @@ graph [
     target 3
     key 0
     src ""
-    type "DInt32"
+    type "Int32"
     dest "val"
   ]
   edge [
@@ -46,7 +46,7 @@ graph [
     target 1
     key 0
     src ""
-    type "DInt32"
+    type "Int32"
     dest "b"
   ]
 ]

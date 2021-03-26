@@ -174,7 +174,7 @@ class RuntimeBlockingTest(unittest.TestCase):
         they always call ``send``.
         """
 
-        @dl.Interactive([('a', dl.DOptional(int))], dl.Void)
+        @dl.Interactive([('a', dl.Optional(int))], dl.Void)
         def node_to_investigate(node):
             while True:
                 a = node.receive('a')

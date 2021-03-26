@@ -1,23 +1,16 @@
 """Special data types."""
 
-from typing import (Any,
-                    Dict,
-                    Iterable,
-                    List,
-                    NamedTuple,
-                    Tuple,
-                    Type,
-                    Union)
+import typing
 
 from deltalanguage._utils import NamespacedName
 from ._exceptions import DeltaTypeError
 
 
-class DSize:
+class Size:
     """Size of a Deltaflow type.
 
     Main usage is in :py:attr:`BaseDeltaType.size` and
-    :py:attr:`DArray.length`.
+    :py:attr:`Array.length`.
 
     Parameters
     ----------
@@ -26,7 +19,7 @@ class DSize:
         placeholder for the actual size to be specified later.
     """
 
-    def __init__(self, size: Union[int, NamespacedName]):
+    def __init__(self, size: typing.Union[int, NamespacedName]):
         self.is_placeholder = isinstance(size, NamespacedName)
         self.val = size
 
@@ -40,20 +33,20 @@ class DSize:
             return f"{self.val}"
 
     def __eq__(self, other):
-        if type(other) is DSize:
+        if type(other) is Size:
             return (self.is_placeholder == other.is_placeholder
                     and self.val == other.val)
         return False
 
     def __ge__(self, other):
-        if type(other) is DSize:
+        if type(other) is Size:
             return (self.is_placeholder == other.is_placeholder
                     and self.val >= other.val)
         return False
 
     def __gt__(self, other):
         if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
+            raise ValueError("Please define Size")
         return self.val > other.val
 
     def __hash__(self):
@@ -61,23 +54,23 @@ class DSize:
 
     def __add__(self, other):
         if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
-        return DSize(self.val + other.val)
+            raise ValueError("Please define Size")
+        return Size(self.val + other.val)
 
     def __iadd__(self, other):
         if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
+            raise ValueError("Please define Size")
         self.val += other.val
         return self
 
     def __sub__(self, other):
         if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
-        return DSize(self.val - other.val)
+            raise ValueError("Please define Size")
+        return Size(self.val - other.val)
 
     def __isub__(self, other):
         if self.is_placeholder or other.is_placeholder:
-            raise ValueError("Please define DSize")
+            raise ValueError("Please define Size")
 
         self.val -= other.val
 
@@ -88,12 +81,12 @@ class DSize:
 
     def __mul__(self, other):
         if self.is_placeholder:
-            raise ValueError("Please define DSize")
+            raise ValueError("Please define Size")
 
         if isinstance(other, int):
-            return DSize(self.val * other)
-        elif type(other) is DSize:
-            return DSize(self.val * other.val)
+            return Size(self.val * other)
+        elif type(other) is Size:
+            return Size(self.val * other.val)
         else:
             raise DeltaTypeError("Unsupported data type")
 
@@ -102,11 +95,11 @@ class DSize:
 
     def __imul__(self, other):
         if self.is_placeholder:
-            raise ValueError("Please define DSize")
+            raise ValueError("Please define Size")
 
         if isinstance(other, int):
             self.val *= other
-        elif type(other) is DSize:
+        elif type(other) is Size:
             self.val *= other.val
         else:
             raise DeltaTypeError("Unsupported data type")

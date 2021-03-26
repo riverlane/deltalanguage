@@ -6,7 +6,7 @@ from examples.rabi_demo.helper_functions import generate_angles
 
 
 @dl.DeltaBlock()
-def experiment_stopper(completed: dl.DInt(dl.DSize(8))) -> dl.Void:
+def experiment_stopper(completed: dl.Int(dl.Size(8))) -> dl.Void:
     if completed:
         if completed == 1:
             raise dl.DeltaRuntimeExit
@@ -23,7 +23,7 @@ def get_graph():
     debugging.
     """
     result_storage = dl.lib.StateSaver(int)
-    cmds_storage = dl.lib.StateSaver(dl.DUInt(dl.DSize(32)))
+    cmds_storage = dl.lib.StateSaver(dl.UInt(dl.Size(32)))
     hal_template = dl.lib.hal_template
 
     with dl.DeltaGraph() as graph:

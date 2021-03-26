@@ -5,8 +5,8 @@ import deltalanguage as dl
 ### ---------------------------- CONSTRUCT NODES -------------------------- ###
 # One node to send circuit to HAL node, another to digest result from HAL node
 @dl.Interactive(
-    [("input_params", dl.DArray(int, dl.DSize(6))), ("repeat", bool)],
-    dl.DUInt(dl.DSize(32))
+    [("input_params", dl.Array(int, dl.Size(6))), ("repeat", bool)],
+    dl.UInt(dl.Size(32))
 )
 def send_gate_sequence(node):
     """Interactive node to define the circuit.
@@ -106,7 +106,7 @@ class Aggregator:
         self._results = []
 
     @dl.DeltaMethodBlock(name="result_collector")
-    def result_collector(self, result: dl.DUInt(dl.DSize(32))) -> bool:
+    def result_collector(self, result: dl.UInt(dl.Size(32))) -> bool:
         """Method to receive the results and update state.
 
         Parameters

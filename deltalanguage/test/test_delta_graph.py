@@ -5,12 +5,13 @@ from typing import OrderedDict
 import unittest
 
 import deltalanguage as dl
+from deltalanguage.data_types import DeltaTypeError
 
 from deltalanguage.test._utils import return_1, TwoIntsT, TwoInts
 
 
 @dl.DeltaBlock()
-def union_one_receiver(x: dl.DUnion([int])) -> int:
+def union_one_receiver(x: dl.Union([int])) -> int:
     return x
 
 
@@ -20,8 +21,8 @@ ForkedReturnT, ForkedReturn = dl.make_forked_return({
 
 
 @dl.DeltaBlock()
-def forked_return_output(x: dl.DInt(dl.DSize(8)),
-                         y: dl.DInt(dl.DSize(8))) -> ForkedReturnT:
+def forked_return_output(x: dl.Int(dl.Size(8)),
+                         y: dl.Int(dl.Size(8))) -> ForkedReturnT:
     return ForkedReturn(a=0, b=1, c=1, d=0)
 
 
@@ -31,7 +32,7 @@ def forked_return_output_no_input() -> ForkedReturnT:
 
 
 @dl.DeltaBlock(allow_const=False)
-def multi_body_no_output(i: dl.DInt(dl.DSize(8))) -> dl.Void:
+def multi_body_no_output(i: dl.Int(dl.Size(8))) -> dl.Void:
     print(i)
 
 
@@ -41,29 +42,29 @@ class Foo():
         pass
 
     @dl.DeltaMethodBlock()
-    def method_func_no_output(self, i: dl.DInt(dl.DSize(8))) -> dl.Void:
+    def method_func_no_output(self, i: dl.Int(dl.Size(8))) -> dl.Void:
         print(i + 1)
 
 
 class MigenFoo(dl.MigenNodeTemplate):
     def migen_body(self, template):
-        template.add_pa_in_port('i', dl.DOptional(dl.DInt(dl.DSize(8))))
+        template.add_pa_in_port('i', dl.Optional(dl.Int(dl.Size(8))))
 
 
-@dl.Interactive([('i', dl.DInt(dl.DSize(8)))], outputs=dl.Void)
+@dl.Interactive([('i', dl.Int(dl.Size(8)))], outputs=dl.Void)
 def interactive_func_no_output(node: dl.RealNode):
     a = node.receive('i')
 
 
 template_no_output_no_body = dl.NodeTemplate(
     name="template_no_output_no_body",
-    inputs=[('i', dl.DInt(dl.DSize(8)))],
+    inputs=[('i', dl.Int(dl.Size(8)))],
     outputs=dl.Void
 )
 
 
 @dl.DeltaBlock()
-def experiment_stopper(completed: dl.DInt(dl.DSize(8))) -> dl.Void:
+def experiment_stopper(completed: dl.Int(dl.Size(8))) -> dl.Void:
     raise dl.DeltaRuntimeExit
 
 
@@ -93,7 +94,7 @@ class DeltaGraphTest(unittest.TestCase):
     def test_loose_optional_input(self):
         """Optional input without input does not raise an error."""
         @dl.DeltaBlock(allow_const=False)
-        def test_node(a: dl.DOptional(int)) -> dl.Void:
+        def test_node(a: dl.Optional(int)) -> dl.Void:
             pass
 
         with dl.DeltaGraph() as graph:
@@ -102,10 +103,27 @@ class DeltaGraphTest(unittest.TestCase):
 
         self.assertTrue(graph.check())
 
+    def test_allow_top(self):
+        """Top is allowed by default"""
+        s = dl.lib.StateSaver()
+        with dl.DeltaGraph() as graph:
+            s.save_and_exit(return_1())
+
+        self.assertTrue(graph.check())
+
+    def test_no_allow_top(self):
+        """Top is not allowed by if allow_top set to False"""
+        s = dl.lib.StateSaver()
+        with dl.DeltaGraph() as graph:
+            s.save_and_exit(4)
+
+        with self.assertRaises(DeltaTypeError):
+            graph.check(allow_top=False)
+
 
 def to_union_of_one(node: dl.RealNode) -> dl.RealNode:
     org_t = node.outputs
-    node.outputs = dl.DUnion([org_t])
+    node.outputs = dl.Union([org_t])
 
     return node
 
@@ -116,6 +134,7 @@ class DeltaGraphStrTest(unittest.TestCase):
     def test_graph_str_output(self):
         """Stringify a pre-defined graph and compare output to test data"""
 
+        self.maxDiff = None
         dl.DeltaGraph.clean_stack()
 
         with dl.DeltaGraph() as graph:
@@ -173,7 +192,7 @@ class DeltaGraphWiringWrongInputTest(unittest.TestCase):
     def test_MigenNodeTemplate(self):
         class AMigenNode(dl.MigenNodeTemplate):
             def migen_body(self, template):
-                template.add_pa_in_port('a', dl.DOptional(int))
+                template.add_pa_in_port('a', dl.Optional(int))
 
         with self.assertRaises(dl.data_types.DeltaIOError):
             with dl.DeltaGraph():
@@ -217,7 +236,7 @@ class DeltaGraphWiringNoOutputTest(unittest.TestCase):
     def test_MigenNodeTemplate(self):
         class AMigenNode(dl.MigenNodeTemplate):
             def migen_body(self, template):
-                template.add_pa_in_port('a', dl.DOptional(int))
+                template.add_pa_in_port('a', dl.Optional(int))
 
         with self.assertRaises(dl.data_types.DeltaIOError):
             with dl.DeltaGraph():
@@ -261,7 +280,7 @@ class DeltaGraphWiringWrongOutputTest(unittest.TestCase):
     def test_MigenNodeTemplate(self):
         class AMigenNode(dl.MigenNodeTemplate):
             def migen_body(self, template):
-                template.add_pa_in_port('a', dl.DOptional(int))
+                template.add_pa_in_port('a', dl.Optional(int))
                 template.add_pa_out_port('x', int)
                 template.add_pa_out_port('y', int)
 

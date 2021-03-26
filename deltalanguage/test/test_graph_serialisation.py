@@ -16,8 +16,9 @@ import deltalanguage.data_types.dotdf_capnp \
     as dotdf_capnp  # pylint: disable=E0401, disable=E0611
 from deltalanguage._utils import NamespacedName
 from deltalanguage.data_types import (BaseDeltaType,
-                                      DOptional,
-                                      DInt,
+                                      DeltaTypeError,
+                                      Optional,
+                                      Int,
                                       Void,
                                       as_delta_type)
 from deltalanguage.lib import StateSaver
@@ -53,7 +54,7 @@ class OpCacher():
         self._add_cache = {}
 
     @DeltaMethodBlock()
-    def cached_add(self, a: DOptional(int), b: DOptional(int)):
+    def cached_add(self, a: Optional(int), b: Optional(int)):
         if (a, b) not in self._add_cache:
             self._add_cache[(a, b)] = a+b
         raise DeltaRuntimeExit
@@ -61,8 +62,8 @@ class OpCacher():
 
 class AMigenNode(MigenNodeTemplate):
     def migen_body(self, template):
-        template.add_pa_in_port('a', DOptional(int))
-        template.add_pa_in_port('b', DOptional(int))
+        template.add_pa_in_port('a', Optional(int))
+        template.add_pa_in_port('b', Optional(int))
 
 
 class PortSerialisationTest(unittest.TestCase):
@@ -80,11 +81,11 @@ class PortSerialisationTest(unittest.TestCase):
     def test_in_port_capnp_optional(self):
         """Generate optional in port."""
         in_port = InPort(NamespacedName("node_name", "index"),
-                         DOptional(int), None, 0)
+                         Optional(int), None, 0)
         capnp_in_port = dotdf_capnp.InPort.new_message()
         in_port.capnp(capnp_in_port)
         self.assertEqual(capnp_in_port.name, "index")
-        self.assertEqual(dill.loads(capnp_in_port.type), DInt())
+        self.assertEqual(dill.loads(capnp_in_port.type), Int())
         self.assertEqual(capnp_in_port.optional, True)
 
     def test_in_port_capnp_wiring(self):
@@ -156,7 +157,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         DeltaGraph.clean_stack()
 
         @DeltaBlock(allow_const=False)
-        def add_print_exit(a: DOptional(int), b: DOptional(int)) -> Void:
+        def add_print_exit(a: Optional(int), b: Optional(int)) -> Void:
             print(a + b)
             raise DeltaRuntimeExit
 
@@ -222,10 +223,10 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             n1 = self.func(2, 3)
 
         @DeltaBlock(allow_const=False)
-        def over_complex_add(a: DOptional(int), b: DOptional(int)):
+        def over_complex_add(a: Optional(int), b: Optional(int)):
             raise DeltaRuntimeExit
 
-        @Interactive(inputs=[('a', DOptional(int)), ('b', DOptional(int))])
+        @Interactive(inputs=[('a', Optional(int)), ('b', Optional(int))])
         def broken_adder(node: RealNode):
             node.receive('a')
             node.receive('b')
@@ -366,7 +367,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             n1 = self.func(40, 2)
 
         @DeltaBlock(allow_const=False)
-        def simple_add_2(a: DOptional(int), b: DOptional(int)):
+        def simple_add_2(a: Optional(int), b: Optional(int)):
             raise DeltaRuntimeExit
 
         n1.add_body(simple_add_2)
@@ -380,13 +381,22 @@ class PythonNodeSerialisationTest(unittest.TestCase):
                   'r') as file:
             self.assertEqual(g_capnp, json.load(file))
 
+    def test_top_serialisation(self):
+        """If a port has type top serialisation should throw an error."""
+        s = StateSaver()
+        with DeltaGraph() as graph:
+            s.save_and_exit(return_1())
+
+        with self.assertRaises(DeltaTypeError):
+            serialize_graph(graph)
+
 
 class FileSerialisationTest(unittest.TestCase):
     """Tests of serialised files."""
 
     def setUp(self):
         """Set up a simple graph"""
-        saver = StateSaver()
+        saver = StateSaver(int)
         with DeltaGraph() as test_graph:
             saver.save_and_exit(return_1())
         self.graph = test_graph

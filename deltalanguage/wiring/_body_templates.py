@@ -9,7 +9,7 @@ from typing import (TYPE_CHECKING,
                     OrderedDict,
                     Union)
 
-from deltalanguage.data_types import BaseDeltaType, DOptional
+import deltalanguage.data_types as data_types
 
 from ._node_classes.latency import Latency
 from ._node_classes.node_bodies import (PyFuncBody,
@@ -88,8 +88,8 @@ class BodyTemplate(ABC):
     def compatible(self,
                    node_key: Optional[str],
                    in_port_size: int,
-                   inputs: OrderedDict[str, Union[BaseDeltaType, DOptional]],
-                   outputs: Union[BaseDeltaType, DOptional]) -> bool:
+                   inputs: OrderedDict[str, Union[data_types.BaseDeltaType, data_types.Optional]],
+                   outputs: Union[data_types.BaseDeltaType, data_types.Optional]) -> bool:
         """Checks compatibility between the ``NodeTemplate`` of this 
         ``BodyTemplate`` and some params that are important for node creation.
 

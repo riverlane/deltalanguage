@@ -168,12 +168,12 @@ class TimestamperModel(dl.MigenNodeTemplate):
         """
 
         # Node inputs
-        self.reset = template.add_pa_in_port('reset', dl.DOptional(int))
-        self.photon = template.add_pa_in_port('photon', dl.DOptional(int))
+        self.reset = template.add_pa_in_port('reset', dl.Optional(int))
+        self.photon = template.add_pa_in_port('photon', dl.Optional(int))
 
         # Node outputs
-        self.time = template.add_pa_out_port('time', dl.DUInt())
-        self.error = template.add_pa_out_port('error', dl.DInt())
+        self.time = template.add_pa_out_port('time', dl.UInt())
+        self.error = template.add_pa_out_port('error', dl.Int())
 
         self.rf_trigger = Signal(1)
         self.pmt_trigger = Signal(1)
@@ -222,11 +222,11 @@ class TimestamperModel(dl.MigenNodeTemplate):
         self.submodules += [self.timestamper_inst, self.pulser_inst]
 
 
-TbT, TbC = dl.make_forked_return({'reset': dl.DInt(),
-                                  'photon': dl.DInt()})
+TbT, TbC = dl.make_forked_return({'reset': dl.Int(),
+                                  'photon': dl.Int()})
 
 
-@dl.Interactive([('time', dl.DUInt()), ('error', dl.DInt())], TbT)
+@dl.Interactive([('time', dl.UInt()), ('error', dl.Int())], TbT)
 def testbench(node):
     """ Testbench for Timestamper model node. Starts with random testing
     and ends with corner cases

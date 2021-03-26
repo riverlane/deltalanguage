@@ -3,7 +3,7 @@
 from queue import Empty, Full, Queue
 import unittest
 
-from deltalanguage.data_types import DOptional, DInt
+from deltalanguage.data_types import Optional, Int
 from deltalanguage.runtime import ConstQueue, DeltaQueue
 from deltalanguage.runtime._queues import Flusher
 from deltalanguage._utils import NamespacedName, QueueMessage
@@ -23,16 +23,16 @@ class TestDeltaQueue(unittest.TestCase):
         # obligatory and optional ports
         out_port_obl = OutPort(
             NamespacedName("port_name", None),
-            DInt(),
+            Int(),
             InPort(NamespacedName("port_name", None),
-                   DInt(), None, 0),
+                   Int(), None, 0),
             None
         )
         out_port_opt = OutPort(
             NamespacedName("port_name", None),
-            DInt(),
+            Int(),
             InPort(NamespacedName("port_name", None),
-                   DOptional(DInt()), None, 0),
+                   Optional(Int()), None, 0),
             None
         )
 
@@ -190,14 +190,14 @@ class TestDeltaQueueForkedReturn(TestDeltaQueue):
             NamespacedName("port_name", "x"),
             TwoIntsT,
             InPort(NamespacedName("port_name", None),
-                   DInt(), None, 0),
+                   Int(), None, 0),
             None
         )
         out_port_opt = OutPort(
             NamespacedName("port_name", "x"),
             TwoIntsT,
             InPort(NamespacedName("port_name", None),
-                   DOptional(DInt()), None, 0),
+                   Optional(Int()), None, 0),
             None
         )
 

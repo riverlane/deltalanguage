@@ -8,24 +8,19 @@ many graphs are created.
 from collections import Counter
 import unittest
 
-from deltalanguage.data_types import Void, DOptional
+from deltalanguage.data_types import Void, Optional
+from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
                                   placeholder_node_factory)
 
 
 @DeltaBlock()
-def add(a: int, b: DOptional(int)) -> int:
+def add(a: int, b: Optional(int)) -> int:
     if b is None:
         return a
     else:
         return a+b
-
-
-@DeltaBlock()
-def print_then_exit(n: int) -> Void:
-    print(n)
-    raise DeltaRuntimeExit
 
 
 @DeltaBlock()
@@ -52,15 +47,19 @@ class SimpleGraph(unittest.TestCase):
     """Testing for a simple graph with four nodes."""
 
     def test_simple_networkx_graph(self):
+        s = StateSaver(int)
+
         with DeltaGraph() as simple_graph:
             n = add(a=3, b=4)
-            print_then_exit(n=n)
+            s.save_and_exit(n)
+
         networkx_graph = simple_graph.get_networkx_graph()
+
         self.assertEqual(node_cnt(networkx_graph.nodes()),
-                         Counter({'node': 2, 'add': 1, 'print_then_exit': 1}))
+                         Counter({'node': 2, 'add': 1, 'save_and_exit': 1}))
         self.assertEqual(edge_cnt(networkx_graph.edges()),
                          Counter({('node', 'add'): 2,
-                                  ('add', 'print_then_exit'): 1}))
+                                  ('add', 'save_and_exit'): 1}))
 
 
 class ComplexGraph(unittest.TestCase):

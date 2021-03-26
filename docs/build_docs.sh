@@ -28,8 +28,8 @@ echo ${PYTHONPATH}
 # Make sure dev is the last one as it has the latest version of conf.py
 # LATESTVERSION is also used as the default version
 # TODO: automate this process
-LATESTVERSION="v0.5.2"
-DOCSVERSIONS="${LATESTVERSION} dev"
+LATESTVERSION="v0.5.3"
+DOCSVERSIONS="${LATESTVERSION} v0.4.4 dev"
 export DOCSVERSIONS=${DOCSVERSIONS}
 # This variable is defined in docs/Makefile
 # TODO: remover redundant repetition

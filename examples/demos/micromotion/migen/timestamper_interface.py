@@ -31,12 +31,12 @@ class TimestampChipInterface(dl.MigenNodeTemplate):
         _TIME_RES = 32
         # Node inputs
         self.time_in = template.add_pa_in_port(
-            'time_in', dl.DOptional(dl.DUInt()))
+            'time_in', dl.Optional(dl.UInt()))
 
         # Node outputs
-        self.time_out = template.add_pa_out_port('time_out', dl.DUInt())
+        self.time_out = template.add_pa_out_port('time_out', dl.UInt())
         self.counter_reset = template.add_pa_out_port(
-            'counter_reset', dl.DInt())
+            'counter_reset', dl.Int())
 
         # Internal signals
         self.pmt_reg = Signal(_TIME_RES)
@@ -140,7 +140,7 @@ class TimestampChipInterface(dl.MigenNodeTemplate):
         )
 
 
-@dl.Interactive([('time_out', dl.DUInt()), ('reset', dl.DInt())], dl.DUInt())
+@dl.Interactive([('time_out', dl.UInt()), ('reset', dl.Int())], dl.UInt())
 def testbench(node):
     """ Testbench for Timestamper interface node. Starts with random testing
     and ends with corner cases

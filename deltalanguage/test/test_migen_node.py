@@ -4,13 +4,14 @@ import io
 import json
 import logging
 import os
+import sys
 import unittest
 import unittest.mock
 
 import dill
 import migen
 
-from deltalanguage.data_types import BaseDeltaType, DOptional
+from deltalanguage.data_types import BaseDeltaType, Optional
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import (DeltaPySimulator,
                                    deserialize_graph,
@@ -20,6 +21,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   MigenNodeTemplate,
                                   PythonBody)
 
+sys.path.insert(0, "/workdir")
 from examples.tutorials.migen_hardware_examples import (
     generate_graph_constant_input,
     generate_graph_interactive_input
@@ -36,7 +38,7 @@ class AlternatingOutputsMigen(MigenNodeTemplate):
     """
 
     def migen_body(self, template):
-        start = template.add_pa_in_port('start', DOptional(int))
+        start = template.add_pa_in_port('start', Optional(int))
         out_a = template.add_pa_out_port('out_a', int)
         out_b = template.add_pa_out_port('out_b', int)
         # This will need to be converted to boolean when migen nodes support
@@ -91,8 +93,8 @@ class TestMigen(MigenNodeTemplate):
         # and can considered sensible only when valid = '1', i.e. when
         # a new data has been received on the pa_input_port.
         # The opposite logic holds true for the outputs.
-        in1 = template.add_pa_in_port('in1', DOptional(int))
-        in2 = template.add_pa_in_port('in2', DOptional(int))
+        in1 = template.add_pa_in_port('in1', Optional(int))
+        in2 = template.add_pa_in_port('in2', Optional(int))
         out1 = template.add_pa_out_port('out1', int)
         out2 = template.add_pa_out_port('out2', int)
 

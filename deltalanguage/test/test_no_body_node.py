@@ -2,9 +2,8 @@ import unittest
 from collections import OrderedDict
 
 from deltalanguage._utils import NamespacedName
-from deltalanguage.data_types import (DBool, DInt, DOptional, DeltaTypeError,
+from deltalanguage.data_types import (Bool, Int, Optional, DeltaTypeError,
                                       Void, make_forked_return)
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaMethodBlock,
                                   DeltaGraph,
@@ -167,13 +166,13 @@ class NoBodyAddBody(unittest.TestCase):
     def test_add_migen(self):
         test_template1 = NodeTemplate(
             name="test_1",
-            inputs=[('a', DOptional(int)), ('b', DOptional(int))]
+            inputs=[('a', Optional(int)), ('b', Optional(int))]
         )
 
         class AMigenNode(MigenNodeTemplate):
             def migen_body(self, template):
-                template.add_pa_in_port('a', DOptional(int))
-                template.add_pa_in_port('b', DOptional(int))
+                template.add_pa_in_port('a', Optional(int))
+                template.add_pa_in_port('b', Optional(int))
 
         with DeltaGraph():
             n1 = test_template1.call(a=2, b=3)

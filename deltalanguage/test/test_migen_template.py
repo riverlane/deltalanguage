@@ -15,7 +15,7 @@ class MigenNodeTemplateTest(unittest.TestCase):
 
         class AMigenNodeB(dl.MigenNodeTemplate):
             def migen_body(self, template):
-                template.add_pa_in_port('in1', dl.DOptional(int))
+                template.add_pa_in_port('in1', dl.Optional(int))
 
         with self.assertRaises(dl.data_types.DeltaTypeError):
             AMigenNodeA()

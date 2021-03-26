@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Iterable, List
 
-from deltalanguage.data_types import DUInt, DSize, DArray
+from deltalanguage.data_types import UInt, Size, Array
 
 # Command fields
 # 31-26       25-16        15-0
@@ -64,7 +64,7 @@ class Masks(Enum):
     MEASUREMENTS = 65535
 
 
-def command_creator(op: str, argument=0, qubit=0) -> DUInt(DSize(32)):
+def command_creator(op: str, argument=0, qubit=0) -> UInt(Size(32)):
     """Helper function to create HAL commands.
 
     Parameters
@@ -78,19 +78,19 @@ def command_creator(op: str, argument=0, qubit=0) -> DUInt(DSize(32)):
 
     Returns
     -------
-    DUInt(DSize(32))
+    UInt(Size(32))
         32-bit HAL command
     """
     return (Opcode[op].value << Shifts.OPCODE.value) \
         | (argument << Shifts.ARG.value) | qubit
 
 
-def command_unpacker(cmd: DUInt(DSize(32))):
+def command_unpacker(cmd: UInt(Size(32))):
     """Helper function to unpack HAL commands.
 
     Parameters
     ----------
-    cmd : DUInt(DSize(32))
+    cmd : UInt(Size(32))
         32-bit HAL command.
 
     Returns
@@ -118,13 +118,13 @@ def command_unpacker(cmd: DUInt(DSize(32))):
     return (op, arg, qubit)
 
 
-def measurement_unpacker(bitcode: DUInt(DSize(32)), qubits: Iterable) -> List:
+def measurement_unpacker(bitcode: UInt(Size(32)), qubits: Iterable) -> List:
     """Helper function to convert 32-bit status result from HAL into an array
     of measurements for given qubit indices.
 
     Parameters
     ----------
-    bitcode : DUInt(DSize(32))
+    bitcode : UInt(Size(32))
         32-bit measurement status from HAL.
     qubits : Iterable
         List of qubits for which the measurement result will be returned.
@@ -173,7 +173,7 @@ def measurement_creator(measurement_array, qubits):
 
     Returns
     -------
-    bitcode : DUInt(DSize(32))
+    bitcode : UInt(Size(32))
         32-bit measurement status from HAL.
     """
     packed_measurements = 0

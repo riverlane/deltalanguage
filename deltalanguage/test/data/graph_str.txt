@@ -2,7 +2,7 @@ DeltaGraph[main] {
     node[node_0]:
         ports:
             out:
-                output, DInt8 -> forked_return_output_2.x
+                output, Int8 -> forked_return_output_2.x
         bodies:
             *PyConstBody
                 tags: <lambda>
@@ -10,7 +10,7 @@ DeltaGraph[main] {
     node[node_1]:
         ports:
             out:
-                output, DInt8 -> forked_return_output_2.y
+                output, Int8 -> forked_return_output_2.y
         bodies:
             *PyConstBody
                 tags: <lambda>
@@ -18,13 +18,13 @@ DeltaGraph[main] {
     node[forked_return_output_2]:
         ports:
             in:
-                x, DInt8
-                y, DInt8
+                x, Int8
+                y, Int8
             out:
-                a, DInt32 -> template_template_no_output_no_body_3.i
-                b, DBool -> multi_body_no_output_4.i
-                d, DInt32 -> MigenFoo_5.i
-                c, DInt32 -> experiment_stopper_6.completed
+                a, Int32 -> template_template_no_output_no_body_3.i
+                b, Bool -> multi_body_no_output_4.i
+                d, Int32 -> MigenFoo_5.i
+                c, Int32 -> experiment_stopper_6.completed
         bodies:
             *PyConstBody
                 tags: forked_return_output
@@ -32,14 +32,14 @@ DeltaGraph[main] {
     node[template_template_no_output_no_body_3]:
         ports:
             in:
-                i, DInt8
+                i, Int8
         bodies:
             None
 
     node[multi_body_no_output_4]:
         ports:
             in:
-                i, DInt8
+                i, Int8
         bodies:
             *PyFuncBody
                 tags: multi_body_no_output
@@ -51,7 +51,7 @@ DeltaGraph[main] {
     node[MigenFoo_5]:
         ports:
             in:
-                i, DInt8, optional
+                i, Int8, optional
         bodies:
             *PyMigenBody
                 tags: _py_sim_body
@@ -59,7 +59,7 @@ DeltaGraph[main] {
     node[experiment_stopper_6]:
         ports:
             in:
-                completed, DInt8
+                completed, Int8
         bodies:
             *PyConstBody
                 tags: experiment_stopper

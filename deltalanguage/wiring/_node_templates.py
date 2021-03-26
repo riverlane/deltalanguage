@@ -9,11 +9,7 @@ from typing import (TYPE_CHECKING,
                     Type,
                     Tuple)
 
-from deltalanguage.data_types import (as_delta_type,
-                                      BaseDeltaType,
-                                      DeltaIOError,
-                                      DOptional,
-                                      Void)
+import deltalanguage.data_types as data_types
 from deltalanguage.logging import make_logger
 from ._node_classes.latency import Latency
 from ._node_classes.node_bodies import Body
@@ -59,7 +55,7 @@ class NodeTemplate():
     def __init__(self,
                  inputs: Union[List[Tuple[str, Type]],
                                   OrderedDict[str, Type]],
-                 outputs: Type = Void,
+                 outputs: Type = data_types.Void,
                  name: str = None,
                  lvl: int = logging.ERROR,
                  node_key: Optional[str] = None,
@@ -80,11 +76,11 @@ class NodeTemplate():
                     'Please provide types of input parameters as list')
 
         self.inputs = inputs_as_delta_types(inputs)
-        self.outputs = as_delta_type(outputs)
+        self.outputs = data_types.as_delta_type(outputs)
 
         self._has_optional_inputs = False
         for in_type in self.inputs.values():
-            if isinstance(in_type, DOptional):
+            if isinstance(in_type, data_types.Optional):
                 self._has_optional_inputs = True
 
     def _standardised_call(self, graph, name: str, lvl: int,
@@ -205,8 +201,8 @@ class NodeTemplate():
         body_template: BodyTemplate,
         node_key: Optional[str],
         in_port_size: int,
-        inputs: OrderedDict[str, Union[BaseDeltaType, DOptional]],
-        outputs: Union[BaseDeltaType, DOptional]
+        inputs: OrderedDict[str, Union[data_types.BaseDeltaType, data_types.Optional]],
+        outputs: Union[data_types.BaseDeltaType, data_types.Optional]
     ) -> BodyTemplate:
         """Internal method used by template merging and creation methods
         Contains the common behaviour for checking other_template is compatible
@@ -244,8 +240,8 @@ class NodeTemplate():
         self,
         node_key: Optional[str],
         in_port_size: int,
-        inputs: OrderedDict[str, Union[BaseDeltaType, DOptional]],
-        outputs: Union[BaseDeltaType, DOptional]
+        inputs: OrderedDict[str, Union[data_types.BaseDeltaType, data_types.Optional]],
+        outputs: Union[data_types.BaseDeltaType, data_types.Optional]
     ) -> bool:
         """Checks compatibility between this ``NodeTemplate`` and some params
         that are important for node creation.
@@ -335,8 +331,8 @@ class NodeTemplate():
         created using the ``@Interactive`` decorator. Associate this with an
         existing or newly created ``NodeTemplate``.
         """
-        if len(inputs) == 0 and outputs == Void:
-            raise DeltaIOError('Interactive node must have either an input '
+        if len(inputs) == 0 and outputs == data_types.Void:
+            raise data_types.DeltaIOError('Interactive node must have either an input '
                                'or an output. Otherwise it may freeze '
                                'the runtime simulator.')
 
@@ -344,7 +340,7 @@ class NodeTemplate():
             raise TypeError('Please provide types of input parameters as list')
 
         inputs = inputs_as_delta_types(OrderedDict(inputs))
-        outputs = as_delta_type(outputs)
+        outputs = data_types.as_delta_type(outputs)
         body_template = InteractiveBodyTemplate(name, latency, lvl, func, tags)
         return NodeTemplate._standardised_merge(other,
                                                 body_template,
@@ -363,7 +359,7 @@ class NodeTemplate():
         created :py:class:`NodeTemplate`.
         """
         inputs = inputs_as_delta_types(inputs)
-        outputs = as_delta_type(outputs)
+        outputs = data_types.as_delta_type(outputs)
 
         return NodeTemplate._standardised_merge(other=other,
                                                 body_template=body_template,

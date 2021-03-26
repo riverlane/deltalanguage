@@ -7,8 +7,8 @@ import unittest
 
 from migen import FSM, If, NextState, NextValue
 
-from deltalanguage.data_types import (DInt,
-                                      DOptional,
+from deltalanguage.data_types import (Int,
+                                      Optional,
                                       make_forked_return)
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator
@@ -56,9 +56,9 @@ class TestMigenNode(MigenNodeTemplate):
 
     def migen_body(self, template):
 
-        inp = template.add_pa_in_port('inp', DOptional(DInt()))
-        trigger = template.add_pa_in_port('trigger', DOptional(DInt()))
-        out = template.add_pa_out_port('out', DInt())
+        inp = template.add_pa_in_port('inp', Optional(Int()))
+        trigger = template.add_pa_in_port('trigger', Optional(Int()))
+        out = template.add_pa_out_port('out', Int())
 
         # Declare input and output ports always happy to receive/transmit data
         self.comb += (

@@ -39,20 +39,20 @@ class DACController(dl.MigenNodeTemplate):
         # Node Inputs
         # Two inputs, a command and parameters.
         self.DAC_command = template.add_pa_in_port(
-            'DAC_command', dl.DOptional(dl.DInt())
+            'DAC_command', dl.Optional(dl.Int())
         )
         self.DAC_param = template.add_pa_in_port(
-            'DAC_param', dl.DOptional(dl.DInt())
+            'DAC_param', dl.Optional(dl.Int())
         )
 
         # Node Outputs
         # Returns the node status upon request
         self.DAC_controller_status = template.add_pa_out_port(
-            'DAC_controller_status', dl.DInt()
+            'DAC_controller_status', dl.Int()
         )
         # Data to be returned to accumulator eg DAC voltage
         self.DAC_return_data = template.add_pa_out_port(
-            'DAC_return_data', dl.DInt()
+            'DAC_return_data', dl.Int()
         )
 
         # Internal signals.
@@ -152,10 +152,10 @@ class DACController(dl.MigenNodeTemplate):
         )
 
 
-TbT, TbC = dl.make_forked_return({'cmd': dl.DInt(), 'param': dl.DInt()})
+TbT, TbC = dl.make_forked_return({'cmd': dl.Int(), 'param': dl.Int()})
 
 
-@dl.Interactive([('dac_status', dl.DInt()), ('dac_voltage', dl.DInt())], TbT)
+@dl.Interactive([('dac_status', dl.Int()), ('dac_voltage', dl.Int())], TbT)
 def testbench(node):
     """ Testbench for the DAC controller node, coverage of all commands
     and parameters, out of range values, assertion of expected results

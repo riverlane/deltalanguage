@@ -55,7 +55,8 @@ PYTEST=pytest \
 	--junitxml=testreport.xml \
 	--cov-report xml \
 	--cov-report term \
-	--cov=deltalanguage
+	--cov=deltalanguage \
+	deltalanguage/test
 
 LICENSES=pip-licenses --format=confluence --output-file licenses.confluence && \
 	echo -e '\n' >> licenses.confluence && \

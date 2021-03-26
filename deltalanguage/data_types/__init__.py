@@ -6,25 +6,25 @@ to/from the data types used inside of the nodes.
 This submodule contains the following user-facing parts:
 
 - Primitive data types:
-  :py:class:`DBool`
-  :py:class:`DChar`
-  :py:class:`DInt`
-  :py:class:`DUInt`
-  :py:class:`DFloat`
-  :py:class:`DComplex`
+  :py:class:`Bool`
+  :py:class:`Char`
+  :py:class:`Int`
+  :py:class:`UInt`
+  :py:class:`Float`
+  :py:class:`Complex`
 
 - Compound data types:
-  :py:class:`DArray`
-  :py:class:`DStr`
-  :py:class:`DTuple`
-  :py:class:`DRecord`
+  :py:class:`Array`
+  :py:class:`Str`
+  :py:class:`Tuple`
+  :py:class:`Record`
 
 - Special data types:
   :py:class:`Top`
-  :py:class:`DRaw`
-  :py:class:`DUnion`
-  :py:class:`DSize`
-  :py:class:`DOptional`
+  :py:class:`Raw`
+  :py:class:`Union`
+  :py:class:`Size`
+  :py:class:`Optional`
   :py:class:`Void`
 
 - Auxiliary functions:
@@ -39,7 +39,7 @@ the top level module and can be used like this:
 
     import deltalanguage as dl
     
-    print(dl.DBool())
+    print(dl.Bool())
     print(dl.delta_type(5))
 
 More information about this submodule as well as examples of use can be
@@ -51,44 +51,44 @@ from ._delta_types import (BaseDeltaType,
                            PrimitiveDeltaType,
                            CompoundDeltaType,
                            Top,
-                           DBool,
-                           DChar,
-                           DComplex,
-                           DFloat,
-                           DInt,
-                           DArray,
-                           DOptional,
-                           DRaw,
-                           DRecord,
-                           DStr,
-                           DTuple,
-                           DUInt,
-                           DUnion,
+                           Bool,
+                           Char,
+                           Complex,
+                           Float,
+                           Int,
+                           Array,
+                           Optional,
+                           Raw,
+                           Record,
+                           Str,
+                           Tuple,
+                           UInt,
+                           Union,
                            ForkedReturn,
                            as_delta_type,
                            delta_type,
                            make_forked_return)
 from ._exceptions import DeltaIOError, DeltaTypeError
                           
-from ._special import DSize, Void
+from ._special import Size, Void
 
 # user-facing classes
 __all__ = ["Top",
-           "DBool",
-           "DChar",
-           "DInt",
-           "DUInt",
-           "DFloat",
-           "DComplex",
-           "DArray",
-           "DStr",
-           "DTuple",
-           "DRecord",
-           "DRaw",
+           "Bool",
+           "Char",
+           "Int",
+           "UInt",
+           "Float",
+           "Complex",
+           "Array",
+           "Str",
+           "Tuple",
+           "Record",
+           "Raw",
            "Top",
-           "DSize",
-           "DUnion",
-           "DOptional",
+           "Size",
+           "Union",
+           "Optional",
            "Void",
            "make_forked_return",
            "as_delta_type",

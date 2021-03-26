@@ -14,7 +14,7 @@ import nbformat
 from deltalanguage.data_types import (BaseDeltaType,
                                       Void,
                                       Top,
-                                      DOptional,
+                                      Optional,
                                       make_forked_return)
 from deltalanguage.runtime import DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock,
@@ -318,8 +318,8 @@ class MigenIncrementer(MigenNodeTemplate):
 
     def migen_body(self, template):
         # inputs and 1 output
-        in1 = template.add_pa_in_port('in1', DOptional(int))
-        out1 = template.add_pa_out_port('out1', DOptional(int))
+        in1 = template.add_pa_in_port('in1', Optional(int))
+        out1 = template.add_pa_out_port('out1', Optional(int))
 
         # Counter
         self.incremented = migen.Signal(10)
@@ -335,3 +335,9 @@ class MigenIncrementer(MigenNodeTemplate):
                      self.incremented.eq(in1.data+1)
                      ).Else(out1.valid.eq(0))
         )
+
+
+@DeltaBlock(allow_const=False)
+def print_then_exit(n: int) -> Void:
+    print(n)
+    raise DeltaRuntimeExit

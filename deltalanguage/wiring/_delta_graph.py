@@ -19,7 +19,7 @@ from deltalanguage.logging import make_logger
 from ..data_types import (BaseDeltaType,
                           DeltaIOError,
                           DeltaTypeError,
-                          DUnion,
+                          Union,
                           Top)
 from ._node_classes.abstract_node import AbstractNode
 from ._node_classes.node_bodies import Latency, PyConstBody, PyInteractiveBody
@@ -100,7 +100,7 @@ class DeltaGraph:
 
         >>> import deltalanguage as dl
 
-        >>> rt = dl.DeltaPySimulator(graph)
+        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
         >>> rt.run() # doctest: +SKIP
         42
 
@@ -110,7 +110,7 @@ class DeltaGraph:
 
     .. code-block:: python
 
-        >>> graph.check()
+        >>> graph.check() # doctest: +SKIP
         True
 
     Attributes
@@ -125,7 +125,7 @@ class DeltaGraph:
     global_stack = []
     placeholder_name_index: int = 0
 
-    def __init__(self, name=None, lvl: int = logging.ERROR):
+    def __init__(self, name: str = "main", lvl: int = logging.ERROR):
         self.name = name
         self.placeholders: Dict[str, PlaceholderNode] = {}
         self.nodes: List[RealNode] = []
@@ -305,7 +305,7 @@ class DeltaGraph:
             node.out_ports = [self._merge_out_ports(x)
                               for x in out_ports_dict.values()]
 
-    def check(self):
+    def check(self, allow_top: bool = True, allow_node_key: bool = True):
         """Check that the graph is correct.
 
         This is a 2-stage process that is outlined below:
@@ -318,6 +318,15 @@ class DeltaGraph:
                   not provided or output does not go anywhere then it is fine.
 
             2. Check typing of wires, see the impl and characterization tests.
+
+        Parameters
+        ----------
+        allow_top : bool
+            Whether or not input ports are allowed to have type Top().
+        allow_node_key : bool
+            Whether or not nodes are allowed to have a node key
+            (a debugging parameter from which node bodies can send/receive
+            messages).
 
         Returns
         -------
@@ -368,6 +377,9 @@ class DeltaGraph:
         # nodes with interactive bodies cannot be portless,
         # as they block simulation, until scheduling is implemented
         for node in self.nodes:
+            if not allow_node_key and node.node_key is not None:
+                raise DeltaIOError(
+                    "Node has a node key when allow_node_key is set to False")
             for body in node.bodies:
                 if (isinstance(body, PyInteractiveBody)
                         and len(node.in_ports) == 0
@@ -393,7 +405,8 @@ class DeltaGraph:
         for port in out_ports_all:
             try:
                 self.check_wire(type_s=port.port_type,
-                                type_r=port.destination.port_type)
+                                type_r=port.destination.port_type,
+                                allow_top=allow_top)
             except DeltaTypeError as port_type_err:
                 raise DeltaTypeError(
                     port_type_err.args[0] + f'\n{port=}') from port_type_err
@@ -420,13 +433,19 @@ class DeltaGraph:
         return all_selected
 
     @staticmethod
-    def check_wire(type_s: BaseDeltaType, type_r: BaseDeltaType):
+    def check_wire(type_s: BaseDeltaType,
+                   type_r: BaseDeltaType,
+                   allow_top: bool = True):
         """Check that ``type_s`` sent by :py:class:`OutPort` can by received
         as ``type_r`` by :py:class:`InPort`.
 
         In case when ``type_s`` is an instance of
-        :py:class:`DUnion<deltalanguage.data_types.DUnion>`, it is
+        :py:class:`Union<deltalanguage.data_types.Union>`, it is
         enforces that each each type is received, i.e. strict typing.
+
+        If ``allow_top`` is True then the receiver type can be Top(), which
+        accepts any sending type. This is useful when debugging in the Python
+        simulator.
 
         Returns
         -------
@@ -447,14 +466,17 @@ class DeltaGraph:
                 or (not isinstance(type_r, BaseDeltaType)):
             raise DeltaTypeError(f"Unsupported types\n{type_s=}\n{type_r=}")
 
+        if type_s == Top():
+            raise DeltaTypeError("Sender type cannot be Top().")
+
         if type_r == type_s:
             return True
 
-        if type_r == Top():
+        if type_r == Top() and allow_top:
             return True
-
-        if type(type_r) == DUnion and Top() in type_r.elems:
-            return True
+        elif type_r == Top():
+            raise DeltaTypeError(
+                "Receiving type cannot be Top() when allow_top is False.")
 
         raise DeltaTypeError(f"Broken strict typing\n"
                              f"{type_s=}\n{type_r=}")

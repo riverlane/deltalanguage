@@ -25,21 +25,21 @@ class Aggregator(dl.MigenNodeTemplate):
     def migen_body(self, template):
         # creation of input/output ports
         shot_completed = template.add_pa_in_port('shot_completed',
-                                              dl.DOptional(dl.DBool()))
+                                              dl.Optional(dl.Bool()))
         hal_result = template.add_pa_in_port(
             'hal_result',
-            dl.DOptional(dl.DUInt(dl.DSize(32)))
+            dl.Optional(dl.UInt(dl.Size(32)))
         )
 
         agg_result = template.add_pa_out_port('agg_result',
-                                              dl.DInt(dl.DSize(32)))
+                                              dl.Int(dl.Size(32)))
         # Completed is currently returning a simple 0/1 value but we make space
         # for an error code to be returned e.g. 255, 0b11111111 can be in the
         # future used to represent an error.
-        completed = template.add_pa_out_port('completed', dl.DInt(dl.DSize(8)))
+        completed = template.add_pa_out_port('completed', dl.Int(dl.Size(8)))
         next_angle = template.add_pa_out_port(
             'next_angle',
-            dl.DRaw(dl.DUInt(dl.DSize(ANGLE_MEMORY_WIDTH)))
+            dl.Raw(dl.UInt(dl.Size(ANGLE_MEMORY_WIDTH)))
         )
 
         # generate a ROM of 10-bit angle values

@@ -7,8 +7,10 @@ Tests for function and method blocks, as well as placeholder specify methods.
 from typing import OrderedDict
 import unittest
 
-from deltalanguage.data_types import Void
-from deltalanguage.runtime import DeltaRuntimeExit, DeltaPySimulator
+from deltalanguage.data_types import DeltaIOError, Void
+from deltalanguage.runtime import (DeltaRuntimeExit,
+                                   DeltaPySimulator,
+                                   serialize_graph)
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
                                   DeltaMethodBlock,
@@ -66,6 +68,16 @@ class TestNodeKey(unittest.TestCase):
         rt = DeltaPySimulator(test_graph)
         rt.run()
         self.assertEqual(foo.x, 9)
+
+    def test_serialisation(self):
+        @DeltaBlock(node_key="node")
+        def add_assert(a: int, b: int, node: PythonNode = None) -> Void:
+            self.assertEqual(node.receive('a') + node.receive('b'), 9)
+            raise DeltaRuntimeExit
+        with DeltaGraph() as test_graph:
+            add_assert(a=4, b=5)
+        with self.assertRaises(DeltaIOError):
+            _, _ = serialize_graph(test_graph)
 
 
 test_template1 = NodeTemplate(name="NodeKeyTestTemplate",
