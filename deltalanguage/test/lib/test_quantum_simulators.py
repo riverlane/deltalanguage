@@ -58,8 +58,8 @@ class TestQuantumSimulators(unittest.TestCase):
 
         # compare wavefunction at the end of the circuit (before measuring)
         psi_projq = np.array(projQ_backend._engine.backend.cheat()[1])
-        psi_qiskit = execute(qiskit_backend._circuit,
-                             backend=qiskit_backend._simulator_backend).result().get_statevector(qiskit_backend._circuit)
+        psi_qiskit = execute(qiskit_backend.circuit,
+                             backend=qiskit_backend._simulator_backend).result().get_statevector(qiskit_backend.circuit)
 
         # send measure command to projQ backend (will complain if not flushed)
         projQ_backend.accept_command(command_creator(*['STATE_MEASURE', 0, 0]))

@@ -6,7 +6,7 @@ import deltalanguage as dl
 # One node to send circuit to HAL node, another to digest result from HAL node
 @dl.Interactive(
     [("input_params", dl.Array(int, dl.Size(6))), ("repeat", bool)],
-    dl.UInt(dl.Size(32))
+    [('out', dl.UInt(dl.Size(32)))]
 )
 def send_gate_sequence(node):
     """Interactive node to define the circuit.

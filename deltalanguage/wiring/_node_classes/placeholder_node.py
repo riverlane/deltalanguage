@@ -12,12 +12,8 @@ from typing import (TYPE_CHECKING,
                     Tuple)
 
 from deltalanguage.logging import make_logger
-from .._decorators import get_func_inputs_outputs
 from .._node_templates import NodeTemplate
-
-from .abstract_node import ForkedNode, ProxyNode
-from .node_bodies import PyInteractiveBody
-from .real_nodes import as_node, PythonNode
+from .abstract_node import IndexProxyNode, ProxyNode
 
 if TYPE_CHECKING:
     from .._node_templates import InteractiveBodyTemplate
@@ -82,17 +78,17 @@ class PlaceholderNode(ProxyNode):
         self.future_out_ports: List[Tuple[InPort, Optional[str]]] = []
 
     def __getattr__(self, item):
-        """Get forked node to represent that indexed access or the result of
-        the normal attribute request.
+        """Get IndexProxyNode to represent that indexed access or return the 
+        result of the normal attribute request.
         """
         fetched = getattr(self.referee, item, None)
 
         if fetched is None:
-            return ForkedNode(self, item)
+            return IndexProxyNode(self, item)
 
         return fetched
 
-    def add_out_port(self, port_destination: InPort, index=None):
+    def add_out_port(self, port_destination: InPort, index: str):
         """If this placeholder has been specified, we will add the out-port
         to the referee.
 
@@ -132,13 +128,15 @@ class PlaceholderNode(ProxyNode):
             Logging level for the node.
             By default only error logs are displayed.
         """
-
-        template = NodeTemplate.merge_deltablock(None,
-                                                 my_func,
-                                                 allow_const,
-                                                 node_key,
-                                                 name=self.key,
-                                                 lvl=lvl)
+        if hasattr(my_func, 'template'):
+            template = my_func.template
+        else:
+            template = NodeTemplate.merge_deltablock(None, [],
+                                                     my_func,
+                                                     allow_const,
+                                                     node_key,
+                                                     name=self.key,
+                                                     lvl=lvl)
 
         self.referee = template.call_with_graph(self.graph,
                                                 *self.future_in_port_args,
@@ -154,7 +152,7 @@ class PlaceholderNode(ProxyNode):
     def specify_by_process(self, process_template: InteractiveBodyTemplate,
                            **kwnodes):
         """Make this placeholder into a node with interactive body
-        with the given process function, and the given type of inputs and 
+        with the given process function, and the given type of inputs and
         outputs.
 
         Parameters
@@ -202,8 +200,12 @@ class PlaceholderNode(ProxyNode):
             Deltaflow programs in production it should be sufficient to use the
             inputs and return values of a block for communications.
         """
-        template = NodeTemplate.merge_deltamethod(None, method_func, node_key,
-                                                  name=self.key, lvl=lvl)
+        if hasattr(method_func, 'template'):
+            template = method_func.template
+        else:
+            template = NodeTemplate.merge_deltamethod(None, [],
+                                                      method_func, node_key,
+                                                      name=self.key, lvl=lvl)
 
         self.referee = template.call_with_graph(self.graph,
                                                 instance,

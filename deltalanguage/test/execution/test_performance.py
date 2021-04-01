@@ -6,11 +6,21 @@ units is updated the performance might benchmarks should too.
 
 Proposed topics:
 
-- time as metrics (test_blocking.py)
+- time as metrics (MOVE from test_blocking.py)
   - speed tests with a lot of messages
   - how queue blocking work
 
 - number of messages as metrics
-  - we don't have them so far
-
+  - we don't have them yet
 """
+
+import unittest
+
+import deltalanguage as dl
+
+from deltalanguage.test.execution.base import TestExecutionBaseDL, PYSIMULATOR
+
+
+class TestExecutionPerformance(TestExecutionBaseDL):
+
+    pass

@@ -1,13 +1,12 @@
 """Test of DeltaGraph class."""
 
 import os
-from typing import OrderedDict
+from typing import Tuple
 import unittest
 
 import deltalanguage as dl
 from deltalanguage.data_types import DeltaTypeError
-
-from deltalanguage.test._utils import return_1, TwoIntsT, TwoInts
+from deltalanguage.test._utils import return_1
 
 
 @dl.DeltaBlock()
@@ -15,20 +14,16 @@ def union_one_receiver(x: dl.Union([int])) -> int:
     return x
 
 
-ForkedReturnT, ForkedReturn = dl.make_forked_return({
-    'a': int, 'b': bool, 'c': int, 'd': int
-})
-
-
-@dl.DeltaBlock()
+@dl.DeltaBlock(outputs=[('a', int), ('b', bool), ('c', int), ('d', int)])
 def forked_return_output(x: dl.Int(dl.Size(8)),
-                         y: dl.Int(dl.Size(8))) -> ForkedReturnT:
-    return ForkedReturn(a=0, b=1, c=1, d=0)
+                         y: dl.Int(dl.Size(8))
+                         ) -> Tuple[int, bool, int, int]:
+    return 0, 1, 1, 0
 
 
-@dl.DeltaBlock()
-def forked_return_output_no_input() -> ForkedReturnT:
-    return ForkedReturn(a=0, b=1, c=1, d=0)
+@dl.DeltaBlock(outputs=[('a', int), ('b', bool), ('c', int), ('d', int)])
+def forked_return_output_no_input() -> Tuple[int, bool, int, int]:
+    return 0, 1, 1, 0
 
 
 @dl.DeltaBlock(allow_const=False)
@@ -51,15 +46,14 @@ class MigenFoo(dl.MigenNodeTemplate):
         template.add_pa_in_port('i', dl.Optional(dl.Int(dl.Size(8))))
 
 
-@dl.Interactive([('i', dl.Int(dl.Size(8)))], outputs=dl.Void)
+@dl.Interactive([('i', dl.Int(dl.Size(8)))])
 def interactive_func_no_output(node: dl.RealNode):
-    a = node.receive('i')
+    node.receive('i')
 
 
 template_no_output_no_body = dl.NodeTemplate(
     name="template_no_output_no_body",
-    inputs=[('i', dl.Int(dl.Size(8)))],
-    outputs=dl.Void
+    inputs=[('i', dl.Int(dl.Size(8)))]
 )
 
 
@@ -139,10 +133,10 @@ class DeltaGraphStrTest(unittest.TestCase):
 
         with dl.DeltaGraph() as graph:
             n1 = forked_return_output(1, 2)
-            n2 = template_no_output_no_body.call(n1.a)
+            template_no_output_no_body.call(n1.a)
             n3 = multi_body_no_output(n1.b)
-            n4 = MigenFoo().call(i=n1.d)
-            n5 = experiment_stopper(n1.c)
+            MigenFoo().call(i=n1.d)
+            experiment_stopper(n1.c)
 
         obj = Foo()
         n3.add_body(obj.method_func_no_output)
@@ -181,7 +175,7 @@ class DeltaGraphWiringWrongInputTest(unittest.TestCase):
                 AClass().add_x(b=1)
 
     def test_Interactive(self):
-        @dl.Interactive([('a', int)], dl.Void)
+        @dl.Interactive(inputs=[('a', int)])
         def foo(node):
             node.receive("a")
 
@@ -225,7 +219,7 @@ class DeltaGraphWiringNoOutputTest(unittest.TestCase):
                 AClass().foo(AClass().foo(1))
 
     def test_Interactive(self):
-        @dl.Interactive([('a', int)], dl.Void)
+        @dl.Interactive(inputs=[('a', int)])
         def foo(node):
             print(node.receive("a"))
 
@@ -249,9 +243,9 @@ class DeltaGraphWiringWrongOutputTest(unittest.TestCase):
     """
 
     def test_DeltaBlock(self):
-        @dl.DeltaBlock()
-        def foo(a: int) -> TwoIntsT:
-            return TwoInts(x=1, y=2)
+        @dl.DeltaBlock(outputs=[('x', int), ('y', int)])
+        def foo(a: int):
+            return 1, 2
 
         with self.assertRaises(dl.data_types.DeltaIOError):
             with dl.DeltaGraph():
@@ -260,18 +254,18 @@ class DeltaGraphWiringWrongOutputTest(unittest.TestCase):
     def test_DeltaMethodBlock(self):
         class AClass:
 
-            @dl.DeltaMethodBlock()
-            def foo(self, a: int) -> TwoIntsT:
-                return TwoInts(x=1, y=2)
+            @dl.DeltaMethodBlock(outputs=[('x', int), ('y', int)])
+            def foo(self, a: int):
+                return 1, 2
 
         with self.assertRaises(dl.data_types.DeltaIOError):
             with dl.DeltaGraph():
                 AClass().foo(AClass().foo(1).z)
 
     def test_Interactive(self):
-        @dl.Interactive([('a', int)], TwoIntsT)
+        @dl.Interactive([('a', int)], outputs=[('x', int), ('y', int)])
         def foo(node):
-            node.send(TwoInts(x=1, y=2))
+            node.send(x=1, y=2)
 
         with self.assertRaises(dl.data_types.DeltaIOError):
             with dl.DeltaGraph():
@@ -287,6 +281,15 @@ class DeltaGraphWiringWrongOutputTest(unittest.TestCase):
         with self.assertRaises(dl.data_types.DeltaIOError):
             with dl.DeltaGraph():
                 AMigenNode().call(a=AMigenNode().call(a=1).z)
+
+    def test_non_forked(self):
+        @dl.DeltaBlock()
+        def baa(a: int) -> int:
+            return 1
+
+        with self.assertRaises(dl.data_types.DeltaIOError):
+            with dl.DeltaGraph():
+                baa(baa(1).z)
 
 
 if __name__ == "__main__":

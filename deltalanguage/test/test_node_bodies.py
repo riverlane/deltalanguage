@@ -1,12 +1,10 @@
 import unittest
 from unittest.mock import Mock
+from typing import OrderedDict
 
-from deltalanguage.data_types import make_forked_return
 from deltalanguage.wiring import (PyConstBody,
                                   PyFuncBody,
                                   PyMethodBody)
-
-from deltalanguage.test._utils import TwoIntsT, TwoInts
 
 
 class MockCallback(Mock):
@@ -48,6 +46,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_arg = MockCallback()
         mock_arg.body.eval.return_value = 5
         mock_arg.index = None
+        mock_arg.outputs = OrderedDict([('x', int)])
         node_body = PyConstBody(self.mock_callback, mock_arg)
         node_body.eval()
         mock_arg.body.eval.assert_called()
@@ -58,6 +57,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_arg = MockCallback()
         mock_arg.body.eval.return_value = 5
         mock_arg.index = None
+        mock_arg.outputs = OrderedDict([('x', int)])
         node_body = PyConstBody(self.mock_callback, mock_arg)
         node_body.eval()
         node_body.eval()
@@ -66,8 +66,9 @@ class TestPyConstBody(unittest.TestCase):
     def test_forked_args(self):
         """If argument node gives forked return, only used indexed argument."""
         mock_arg = MockCallback()
-        mock_arg.body.eval.return_value = TwoInts(x=5, y=6)
+        mock_arg.body.eval.return_value = 5, 6
         mock_arg.index = 'x'
+        mock_arg.outputs = OrderedDict([('x', int), ('y', int)])
         node_body = PyConstBody(self.mock_callback, mock_arg)
         node_body.eval()
         self.mock_callback.assert_called_with(5)
@@ -77,6 +78,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = 5
         mock_kwarg.index = None
+        mock_kwarg.outputs = OrderedDict([('x', int)])
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
         node_body.eval()
         mock_kwarg.body.eval.assert_called()
@@ -87,6 +89,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = 5
         mock_kwarg.index = None
+        mock_kwarg.outputs = OrderedDict([('x', int)])
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
         node_body.eval()
         node_body.eval()
@@ -97,8 +100,9 @@ class TestPyConstBody(unittest.TestCase):
         argument.
         """
         mock_kwarg = MockCallback()
-        mock_kwarg.body.eval.return_value = TwoInts(x=5, y=6)
+        mock_kwarg.body.eval.return_value = 5, 6
         mock_kwarg.index = 'x'
+        mock_kwarg.outputs = OrderedDict([('x', int), ('y', int)])
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
         node_body.eval()
         self.mock_callback.assert_called_with(a=5)
@@ -117,6 +121,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_arg = MockCallback()
         mock_arg.body.eval.return_value = None
         mock_arg.index = None
+        mock_arg.outputs = OrderedDict([('x', int)])
         node_body = PyConstBody(self.mock_callback, mock_arg)
         with self.assertRaises(ValueError):
             node_body.eval()
@@ -124,9 +129,9 @@ class TestPyConstBody(unittest.TestCase):
     def test_receive_none_forked_arg_nonoptional(self):
         """None should not be received for args."""
         mock_arg = MockCallback()
-        mock_arg.body.eval.return_value = TwoInts(None, 3)
+        mock_arg.body.eval.return_value = None, 3
         mock_arg.index = 'x'
-        mock_arg.outputs = TwoIntsT
+        mock_arg.outputs = OrderedDict([('x', int), ('y', int)])
         node_body = PyConstBody(self.mock_callback, mock_arg)
         with self.assertRaises(ValueError):
             node_body.eval()
@@ -136,6 +141,7 @@ class TestPyConstBody(unittest.TestCase):
         mock_kwarg = MockCallback()
         mock_kwarg.body.eval.return_value = None
         mock_kwarg.index = None
+        mock_kwarg.outputs = OrderedDict([('x', int)])
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
         with self.assertRaises(ValueError):
             node_body.eval()
@@ -143,9 +149,9 @@ class TestPyConstBody(unittest.TestCase):
     def test_receive_none_forked_kwarg_nonoptional(self):
         """None should not be received for kwargs."""
         mock_kwarg = MockCallback()
-        mock_kwarg.body.eval.return_value = TwoInts(None, 3)
+        mock_kwarg.body.eval.return_value = None, 3
         mock_kwarg.index = 'x'
-        mock_kwarg.outputs = TwoIntsT
+        mock_kwarg.outputs = OrderedDict([('x', int), ('y', int)])
         node_body = PyConstBody(self.mock_callback, a=mock_kwarg)
         with self.assertRaises(ValueError):
             node_body.eval()

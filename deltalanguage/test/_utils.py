@@ -1,6 +1,11 @@
-"""Useful Blocks defined for testing purposes.
-Also contains some common tests that can be checked in many situations as long
-as there is a DeltaGraph
+"""Useful definitions for test suites only.
+
+Please note that these definitions are also used in test suites of
+Deltasimulator and Deltaruntime, thus if you do any changes make sure that
+their tests are checked as well.
+
+Also consider reorganizing this file and/or moving some routines to the
+primitive library ``deltalanguage.lib.primitives``.
 """
 
 import os
@@ -15,7 +20,9 @@ from deltalanguage.data_types import (BaseDeltaType,
                                       Void,
                                       Top,
                                       Optional,
-                                      make_forked_return)
+                                      UInt,
+                                      Size)
+from deltalanguage.lib.hal import command_creator
 from deltalanguage.runtime import DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
@@ -174,22 +181,14 @@ def add_non_const(n1: int, n2: int) -> int:
     return n1 + n2
 
 
-TwoIntsT, TwoInts = make_forked_return(
-    {
-        'x': int,
-        'y': int
-    }
-)
+@DeltaBlock(outputs=[('x', int), ('y', int)])
+def return_12():
+    return 1, 2
 
 
-@DeltaBlock()
-def return_12() -> TwoIntsT:
-    return TwoInts(1, 2)
-
-
-@DeltaBlock(allow_const=False)
-def return_12_non_const() -> TwoIntsT:
-    return TwoInts(1, 2)
+@DeltaBlock(outputs=[('x', int), ('y', int)], allow_const=False)
+def return_12_non_const():
+    return 1, 2
 
 
 @DeltaBlock()
@@ -232,15 +231,15 @@ def const_consumer(obj: Top) -> Void:
     pass
 
 
-@Interactive([('n', int)], TwoIntsT)
+@Interactive([('n', int)], [('x', int), ('y', int)])
 def opt_increment(node: PythonNode):
 
     n = 0
     while n < 3:
-        node.send(TwoInts(n, None))
+        node.send(n, None)
         n = node.receive("n")
 
-    node.send(TwoInts(None, n))
+    node.send(None, n)
 
 
 @DeltaBlock(allow_const=False)
@@ -312,32 +311,135 @@ class InputCheckerWithExit(InputChecker):
                 return item
 
 
-class MigenIncrementer(MigenNodeTemplate):
-    """MigenIncrementer defines a simple node that increments by one a received message
-    """
+class DUT1(MigenNodeTemplate):
 
     def migen_body(self, template):
-        # inputs and 1 output
-        in1 = template.add_pa_in_port('in1', Optional(int))
-        out1 = template.add_pa_out_port('out1', Optional(int))
+        # I/O:
+        i1 = template.add_pa_in_port("i1", Optional(int))
+        o1 = template.add_pa_out_port("o1", int)
 
-        # Counter
-        self.incremented = migen.Signal(10)
+        # LOGIC:
+        self.counter = migen.Signal(1000)
+        self.sync += self.counter.eq(self.counter + 1)
 
-        # for instance, at this clock the node is ready to input
-        self.comb += in1.ready.eq(1)
+        # Two memories for testing
+        self.specials.mem1 = mem1 = migen.Memory(32, 100, init=[5, 15, 32])
+        read_port1 = mem1.get_port()
+        self.specials.mem2 = mem2 = migen.Memory(32, 100, init=[2, 4, 6, 8])
+        read_port2 = mem2.get_port()
+        self.specials += read_port1
+        self.specials += read_port2
+        self.mem_out1 = migen.Signal(32)
+        self.mem_out2 = migen.Signal(32)
 
-        self.sync += migen.If(
-            out1.ready == 1,
-            migen.If(in1.valid,
-                     out1.data.eq(self.incremented),
-                     out1.valid.eq(0x1),
-                     self.incremented.eq(in1.data+1)
-                     ).Else(out1.valid.eq(0))
+        self.sync += (read_port1.adr.eq(self.counter),
+                      self.mem_out1.eq(read_port1.dat_r))
+
+        self.sync += (read_port2.adr.eq(self.counter),
+                      self.mem_out2.eq(read_port2.dat_r))
+
+        # DEBUGGING:
+        # add any signal you want to see in debugging and printing format
+        # (in_ports, out_ports, inputs, output are added by default):
+        self.debug_signals = {'counter': (self.counter, '05b')}
+
+        self.comb += migen.If(
+            self.counter >= 5,
+            i1.ready.eq(1)
+        )
+
+        self.comb += migen.If(
+            o1.ready == 1,
+            migen.If(
+                self.counter == 10,
+                o1.data.eq(self.counter+i1.data),
+                o1.valid.eq(1)
+            ).Else(
+                o1.valid.eq(0)
+            )
         )
 
 
-@DeltaBlock(allow_const=False)
-def print_then_exit(n: int) -> Void:
-    print(n)
+class MigenIncrementer(MigenNodeTemplate):
+
+    def migen_body(self, template):
+        # I/O:
+        i1 = template.add_pa_in_port("i1", Optional(int))
+        o1 = template.add_pa_out_port("o1", int)
+
+        self.comb += (
+            i1.ready.eq(1),
+        )
+
+        started = migen.Signal(1)
+
+        self.sync += migen.If(
+            i1.valid == 1,
+            o1.valid.eq(1),
+            o1.data.eq(i1.data+1)
+        ).Else(
+            o1.data.eq(0),
+            migen.If(started == 0,
+                     o1.valid.eq(1),
+                     started.eq(1)
+                     ).Else(
+                o1.valid.eq(0)
+            )
+        )
+
+
+@Interactive([("measurement", UInt(Size(32)))],
+             [("output", UInt(Size(32)))],
+             name="interactive_simple")
+def send_gates_list_then_exit(node: PythonNode):
+    cmds = ["RX", "RZ", "RY"]
+    # for non-deterministic tests use random.randint(0, 255)
+    args = [99, 250, 11]
+
+    node.send(command_creator("STATE_PREPARATION"))
+
+    for cmd, arg in zip(cmds, args):
+        node.send(command_creator(cmd, argument=arg))
+    node.send(command_creator("STATE_MEASURE"))
+
+    measurement = node.receive("measurement")
+    print(f"Measurement: {measurement}")
+
     raise DeltaRuntimeExit
+
+
+class TripleStateSaver:
+
+    def __init__(self, count: int):
+        self.max_count = count
+        self.curr_count = 0
+
+        self.x_store = []
+        self.y_store = []
+        self.z_store = []
+
+    @DeltaMethodBlock()
+    def multi_count_print_exit(self,
+                               x: Optional(int),
+                               y: Optional(int),
+                               z: Optional(bool)):
+        """Count and store messages until we receive self.max_count many, then 
+        print all stores and exit.
+        """
+        if x is not None:
+            self.x_store.append(x)
+            self.curr_count += 1
+
+        if y is not None:
+            self.y_store.append(y)
+            self.curr_count += 1
+
+        if z is not None:
+            self.z_store.append(z)
+            self.curr_count += 1
+
+        if self.curr_count >= self.max_count:
+            print(self.x_store)
+            print(self.y_store)
+            print(self.z_store)
+            raise DeltaRuntimeExit

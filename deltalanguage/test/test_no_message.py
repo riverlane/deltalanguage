@@ -1,4 +1,4 @@
-"""Testing Void behaviour.
+"""Testing no output behaviour.
 """
 
 import unittest
@@ -8,7 +8,7 @@ import deltalanguage as dl
 from deltalanguage.test._utils import printer
 
 
-class VoidTest(unittest.TestCase):
+class NoOutputTest(unittest.TestCase):
 
     def test_error_thrown(self):
         """Nodes without output ports cannot produce output.

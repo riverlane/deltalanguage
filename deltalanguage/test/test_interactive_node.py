@@ -1,24 +1,24 @@
 import logging
 import threading
-import time
 import unittest
 
-from deltalanguage.data_types import as_delta_type, Void, DeltaIOError
+
+from deltalanguage.data_types import as_delta_type, DeltaIOError, Optional
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
 from deltalanguage._utils import QueueMessage
 from deltalanguage.wiring import (DeltaBlock,
+                                  DeltaMethodBlock,
                                   DeltaGraph,
                                   Interactive,
                                   PythonNode,
-                                  placeholder_node_factory)
-
-from deltalanguage.test._utils import (TwoInts,
-                                       TwoIntsT,
-                                       add_non_const,
+                                  placeholder_node_factory,
+                                  InteractiveBodyTemplate)
+from deltalanguage.test._utils import (add_non_const,
                                        const_consumer,
                                        return_1,
-                                       return_2)
+                                       return_2,
+                                       TripleStateSaver)
 
 
 @DeltaBlock(name="node")
@@ -26,7 +26,7 @@ def int_to_str(n: int) -> str:
     return str(n)
 
 
-@Interactive(inputs=[("num", str)], outputs=int, name="blah")
+@Interactive(inputs=[("num", str)], outputs=[('out', int)], name="blah")
 def interactive_func(node: PythonNode):
     node.send(3)
     num = node.receive()["num"]
@@ -34,7 +34,7 @@ def interactive_func(node: PythonNode):
     node.send(num + 1)
 
 
-@Interactive(inputs=[("num", int)], outputs=int)
+@Interactive(inputs=[("num", int)], outputs=[('out', int)])
 def forward(node: PythonNode):
     for _ in range(10):
         num = node.receive("num")
@@ -42,23 +42,23 @@ def forward(node: PythonNode):
     raise DeltaRuntimeExit
 
 
-@Interactive(inputs=[("num", int)], outputs=TwoIntsT)
+@Interactive(inputs=[("num", int)], outputs=[('x', int), ('y', int)])
 def add_until_10(node: PythonNode):
     """Sends num on the left port until it is greater than 10, then sends it
     on the right port.
     """
     num = 1
     while num < 10:
-        node.send(TwoInts(num, None))
+        node.send(num, None)
         num = node.receive()["num"]
-    node.send(TwoInts(None, num))
+    node.send(None, num)
 
 
 class InteractiveNodeGeneralTest(unittest.TestCase):
     """Unsorted testes of interactive nodes."""
 
     def test_interactive_node_without_io(self):
-        """Interactive node must have I/O. 
+        """Interactive node must have I/O.
 
         We chose this rule because runtime simulators,
         in particular the Python GIL, wouldn't know when to
@@ -68,8 +68,8 @@ class InteractiveNodeGeneralTest(unittest.TestCase):
         """
 
         with self.assertRaises(DeltaIOError):
-            @Interactive([], Void)
-            def bar(node):
+            @Interactive()
+            def _bar(node):
                 while True:
                     pass
 
@@ -77,7 +77,7 @@ class InteractiveNodeGeneralTest(unittest.TestCase):
         """An interactive node with I/O can be just forgotten during graph
         construction. We check that it is connected.
         """
-        @Interactive([], int)
+        @Interactive(outputs=[('output', int)])
         def bar(node):
             node.send(1)
 
@@ -90,7 +90,7 @@ class InteractiveNodeGeneralTest(unittest.TestCase):
     def test_interactive_inputs_by_position(self):
         """Test that interactive inputs can now be given positionally in wiring
         """
-        @Interactive([('a', int), ('b', float)], int)
+        @Interactive([('a', int), ('b', float)], [('output', int)])
         def add_int_float(node):
             a = node.receive('a')
             b = node.receive('b')
@@ -102,10 +102,10 @@ class InteractiveNodeGeneralTest(unittest.TestCase):
         self.assertTrue(graph.check())
 
     def test_interactive_inputs_by_hybrid(self):
-        """Test that interactive inputs can now be given positionally and 
+        """Test that interactive inputs can now be given positionally and
         by keyword at the same time in wiring
         """
-        @Interactive([('a', int), ('b', float)], int)
+        @Interactive([('a', int), ('b', float)], [('output', int)])
         def add_int_float(node):
             a = node.receive('a')
             b = node.receive('b')
@@ -140,14 +140,14 @@ class SimpleGraph(unittest.TestCase):
         self.assertEqual(len(interactive_node.in_ports), 1)
         self.assertEqual(len(interactive_node.out_ports), 1)
         self.assertTupleEqual(interactive_node.out_ports[0].port_name,
-                              (interactive_node.name, None))
+                              (interactive_node.name, 'out'))
         self.assertEqual(str(interactive_node.out_ports[0].port_type),
                          str(as_delta_type(int)))
 
         self.assertEqual(len(dummy_node.in_ports), 1)
         self.assertEqual(len(dummy_node.out_ports), 1)
         self.assertTupleEqual(interactive_node.out_ports[0].port_name,
-                              (interactive_node.name, None))
+                              (interactive_node.name, 'out'))
         self.assertEqual(str(dummy_node.out_ports[0].port_type),
                          str(as_delta_type(str)))
 
@@ -160,7 +160,7 @@ class SimpleGraph(unittest.TestCase):
         """
         inter_node: PythonNode = self.graph.find_node_by_name("blah")
         in_q = self.runtime.in_queues[inter_node.name]["num"]
-        out_q = self.runtime.out_queues[inter_node.name][None]
+        out_q = self.runtime.out_queues[inter_node.name]["out"]
 
         thread = threading.Thread(target=inter_node.thread_worker,
                                   args=(self.runtime,))
@@ -254,6 +254,167 @@ class ComplexGraph(unittest.TestCase):
 
     def test_graph_properties(self):
         self.graph.check()
+
+
+@Interactive(outputs=[('x', int), ('y', int), ('z', bool)])
+def positional_send(node: PythonNode):
+    """Send to multiple outputs via different positional methods
+    None, or not specifying enough positions can be used to send nothing
+    """
+    node.send(1, 2, False)
+    node.send(3, 4)
+    node.send(5)
+    node.send(6, None)
+    node.send(None, None, True)
+    node.send(7, None, False)
+    node.send(10)
+
+
+@Interactive(outputs=[('x', int), ('y', int), ('z', bool)])
+def keyword_send(node: PythonNode):
+    """Send to multiple outputs via different keyword methods
+    None, or just not specficing a keyword can be used to send nothing
+    """
+    node.send(x=1)
+    node.send(y=2)
+    node.send()
+    node.send(z=True)
+    node.send(x=3, y=4, z=False)
+    node.send(x=5, y=6)
+    node.send(x=7, z=False)
+    node.send(y=8, z=True)
+    node.send(y=None, x=9, z=None)
+    node.send(z=False, x=None)
+    node.send(x=10)
+
+
+@Interactive(outputs=[('x', int), ('y', int), ('z', bool)])
+def positional_and_keyword_send(node: PythonNode):
+    """Send to multiple outputs via hybrid positional and keyword methods
+    None, or just not specficing a keyword/position can be used to send nothing
+    """
+    node.send(1, 2, z=False)
+    node.send(3, y=4)
+    node.send(5, z=True)
+    node.send(None, z=False, y=6)
+    node.send(None, 7, z=True)
+    node.send(8, None, z=False)
+    node.send(10, y=None, z=None)
+
+
+@Interactive(outputs=[('x', int), ('y', int), ('z', bool)])
+def multiple_specify_kwarg_position_first(node: PythonNode):
+    """Specify the same value twice, once by posiiton and once by keyword
+    """
+    node.send(1, x=5)
+
+
+@Interactive(outputs=[('x', int), ('y', int), ('z', bool)])
+def multiple_specify_kwarg_position_second(node: PythonNode):
+    """Specify the same value twice, once by posiiton and once by keyword
+    on not the first value in outputs order
+    """
+    node.send(1, 2, y=5)
+
+
+@Interactive(outputs=[('x', int), ('y', int), ('z', bool)])
+def too_many_positional(node: PythonNode):
+    """Attempt to send too many positional arguments out of a node
+    """
+    node.send(1, 2, False, 3)
+
+
+@Interactive(outputs=[('x', int), ('y', int), ('z', bool)])
+def invalid_kwarg(node: PythonNode):
+    """Attempt to send via an invalid keyword
+    """
+    node.send(x=1, foo=7)
+
+
+class TestInteractiveSendBehaviour(unittest.TestCase):
+    """Test the different ways an interactive body can use
+    `node.send()` to send values to multiple outputs
+    """
+
+    def test_positional_interactive_send(self):
+        ts = TripleStateSaver(11)
+
+        with DeltaGraph() as graph:
+            i_send = positional_send.call()
+            ts.multi_count_print_exit(i_send.x, i_send.y, i_send.z)
+
+        DeltaPySimulator(graph).run()
+
+        self.assertEqual(ts.x_store, [1, 3, 5, 6, 7, 10])
+        self.assertEqual(ts.y_store, [2, 4])
+        self.assertEqual(ts.z_store, [False, True, False])
+
+    def test_keyword_interactive_send(self):
+        ts = TripleStateSaver(15)
+
+        with DeltaGraph() as graph:
+            i_send = keyword_send.call()
+            ts.multi_count_print_exit(i_send.x, i_send.y, i_send.z)
+
+        DeltaPySimulator(graph).run()
+
+        self.assertEqual(ts.x_store, [1, 3, 5, 7, 9, 10])
+        self.assertEqual(ts.y_store, [2, 4, 6, 8])
+        self.assertEqual(ts.z_store, [True, False, False, True, False])
+
+    def test_keyword_positional_interactive_send(self):
+        ts = TripleStateSaver(14)
+
+        with DeltaGraph() as graph:
+            i_send = positional_and_keyword_send.call()
+            ts.multi_count_print_exit(i_send.x, i_send.y, i_send.z)
+
+        DeltaPySimulator(graph).run()
+
+        self.assertEqual(ts.x_store, [1, 3, 5, 8, 10])
+        self.assertEqual(ts.y_store, [2, 4, 6, 7])
+        self.assertEqual(ts.z_store, [False, True, False, True, False])
+
+    def test_invalid_kwarg(self):
+        ts = TripleStateSaver(1)
+
+        with DeltaGraph() as graph:
+            i_send = invalid_kwarg.call()
+            ts.multi_count_print_exit(i_send.x, i_send.y, i_send.z)
+
+        with self.assertRaises(RuntimeError):
+            DeltaPySimulator(graph).run()
+
+    def test_too_many_positional(self):
+        ts = TripleStateSaver(1)
+
+        with DeltaGraph() as graph:
+            i_send = too_many_positional.call()
+            ts.multi_count_print_exit(i_send.x, i_send.y, i_send.z)
+
+        with self.assertRaises(RuntimeError):
+            DeltaPySimulator(graph).run()
+
+    def test_multi_specify_by_position_and_kwarg(self):
+        saver_x = StateSaver(int)
+
+        with DeltaGraph() as graph_1:
+            i_send = multiple_specify_kwarg_position_first.call()
+            saver_x.save_and_exit_if(i_send.x)
+
+        with self.assertRaises(RuntimeError):
+            DeltaPySimulator(graph_1).run()
+
+        saver_x = StateSaver(int, lambda x: x >= 10)
+        saver_y = StateSaver(int)
+
+        with DeltaGraph() as graph_2:
+            i_send = multiple_specify_kwarg_position_second.call()
+            saver_x.save_and_exit_if(i_send.x)
+            saver_y.save(i_send.y)
+
+        with self.assertRaises(RuntimeError):
+            DeltaPySimulator(graph_2).run()
 
 
 if __name__ == "__main__":

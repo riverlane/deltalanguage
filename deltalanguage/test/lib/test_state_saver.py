@@ -1,11 +1,12 @@
 import tempfile
 import unittest
 
+import attr
+
 from deltalanguage.lib import StateSaver
 from deltalanguage.wiring import DeltaGraph, DeltaBlock
 from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.data_types import Record, Union, Array, Size, Tuple
-import attr
+from deltalanguage.data_types import Union, Array, Size, Tuple
 
 
 @attr.s(slots=True)

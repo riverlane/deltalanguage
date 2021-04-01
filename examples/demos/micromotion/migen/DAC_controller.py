@@ -152,10 +152,8 @@ class DACController(dl.MigenNodeTemplate):
         )
 
 
-TbT, TbC = dl.make_forked_return({'cmd': dl.Int(), 'param': dl.Int()})
-
-
-@dl.Interactive([('dac_status', dl.Int()), ('dac_voltage', dl.Int())], TbT)
+@ dl.Interactive(inputs=[('dac_status', dl.Int()), ('dac_voltage', dl.Int())],
+                 outputs=[('cmd', dl.Int()), ('param', dl.Int())])
 def testbench(node):
     """ Testbench for the DAC controller node, coverage of all commands
     and parameters, out of range values, assertion of expected results
@@ -165,13 +163,13 @@ def testbench(node):
         # check if the module is READY
         if cmd != DAC_STATUS:
             while True:
-                node.send(TbC(cmd=DAC_STATUS, param=None))
+                node.send(cmd=DAC_STATUS)
                 status = node.receive('dac_status')
                 if status == READY:
                     break
                     time.sleep(1e-6)
 
-        node.send(TbC(cmd=cmd, param=param))
+        node.send(cmd=cmd, param=param)
 
         if cmd == DAC_STATUS:
             status = node.receive('dac_status')

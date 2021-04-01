@@ -4,7 +4,6 @@ Done by ensuring we can receive messages from the node.
 
 Tests for function and method blocks, as well as placeholder specify methods.
 """
-from typing import OrderedDict
 import unittest
 
 from deltalanguage.data_types import DeltaIOError, Void
@@ -82,7 +81,7 @@ class TestNodeKey(unittest.TestCase):
 
 test_template1 = NodeTemplate(name="NodeKeyTestTemplate",
                               inputs=[('a', int), ('b', int)],
-                              outputs=Void, node_key='node')
+                              node_key='node')
 
 
 class Foo_T:
@@ -109,7 +108,7 @@ class TestNodeKeyTemplated(unittest.TestCase):
 
     def test_template_different_selected(self):
         """Test that node key is still correctly used on a multi-body
-        node that has its body selected different from the one that was 
+        node that has its body selected different from the one that was
         specified via the constructor.
         """
         foo = Foo_T()

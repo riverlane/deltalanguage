@@ -222,11 +222,8 @@ class TimestamperModel(dl.MigenNodeTemplate):
         self.submodules += [self.timestamper_inst, self.pulser_inst]
 
 
-TbT, TbC = dl.make_forked_return({'reset': dl.Int(),
-                                  'photon': dl.Int()})
-
-
-@dl.Interactive([('time', dl.UInt()), ('error', dl.Int())], TbT)
+@dl.Interactive(inputs=[('time', dl.UInt()), ('error', dl.Int())],
+                outputs=[('reset', dl.Int()), ('photon', dl.Int())])
 def testbench(node):
     """ Testbench for Timestamper model node. Starts with random testing
     and ends with corner cases
@@ -250,7 +247,7 @@ def testbench(node):
 def do_test(iteration, photon, node):
     # input register delay in timestamper
     delay_chain = 3
-    node.send(TbC(reset=1, photon=photon))
+    node.send(reset=1, photon=photon)
     logging.debug(f'Testbench iter {iteration} [photon arrival time {photon}]')
 
     # compare expected vs actual time

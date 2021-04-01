@@ -8,8 +8,7 @@ class NamespacedName(NamedTuple):
     domain and index in that domain.
 
     For example, it's used in :py:class:`OutPort<deltalanguage.wiring.OutPort>`
-    a node has forked outputs sent to multiple destinations.
-    `domain` specifies the name of the node and `n_index` specifies which
+    where `domain` specifies the name of the node and `n_index` specifies which
     result :py:class:`OutPort<deltalanguage.wiring.OutPort>` is meant to send
     on.
     In case if the node has a single output `n_index` is `None`.

@@ -126,13 +126,13 @@ class MixedGraphTest(unittest.TestCase):
         with self.subTest(msg="Queue out of add_member should be aged"):
             method_node = self.graph.find_node_by_name("add_member")
             self.assertIsInstance(
-                self.runtime.out_queues[method_node.name][None],
+                self.runtime.out_queues[method_node.name]["output"],
                 dl.runtime.DeltaQueue)
 
         with self.subTest(msg="Queue out of const node should be const queue"):
             const_node = self.graph.find_node_by_name("add")
             self.assertIsInstance(
-                self.runtime.out_queues[const_node.name][None],
+                self.runtime.out_queues[const_node.name]["output"],
                 dl.runtime.ConstQueue)
 
     def test_optional(self):
@@ -140,7 +140,7 @@ class MixedGraphTest(unittest.TestCase):
         mandatory.
         """
         method_node = self.graph.find_node_by_name("add_member")
-        is_opt = self.runtime.out_queues[method_node.name][None].optional
+        is_opt = self.runtime.out_queues[method_node.name]["output"].optional
         self.assertFalse(is_opt)
 
     def test_start(self):
@@ -291,7 +291,7 @@ class RuntimeConstantNodeAndOptionalTest(unittest.TestCase):
             else:
                 return a + b
 
-        @dl.Interactive([('a', int)], int)
+        @dl.Interactive([('a', int)], [('out', int)])
         def aggregator(node):
             result = 0
             for _ in range(n_iter):

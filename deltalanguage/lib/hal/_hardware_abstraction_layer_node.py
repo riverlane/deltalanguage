@@ -6,7 +6,7 @@ from ..quantum_simulators import IQuantumSimulator
 hal_template = NodeTemplate(
     name="QSim",
     inputs=[('hal_command', UInt(Size(32)))],
-    outputs=UInt(Size(32))
+    outputs=[('output', UInt(Size(32)))]
 )
 
 class HardwareAbstractionLayerNode:

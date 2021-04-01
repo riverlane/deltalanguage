@@ -12,7 +12,7 @@ the top level module and can be used like this:
 .. code-block:: python
 
     import deltalanguage as dl
-    
+
     logger = dl.make_logger(30, 'test_logger')
     logger.warning("We have a warning!")
 """

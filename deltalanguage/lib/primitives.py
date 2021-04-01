@@ -1,23 +1,23 @@
 """
 Primitives for examples, tests, and just general use.
 """
-import json
 from copy import deepcopy
-from typing import Callable, Iterable, Type, Union
+import inspect
+import json
+import typing
 
-from ..data_types import (BaseDeltaType, Void,
-                          delta_type, make_forked_return,
+from ..data_types import (BaseDeltaType, Void, delta_type,
                           Complex, Array, Record, Tuple)
 from ..runtime import DeltaRuntimeExit
 from ..wiring import (DeltaBlock,
-                      DeltaMethodBlock,
                       Interactive,
                       PythonNode,
                       InteractiveBodyTemplate)
 
 
-def make_generator(val: Union[object, Iterable],
+def make_generator(val: typing.Union[object, typing.Iterable],
                    reps: int = None,
+                   as_delta_type: BaseDeltaType = None,
                    verbose: bool = False) -> InteractiveBodyTemplate:
     """Used to create a generator node that
     produces a series of messages of the same data type.
@@ -28,15 +28,20 @@ def make_generator(val: Union[object, Iterable],
 
     Parameters
     ----------
-    val : Union[object, Iterable]
+    val : typing.Union[object, typing.Iterable]
         The output value(s) of the generator.
         Its Deltaflow type is recognized automatically by
         :py:class:`delta_type<deltalanguage.data_types.delta_type>`.
         See ``reps`` for explanation.
     reps : int
         Number of repeated messages.
-        If ``reps`` is ``None`` then ``val`` must be iterable.
-        If ``reps`` is an integer then `val` is sent out this number of times.
+        If ``None`` then ``val`` must be iterable.
+        Otherwise it is an integer, then ``val`` is sent out this number
+        of times.
+    as_delta_type : BaseDeltaType
+        If not ``None``, this type will overwrite the automatically recognized
+        type from ``val``. For instance if you wish to send `Int16`, instead
+        of `Int32`.
     verbose : bool
         If ``True`` prints the status.
 
@@ -54,7 +59,7 @@ def make_generator(val: Union[object, Iterable],
         >>> generator = dl.lib.make_generator(10, reps=5)
 
         # Receive 5 integers and send their sum
-        >>> @dl.Interactive([("a", int)], int)
+        >>> @dl.Interactive([("a", int)], [('output', int)])
         ... def accumulator(node):
         ...     memory = []
         ...     for _ in range(5):
@@ -68,8 +73,7 @@ def make_generator(val: Union[object, Iterable],
         >>> with dl.DeltaGraph() as graph:
         ...     generator_out = generator.call()
         ...     accumulator_out = accumulator.call(a=generator_out)
-        ...     s.save_and_exit(accumulator_out) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(accumulator_out)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -84,15 +88,14 @@ def make_generator(val: Union[object, Iterable],
         >>> with dl.DeltaGraph() as graph:
         ...     generator_out = generator.call()
         ...     accumulator_out = accumulator.call(a=generator_out)
-        ...     s.save_and_exit(accumulator_out) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(accumulator_out)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 15
     """
     if reps is None:
-        if not isinstance(val, Iterable):
+        if not isinstance(val, typing.Iterable):
             raise ValueError('If reps is None, then val must be iterable')
 
         elem_type = delta_type(val[0])
@@ -104,7 +107,10 @@ def make_generator(val: Union[object, Iterable],
         elem_type = delta_type(val)
         vals_to_send = (deepcopy(val) for _ in range(reps))
 
-    @Interactive([], elem_type)
+    if as_delta_type is not None:
+        elem_type = as_delta_type
+
+    @Interactive(outputs=[('out', elem_type)])
     def generator(node: PythonNode):
         for v in vals_to_send:
             if verbose:
@@ -115,9 +121,9 @@ def make_generator(val: Union[object, Iterable],
     return generator
 
 
-def make_splitter(t: Union[Type, BaseDeltaType],
+def make_splitter(t: typing.Union[typing.Type, BaseDeltaType],
                   reps: int,
-                  allow_const=True) -> Callable:
+                  allow_const=True) -> typing.Callable:
     """Used to create a splitter node, which sends multiple copies of
     incoming messages to different nodes via individual outputs.
 
@@ -143,40 +149,44 @@ def make_splitter(t: Union[Type, BaseDeltaType],
         >>> with dl.DeltaGraph() as graph:
         ...     splitter_out = splitter(10)
         ...     adder_out = adder(splitter_out.out0, splitter_out.out1)
-        ...     state_saver.save_and_exit(adder_out) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     state_saver.save_and_exit(adder_out)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving 20
     """
-    _SplitterT, _SplitterC = make_forked_return(
-        {'out' + str(i): t for i in range(reps)}
-    )
+    outputs = [('out' + str(i), t) for i in range(reps)]
 
-    @DeltaBlock(name="splitter", allow_const=allow_const)
-    def _splitter(to_split: t) -> _SplitterT:
-        return _SplitterC(*(deepcopy(to_split) for _ in range(reps)))
+    @DeltaBlock(outputs=outputs, name="splitter", allow_const=allow_const)
+    def _splitter(to_split: t):
+        return tuple(deepcopy(to_split) for _ in range(reps))
+
+    # Dynamically annotated function does not get signature set
+    # properly, so to use normal interface we have to manually set it
+    params = [inspect.Parameter('to_split',
+                                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                annotation=t)]
+    _splitter.__signature__ = inspect.Signature(parameters=params)
 
     return _splitter
 
 
 class DeltaJsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        obj_type = delta_type(obj)
+    def default(self, o):
+        obj_type = delta_type(o)
         if isinstance(obj_type, Complex):
-            return {"real": obj.real, "imaginary": obj.imag}
+            return {"real": o.real, "imaginary": o.imag}
         elif isinstance(obj_type, (Array, Tuple)):
-            return [self.default(o) for o in obj]
+            return [self.default(o) for o in o]
         elif isinstance(obj_type, Record):
-            props = obj.__annotations__.keys()
-            d = {p: self.default(getattr(obj, p)) for p in props}
+            props = o.__annotations__.keys()
+            d = {p: self.default(getattr(o, p)) for p in props}
             return d
 
         # Assume it's encodable; if we go back to JSONEncoder.default
         # this just returns a type error. See:
         # https://docs.python.org/3/library/json.html#json.JSONEncoder.default
-        return obj
+        return o
 
 
 class StateSaver:
@@ -188,9 +198,9 @@ class StateSaver:
 
     Parameters
     ----------
-    t : Union[Type, BaseDeltaType]
+    t : typing.Union[typing.Type, BaseDeltaType]
         Type of messages, by default object.
-    condition : Callable
+    condition : typing.Callable
         Used for the conditional blocks, see examples.
     verbose : bool
         If ``True`` prints a status on node's activation.
@@ -213,16 +223,14 @@ class StateSaver:
         >>> s = dl.lib.StateSaver(int, verbose=True)
 
         >>> with dl.DeltaGraph() as graph:
-        ...     s.save(42) # doctest:+ELLIPSIS
-        save...
+        ...     s.save(42)
 
     Same as ``save`` but followed by the formal graph exit:
 
     .. code-block:: python
 
         >>> with dl.DeltaGraph() as graph:
-        ...     s.save_and_exit(42) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(42)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -236,8 +244,7 @@ class StateSaver:
         >>> s = dl.lib.StateSaver(int, condition=lambda x: x>10, verbose=True)
 
         >>> with dl.DeltaGraph() as graph:
-        ...     s.save_and_exit_if(42) # doctest:+ELLIPSIS
-        save_and_exit_if...
+        ...     s.save_and_exit_if(42)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -254,8 +261,7 @@ class StateSaver:
 
         >>> with dl.DeltaGraph() as graph:
         ...     status = s0.save_and_ack(gen.call())
-        ...     s1.save_and_exit(status) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s1.save_and_exit(status)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -272,8 +278,7 @@ class StateSaver:
 
         >>> with dl.DeltaGraph() as graph:
         ...     message = s0.transfer(gen.call())
-        ...     s1.save_and_exit(message) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s1.save_and_exit(message)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -291,8 +296,7 @@ class StateSaver:
 
         >>> with dl.DeltaGraph() as graph:
         ...     message = s0.transfer_if(gen.call())
-        ...     s1.save_and_exit(message) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s1.save_and_exit(message)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -306,7 +310,7 @@ class StateSaver:
         will cause execution in Deltasimulator to fail.
     """
 
-    def __init__(self, t: Union[Type, BaseDeltaType] = object,
+    def __init__(self, t: typing.Union[typing.Type, BaseDeltaType] = object,
                  condition=None,
                  verbose=False,
                  filename=None):

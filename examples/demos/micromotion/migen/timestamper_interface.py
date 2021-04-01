@@ -140,7 +140,8 @@ class TimestampChipInterface(dl.MigenNodeTemplate):
         )
 
 
-@dl.Interactive([('time_out', dl.UInt()), ('reset', dl.Int())], dl.UInt())
+@dl.Interactive(inputs=[('time_out', dl.UInt()), ('reset', dl.Int())],
+                outputs=[('output', dl.UInt())])
 def testbench(node):
     """ Testbench for Timestamper interface node. Starts with random testing
     and ends with corner cases

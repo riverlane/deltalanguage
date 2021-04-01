@@ -18,8 +18,8 @@ if TYPE_CHECKING:
 def serialize_graph(
     graph: DeltaGraph,
     name: str = None,
-    files: List[str] = [],
-    requirements: List[str] = []
+    files: List[str] = None,
+    requirements: List[str] = None
 ) -> Tuple[bytes, capnp.lib.capnp._DynamicStructBuilder]:
     """Converts a complete representation of the Deltaflow program stored as
     a :py:class:`DeltaGraph<deltalanguage.wiring.DeltaGraph>` to bytecode.
@@ -47,6 +47,9 @@ def serialize_graph(
     capnp.lib.capnp._DynamicStructBuilder
         Data schema.
     """
+    files = files if files is not None else []
+    requirements_s = set(requirements) if requirements is not None else set()
+
     schema = dotdf_capnp.Program.new_message()
     if name:
         schema.name = name
@@ -65,9 +68,8 @@ def serialize_graph(
             with open(filename, "rb") as df_zip:
                 schema.files = df_zip.read()
 
-    requirements = set(requirements)
-    req_list = schema.init("requirements", len(requirements))
-    for i, req in enumerate(requirements):
+    req_list = schema.init("requirements", len(requirements_s))
+    for i, req in enumerate(requirements_s):
         req_list[i] = req
 
     graph.do_automatic_splitting()

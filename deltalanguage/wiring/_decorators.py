@@ -5,27 +5,13 @@ from functools import wraps
 import logging
 from typing import (TYPE_CHECKING,
                     Callable,
-                    Dict,
                     List,
                     Optional,
-                    OrderedDict,
                     Tuple,
-                    Type,
-                    Union)
+                    Type)
 
-import attr
-
-from deltalanguage.data_types import (BaseDeltaType,
-                                      DeltaTypeError,
-                                      Optional,
-                                      ForkedReturn,
-                                      as_delta_type,
-                                      Void)
 from ._delta_graph import DeltaGraph
-from ._node_classes.real_nodes import (as_node,
-                                       get_func_inputs_outputs,
-                                       PythonNode)
-from ._node_classes.node_bodies import PyInteractiveBody
+from ._node_classes.real_nodes import PythonNode
 from ._node_templates import NodeTemplate, InteractiveBodyTemplate
 
 if TYPE_CHECKING:
@@ -33,6 +19,7 @@ if TYPE_CHECKING:
 
 
 def DeltaBlock(
+    outputs: List[Tuple[str, Type]] = None,
     template: NodeTemplate = None,
     allow_const: bool = True,
     node_key: Optional[str] = None,
@@ -40,7 +27,7 @@ def DeltaBlock(
     in_port_size: int = 0,
     latency: Latency = None,
     lvl: int = logging.ERROR,
-    tags: List[str] = []
+    tags: List[str] = None
 ):
     """Decorator to turn a function to a block for use in
     :py:class:`DeltaGraph`.
@@ -62,6 +49,8 @@ def DeltaBlock(
 
     Parameters
     ----------
+    outputs : List[Tuple[str, Type]]
+        The types and names of the outputs for the node to be made.
     template : NodeTemplate
         Associate this node constructor with this specfied existing node
         template rather than a newly created one.
@@ -115,11 +104,9 @@ def DeltaBlock(
 
         >>> with dl.DeltaGraph() as graph:
         ...     foo_out = foo(5)
-        ...     s.save_and_exit(foo_out) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(foo_out)
 
-        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
-        >>> rt.run() # doctest: +SKIP
+        >>> dl.DeltaPySimulator(graph).run()
         saving 10
 
     Nodes can also have multiple inputs:
@@ -136,18 +123,43 @@ def DeltaBlock(
     .. code-block:: python
 
         >>> with dl.DeltaGraph() as graph:
-        ...     s.save_and_exit(bar(a=9, b=9)) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(bar(a=9, b=9))
 
-        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
-        >>> rt.run() # doctest: +SKIP
+        >>> dl.DeltaPySimulator(graph).run()
         saving 81
 
-    For multiple outputs please refer to examples for
-    :py:func:`make_forked_return<deltalanguage.data_types.make_forked_return>`.
+    Nodes can send multiple outputs by specifying the names and types of these
+    outputs in the decorator. When doing this, no output type annotation is
+    needed.
+
+    .. code-block:: python
+
+        >>> @dl.DeltaBlock(outputs=[('x', int), ('y', int)])
+        ... def baz(a: int, b: int):
+        ...     return a+5, a*b
+
+    We can then refer to the different outputs of this node using indexing,
+    where the index matches the name of the output as specified in the
+    decorator.
+
+    .. code-block:: python
+
+        >>> with dl.DeltaGraph() as graph_2:
+        ...     baz_out = baz(10, 2)
+        ...     s.save_and_exit(bar(baz_out.x, baz_out.y))
+
+        >>> dl.DeltaPySimulator(graph_2).run()
+        saving 300
+
+    You can use indexing to reference the output of a node with only one
+    output, its default name will be ``output``. However, you can also
+    specify and use another name, by setting the decorator ``outputs``
+    paramater with just a single output.
     """
     def decorator(func):
+        _outputs = outputs if outputs is not None else []
         my_template = NodeTemplate.merge_deltablock(template,
+                                                    _outputs,
                                                     func,
                                                     allow_const,
                                                     node_key,
@@ -176,7 +188,7 @@ def DeltaBlock(
             the result of function evaluation or the created node
             """
             if DeltaGraph.stack():
-                # There is currently an active DeltaGraph so use tempalte
+                # There is currently an active DeltaGraph so use template
                 return my_template.call(*args, **kwargs)
             else:
                 # No DeltaGraph active so evaluate function as usual
@@ -187,13 +199,14 @@ def DeltaBlock(
 
 
 def DeltaMethodBlock(
+    outputs: List[Tuple[str, Type]] = None,
     template: NodeTemplate = None,
     name: str = None,
     node_key: Optional[str] = None,
     in_port_size: int = 0,
     latency: Latency = None,
     lvl: int = logging.ERROR,
-    tags: List[str] = []
+    tags: List[str] = None
 ):
     """Decorator to turn a class method to a block for use in
     :py:class:`DeltaGraph`.
@@ -220,6 +233,11 @@ def DeltaMethodBlock(
 
     Parameters
     ----------
+    outputs : List[Tuple[str, Type]]
+        The types and names of the outputs for the node to be made.
+    template : NodeTemplate
+        Associate this node constructor with this specfied existing node
+        template rather than a newly created one.
     name : str
         The name of the node to be made.
     node_key : Optional[str]
@@ -271,11 +289,9 @@ def DeltaMethodBlock(
         >>> s = dl.lib.StateSaver(object, verbose=True)
 
         >>> with dl.DeltaGraph() as graph:
-        ...     s.save_and_exit(my_obj.bar(5)) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(my_obj.bar(5))
 
-        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
-        >>> rt.run() # doctest: +SKIP
+        >>> dl.DeltaPySimulator(graph).run()
         saving 15
 
     However if the internal state of the object changes (before or during),
@@ -285,19 +301,17 @@ def DeltaMethodBlock(
 
         >>> my_obj.x = 15
 
-        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
-        >>> rt.run() # doctest: +SKIP
+        >>> dl.DeltaPySimulator(graph).run()
         saving 20
 
-    Nodes can also have multiple inputs exactly as
+    Nodes can also have multiple inputs and outputs exactly as
     :py:class:`DeltaBlock`.
-
-    In case of multiple outputs please refer to examples for
-    :py:func:`make_forked_return<deltalanguage.data_types.make_forked_return>`.
     """
 
     def decorator(func):
+        _outputs = outputs if outputs is not None else []
         my_template = NodeTemplate.merge_deltamethod(template,
+                                                     _outputs,
                                                      func,
                                                      node_key,
                                                      name or func.__name__,
@@ -338,14 +352,14 @@ def DeltaMethodBlock(
 
 
 def Interactive(
-    inputs: List[Tuple[str, Type]],
-    outputs: Type = Void,
+    inputs: List[Tuple[str, Type]] = None,
+    outputs: List[Tuple[str, Type]] = None,
     template: NodeTemplate = None,
     name: str = None,
     in_port_size: int = 0,
     latency: Latency = None,
     lvl: int = logging.ERROR,
-    tags: List[str] = []
+    tags: List[str] = None
 ) -> Callable[..., InteractiveBodyTemplate]:
     """Decorator to turn a function of a special type (see examples)
     to an interactive node for use in :py:class:`DeltaGraph`.
@@ -384,9 +398,12 @@ def Interactive(
     Parameters
     ----------
     inputs : List[Tuple[str, Type]]
-        The types of the in parameters to the node to be made.
-    outputs : Type
-        The type of the output for the node to be made.
+        The types and names of the in parameters to the node to be made.
+    outputs : List[Tuple[str, Type]]
+        The types and names of the outputs for the node to be made.
+    template : NodeTemplate
+        Associate this node constructor with this specfied existing node
+        template rather than a newly created one.
     name : str
         The name of the node to be made.
     in_port_size : int
@@ -405,7 +422,7 @@ def Interactive(
 
         >>> import deltalanguage as dl
 
-        >>> @dl.Interactive(inputs=[("a", int), ("b", int)], outputs=int)
+        >>> @dl.Interactive([("a", int), ("b", int)], [('output', int)])
         ... def foo(node: PythonNode):
         ...     internal_memory = 0
         ...
@@ -428,8 +445,7 @@ def Interactive(
         >>> s = dl.lib.StateSaver(int, verbose=True)
 
         >>> with dl.DeltaGraph() as graph:
-        ...     s.save_and_exit(foo.call(a=4, b=5)) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(foo.call(a=4, b=5))
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -439,7 +455,7 @@ def Interactive(
 
     .. code-block:: python
 
-        >>> @dl.Interactive(inputs=[("a", int), ("b", int)], outputs=int)
+        >>> @dl.Interactive([("a", int), ("b", int)], [('output', int)])
         ... def bar(node: PythonNode):
         ...     internal_memory = 0
         ...
@@ -452,39 +468,37 @@ def Interactive(
         ...     node.send(internal_memory)
 
         >>> with dl.DeltaGraph() as graph:
-        ...     s.save_and_exit(bar.call(a=4, b=5)) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(bar.call(a=4, b=5))
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
         saving -5
 
-    In case of multiple outputs make sure to call
-    :py:func:`make_forked_return<deltalanguage.data_types.make_forked_return>`
-    beforehand, then the outputs can be send out in any configuration:
+    Nodes can send multiple outputs by specifying the names and types of these
+    outputs in the decorator. Keywords can be used in the ``send`` method to
+    clearly specify the multiple output values.
 
     .. code-block:: python
 
-        >>> import deltalanguage as dl
-
-        >>> TwoIntsT, TwoIntsC = dl.make_forked_return({'x': int, 'y': int})
-
-        >>> @dl.Interactive(inputs=[("a", int)], outputs=TwoIntsT)
-        ... def baz(node: PythonNode):
+        >>> @dl.Interactive([("a", int), ("b", int)], [('x', int), ('y', int)])
+        ... def bar(node: PythonNode):
+        ...     internal_memory = 0
+        ...
         ...     for i in range(10):
-        ...         a = node.receive("a")
-        ...         if a%3 == 0:
-        ...             node.send(TwoIntsC(x=a, y=None))
-        ...         elif a%3 == 1:
-        ...             node.send(TwoIntsC(x=None, y=a))
+        ...         if i%2 == 0:
+        ...             internal_memory += node.receive("a")
         ...         else:
-        ...             node.send(TwoIntsC(x=a, y=a))
+        ...             internal_memory -= node.receive("b")
+        ...
+        ...     node.send(x=internal_memory, y=internal_memory*2)
     """
     def decorator(func: Callable[[PythonNode], None]):
+        _outputs = outputs if outputs is not None else []
+        _inputs = inputs if inputs is not None else []
         proc = NodeTemplate.merge_interactive(template,
                                               func,
-                                              inputs,
-                                              outputs,
+                                              _inputs,
+                                              _outputs,
                                               name or func.__name__,
                                               in_port_size,
                                               latency,

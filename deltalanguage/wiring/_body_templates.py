@@ -21,12 +21,12 @@ if TYPE_CHECKING:
 
 
 class BodyTemplate(ABC):
-    """Body templates are responsible for storing some of the data for node 
+    """Body templates are responsible for storing some of the data for node
     construction, specifically the data for an individual constructor.
     The most important piece of info of this type is the body
-    and how to create it. 
+    and how to create it.
 
-    While :py:class:`NodeTemplate` contains enough information to create a 
+    While :py:class:`NodeTemplate` contains enough information to create a
     body-less node, ``NodeTemplate`` with one or more ``BodyTemplates`` is able
     to create a node with bodies.
 
@@ -46,7 +46,7 @@ class BodyTemplate(ABC):
                  name: str,
                  latency: Latency,
                  lvl: int = logging.ERROR,
-                 tags: List[str] = []):
+                 tags: List[str] = None):
         self.name = name
         self.latency = latency
         self.lvl = lvl
@@ -90,7 +90,7 @@ class BodyTemplate(ABC):
                    in_port_size: int,
                    inputs: OrderedDict[str, Union[data_types.BaseDeltaType, data_types.Optional]],
                    outputs: Union[data_types.BaseDeltaType, data_types.Optional]) -> bool:
-        """Checks compatibility between the ``NodeTemplate`` of this 
+        """Checks compatibility between the ``NodeTemplate`` of this
         ``BodyTemplate`` and some params that are important for node creation.
 
         Returns
@@ -116,12 +116,12 @@ class BodyTemplate(ABC):
 
     def _call(self, graph, *args, **kwargs):
         body = self.construct_body()
-        return self._node_template._standardised_call(graph, self.name,
-                                                      self.lvl, self, body,
-                                                      *args, **kwargs)
+        return self._node_template.standardised_call(graph, self.name,
+                                                     self.lvl, self, body,
+                                                     *args, **kwargs)
 
     def call(self, *args, **kwargs):
-        """Construct a node using this ``BodyTemplate`` and its associated 
+        """Construct a node using this ``BodyTemplate`` and its associated
         :py:class:`NodeTemplate`.
 
         Parameters
@@ -139,7 +139,7 @@ class BodyTemplate(ABC):
             raise ValueError("Node templte called when no graph was active.")
 
     def call_with_graph(self, graph, *args, **kwargs):
-        """Construct a node using this ``BodyTemplate`` and its associated 
+        """Construct a node using this ``BodyTemplate`` and its associated
         :py:class:`NodeTemplate` using a non-standard (not in the stack) graph.
 
         Parameters
@@ -166,7 +166,7 @@ class FuncBodyTemplate(BodyTemplate):
     fn : Callable
         Function for the bodies this template creates.
     allow_const : bool
-        Is the body this template produces allowed to be created as a 
+        Is the body this template produces allowed to be created as a
         constant body.
     tags : List[str]
         List of user defined tags for the body this BodyTemplate will
@@ -179,13 +179,13 @@ class FuncBodyTemplate(BodyTemplate):
                  lvl: int,
                  fn: Callable,
                  allow_const: bool,
-                 tags: List[str] = []):
+                 tags: List[str] = None):
         super().__init__(name, latency, lvl, tags)
         self._callback = fn
         self.allow_const = allow_const
 
     def construct_const_body(self, *pos_in_nodes, **kw_in_nodes):
-        """If allowed, create the constant version :py:class:`PyConstBody` 
+        """If allowed, create the constant version :py:class:`PyConstBody`
         version of this function body
         """
         if not self.allow_const:
@@ -222,7 +222,7 @@ class MethodBodyTemplate(FuncBodyTemplate):
                  latency: Latency,
                  lvl: int,
                  fn: Callable,
-                 tags: List[str] = []):
+                 tags: List[str] = None):
         super().__init__(name, latency, lvl, fn, False, tags)
         self.construction_ready = False
 
@@ -234,9 +234,9 @@ class MethodBodyTemplate(FuncBodyTemplate):
 
     def _call(self, graph, obj, *args, **kwargs):
         body = self.construct_body(obj)
-        return self._node_template._standardised_call(graph, self.name,
-                                                      self.lvl, self, body,
-                                                      *args, **kwargs)
+        return self._node_template.standardised_call(graph, self.name,
+                                                     self.lvl, self, body,
+                                                     *args, **kwargs)
 
 
 class InteractiveBodyTemplate(BodyTemplate):
@@ -260,18 +260,18 @@ class InteractiveBodyTemplate(BodyTemplate):
                  latency: Latency,
                  lvl: int,
                  proc: Callable[['PythonNode'], None],
-                 tags: List[str] = []):
+                 tags: List[str] = None):
         super().__init__(name, latency, lvl, tags)
         self._proc = proc
 
     def construct_body(self):
-        """Construct the :py:class:`PyInteractiveBody` that this 
+        """Construct the :py:class:`PyInteractiveBody` that this
         ``BodyTemplate`` is a template for.
         """
         return PyInteractiveBody(self._proc, self.latency, self._tags)
 
     def _call(self, graph, *args, **kwargs):
         body = self.construct_body()
-        return self._node_template._standardised_call(graph, self.name,
-                                                      self.lvl, self, body,
-                                                      *args, **kwargs)
+        return self._node_template.standardised_call(graph, self.name,
+                                                     self.lvl, self, body,
+                                                     *args, **kwargs)

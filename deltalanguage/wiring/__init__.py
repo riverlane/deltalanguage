@@ -12,7 +12,7 @@ Deltaflow graph and contains the following user-facing parts:
 - Wiring routines:
   :py:func:`placeholder_node_factory`
 
-- Node classes 
+- Node classes
   :py:class:`RealNode`
   :py:class:`PythonNode`
 
@@ -22,14 +22,14 @@ the top level module and can be used like this:
 .. code-block:: python
 
     import deltalanguage as dl
-    
+
     print(dl.DeltaGraph())
     print(dl.DeltaBlock())
 
 The learning path for new user is best described in :doc:`tutorials/tutorials`.
 """
 
-from ._node_classes.abstract_node import AbstractNode, ForkedNode, ProxyNode
+from ._node_classes.abstract_node import AbstractNode, IndexProxyNode, ProxyNode
 from ._node_classes.latency import Latency
 from ._node_classes.migen_node import MigenNodeTemplate
 from ._node_classes.node_bodies import (PyConstBody,

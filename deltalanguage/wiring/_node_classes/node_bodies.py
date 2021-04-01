@@ -1,16 +1,18 @@
 """Classes to represent different node bodies a Deltaflow node could represent.
 """
 from abc import ABC, abstractmethod
-from copy import copy
+from typing import Callable, List
+
 import dill
-from typing import Any, Callable, List
 
 from .latency import Latency
 
 
 class Body(ABC):
 
-    def __init__(self, latency: Latency = Latency(time=300), tags: List[str] = []):
+    def __init__(self,
+                 latency: Latency = Latency(time=300),
+                 tags: List[str] = None):
         """
         Parameters
         ----------
@@ -19,6 +21,7 @@ class Body(ABC):
         tags : List[str]
             List of strings to be added as access tags.
         """
+        tags = tags if tags is not None else []
         self._access_tags = tags + type(self).mro()
         self.latency = latency
 
@@ -29,7 +32,7 @@ class Body(ABC):
 
         Returns
         -------
-        List[object] 
+        List[object]
             A list of immutable objects to be used as keys in a dict
         """
         return self._access_tags
@@ -93,7 +96,8 @@ class PyFuncBody(PythonBody):
 
     def __init__(self, fn: Callable,
                  latency: Latency = Latency(time=350),
-                 tags: List[str] = []):
+                 tags: List[str] = None):
+        tags = tags if tags is not None else []
         super().__init__(latency, tags + [fn.__name__])
         self.callback = fn
 
@@ -121,7 +125,8 @@ class PyConstBody(PythonBody):
 
     def __init__(self, fn, *args,
                  latency: Latency = Latency(time=100),
-                 tags: List[str] = [], **kwargs):
+                 tags: List[str] = None, **kwargs):
+        tags = tags if tags is not None else []
         super().__init__(latency, tags + [fn.__name__])
         self.value = None
         self.callback = fn
@@ -136,12 +141,11 @@ class PyConstBody(PythonBody):
                 possible_arg = getattr(arg, "body", None)
                 if possible_arg is not None:
                     evaluated_arg = possible_arg.eval()
-                    # If previous node has forked output
+                    # If previous node has multi output
                     # only get the relevant argument
-                    possible_index = getattr(arg, "index", None)
-                    if possible_index is not None:
-                        evaluated_arg = getattr(
-                            evaluated_arg, possible_index, None)
+                    if len(arg.outputs) > 1:
+                        i = list(arg.outputs.keys()).index(arg.index)
+                        evaluated_arg = evaluated_arg[i]
                     if evaluated_arg is not None:
                         evaluated_args.append(evaluated_arg)
                     else:
@@ -153,12 +157,11 @@ class PyConstBody(PythonBody):
                 possible_kwarg = getattr(arg, "body", None)
                 if possible_kwarg is not None:
                     evaluated_kwarg = possible_kwarg.eval()
-                    # If previous node has forked output
+                    # If previous node has multi output
                     # only get the relevant keyword argument
-                    possible_index = getattr(arg, "index", None)
-                    if possible_index is not None:
-                        evaluated_kwarg = getattr(
-                            evaluated_kwarg, possible_index, None)
+                    if len(arg.outputs) > 1:
+                        i = list(arg.outputs.keys()).index(arg.index)
+                        evaluated_kwarg = evaluated_kwarg[i]
                     if evaluated_kwarg is not None:
                         evaluated_kwargs[key] = evaluated_kwarg
                     else:
@@ -188,7 +191,8 @@ class PyMethodBody(PythonBody):
 
     def __init__(self, fn, instance,
                  latency: Latency = Latency(time=350),
-                 tags: List[str] = []):
+                 tags: List[str] = None):
+        tags = tags if tags is not None else []
         super().__init__(latency, tags + [fn.__name__])
         self.callback = fn
         self.instance = instance
@@ -206,11 +210,9 @@ class PyMigenBody(PyMethodBody):
 
         The reason for this is the following:
 
-        - if a migen node has multiple outputs, they will be forked using
-        ``make_forked_return``
         - the result of the node is ready only after several cycles
         - in the meantime the result should be set to _some_ value, like
-          ``None`` or ``ForkedReturn(None, None, ...)``
+          ``None`` or ``(None, None, ...)``
         - I chose to set the entire output to None until the node produces
         a result
 
@@ -224,7 +226,7 @@ class PyMigenBody(PyMethodBody):
 
     def __init__(self, fn, instance,
                  latency: Latency = Latency(clocks=1),
-                 tags: List[str] = []):
+                 tags: List[str] = None):
         super().__init__(fn, instance, latency, tags)
 
     def eval(self, *args, **kwargs):
@@ -232,6 +234,8 @@ class PyMigenBody(PyMethodBody):
         while True:
             ret = self.callback(self.instance, *args, **kwargs)
             if ret is not None:
+                if len(ret) == 1:
+                    ret = ret[0]
                 return ret
 
     @property

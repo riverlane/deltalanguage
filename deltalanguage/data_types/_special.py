@@ -140,5 +140,8 @@ class Void:
         ...         return a//2
         ...     else:
         ...         pass
+
+    .. deprecated:: 0.5.3
+        Will be removed in favour of using an empty list of outputs.
     """
     pass

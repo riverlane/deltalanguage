@@ -3,18 +3,17 @@ nodes and placeholders.
 """
 
 from __future__ import annotations
-from collections import OrderedDict
 from copy import deepcopy
 import inspect
-from typing import TYPE_CHECKING, Dict, List, Set, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List
 import logging
 import textwrap
+import sys
 
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
-from deltalanguage.data_types import make_forked_return
 from deltalanguage.logging import make_logger
 from ..data_types import (BaseDeltaType,
                           DeltaIOError,
@@ -22,7 +21,7 @@ from ..data_types import (BaseDeltaType,
                           Union,
                           Top)
 from ._node_classes.abstract_node import AbstractNode
-from ._node_classes.node_bodies import Latency, PyConstBody, PyInteractiveBody
+from ._node_classes.node_bodies import Latency, PyInteractiveBody
 from ._node_classes.real_nodes import OutPort
 from ._node_templates import NodeTemplate
 
@@ -71,8 +70,7 @@ class DeltaGraph:
     .. code-block:: python
 
         >>> with dl.DeltaGraph() as graph:
-        ...     print_and_exit(42) # doctest:+ELLIPSIS
-        print_and_exit...
+        ...     print_and_exit(42)
 
     Simply print the graph to see its content:
 
@@ -100,17 +98,16 @@ class DeltaGraph:
 
         >>> import deltalanguage as dl
 
-        >>> rt = dl.DeltaPySimulator(graph) # doctest: +SKIP
-        >>> rt.run() # doctest: +SKIP
+        >>> dl.DeltaPySimulator(graph).run()
         42
 
-    Node inputs and outputs must be typed (in case of no output
-    :py:class:`Void<deltalanguage.data_types.Void>` is used as above).
+    Node inputs and outputs must be typed (in case of no output no
+    annotation or `outputs` is needed).
     To check the correctness of wiring manually one can call this method:
 
     .. code-block:: python
 
-        >>> graph.check() # doctest: +SKIP
+        >>> graph.check()
         True
 
     Attributes
@@ -130,6 +127,8 @@ class DeltaGraph:
         self.placeholders: Dict[str, PlaceholderNode] = {}
         self.nodes: List[RealNode] = []
         self.log = make_logger(lvl, "DeltaGraph")
+        # used below to silent doctest unwanted outputs
+        self._org_displayhook = None
 
     @property
     def name(self):
@@ -146,6 +145,10 @@ class DeltaGraph:
         """Creation of the graph context, sets this graph as the active graph
         at the top of the graph stack.
         """
+        if 'doctest' in sys.modules:
+            self._org_displayhook = sys.displayhook
+            sys.displayhook = lambda x: None
+
         DeltaGraph.global_stack.append(self)
         return self
 
@@ -157,6 +160,9 @@ class DeltaGraph:
             self.log.info(f'Graph {self.name} contains a node without a body, '
                           'please define it before execution.')
         DeltaGraph.global_stack.pop()
+
+        if 'doctest' in sys.modules:
+            sys.displayhook = self._org_displayhook 
 
     def __str__(self) -> str:
         ret = f"DeltaGraph[{self.name}] {{\n"
@@ -218,40 +224,37 @@ class DeltaGraph:
             merged_node = out_ports[0].node
             for out_port in out_ports[1:]:
                 if out_port.port_name != merged_name:
-                    raise ValueError(f"Merged out-port names " +
+                    raise ValueError("Merged out-port names " +
                                      f"{str(merged_name)} and " +
                                      f"{str(out_port.port_name)} " +
-                                     f"do not match.")
+                                     "do not match.")
                 if out_port.port_type != merged_type:
-                    raise ValueError(f"Merged out-port types " +
+                    raise ValueError("Merged out-port types " +
                                      f"{str(merged_type)} and " +
                                      f"{str(out_port.port_type)} " +
-                                     f"do not match.")
+                                     "do not match.")
                 if out_port.node != merged_node:
-                    raise ValueError(f"Merged out-port node " +
+                    raise ValueError("Merged out-port node " +
                                      f"{str(merged_node)} and " +
                                      f"{str(out_port.node)}" +
-                                     f"do not match.")
+                                     "do not match.")
             all_destinations = [x.destination for x in out_ports]
 
             # create a body of the splitter node
             _reps = len(all_destinations)
-            _SplitterT, _SplitterC = make_forked_return(
-                {'out' + str(i): merged_type for i in range(_reps)}
-            )
+            outputs = [('out' + str(i), merged_type) for i in range(_reps)]
 
-            def _splitter(to_split: merged_type) -> _SplitterT:
-                return _SplitterC(*(deepcopy(to_split) for _ in range(_reps)))
+            def _splitter(to_split: merged_type):
+                return tuple(deepcopy(to_split) for _ in range(_reps))
 
             # Dynamically annotated function does not get signature set
             # properly, so to use normal interface we have to manually set it
             params = [inspect.Parameter('to_split',
                                         inspect.Parameter.POSITIONAL_OR_KEYWORD,
                                         annotation=merged_type)]
-            _splitter.__signature__ = inspect.Signature(parameters=params,
-                                                        return_annotation=_SplitterT)
+            _splitter.__signature__ = inspect.Signature(parameters=params)
 
-            # If merged_node has forked output only get the relevant argument
+            # If merged_node has multi output only get the relevant argument
             # TODO This duplicates PyConstBody.eval and should be refactored
             if out_ports[0].index is None:
                 merged_node_output = merged_node
@@ -260,6 +263,7 @@ class DeltaGraph:
 
             # Construct the node using NodeTemplate
             template = NodeTemplate.merge_deltablock(None,
+                                                     outputs,
                                                      _splitter,
                                                      merged_node.is_const(),
                                                      name='splitter',
@@ -335,7 +339,7 @@ class DeltaGraph:
 
 
         .. todo::
-            Add extra checks of splitting/forking of wires in step 1.
+            Add extra checks of splitting/multi-output of wires in step 1.
         """
         # check node names
         nodes_names = [node.name for node in self.nodes]
@@ -414,8 +418,8 @@ class DeltaGraph:
         return True
 
     def select_bodies(self,
-                      exclusions: List[object] = [],
-                      preferred: List[object] = [],
+                      exclusions: List[object] = None,
+                      preferred: List[object] = None,
                       override=True):
         """Shortcut to selecting bodies accross whole graph.
         Applies exclusion rules then selects the first valid body for each
@@ -426,6 +430,8 @@ class DeltaGraph:
         bool
             ``True`` if all nodes now have a ``body``.
         """
+        exclusions = exclusions if exclusions is not None else []
+        preferred = preferred if preferred is not None else []
         all_selected = True
         for node in self.nodes:
             is_selected = node.select_body(exclusions, preferred, override)
@@ -555,16 +561,11 @@ class DeltaGraph:
             graph.add_node(node.name, name=node.name, type="block")
             for out_port in node.out_ports:
                 if port_nodes:
-                    # If output is forked, add node for out_port
-                    # Else simply use main node
-                    if out_port.index:
-                        src = f"out_{str(out_port.port_name)}"
-                        graph.add_node(src,
-                                       name=out_port.index,
-                                       type="out_port")
-                        graph.add_edge(node.name, src)
-                    else:
-                        src = node.name
+                    src = f"out_{str(out_port.port_name)}"
+                    graph.add_node(src,
+                                    name=out_port.index,
+                                    type="out_port")
+                    graph.add_edge(node.name, src)
                     dest = f"in_{str(out_port.dest_port_name)}"
                     graph.add_node(dest,
                                    name=out_port.dest_port_index,
@@ -572,10 +573,7 @@ class DeltaGraph:
                     graph.add_edge(dest, out_port.dest_node_name)
                     graph.add_edge(src, dest, type=str(out_port.port_type))
                 else:
-                    if out_port.index:
-                        src = out_port.index
-                    else:
-                        src = ""
+                    src = out_port.index
                     dest = out_port.dest_port_index
                     graph.add_edge(node.name,
                                    out_port.dest_node_name,
@@ -597,7 +595,7 @@ class DeltaGraph:
         pos = nx.spring_layout(graph, seed=seed, iterations=iterations)
 
         # Check to see if there are duplicate edges
-        if any([key >= 1 for (_, _, key) in graph.edges]):
+        if any(key >= 1 for (_, _, key) in graph.edges):
             self.log.warning("Where multiple outputs from one node go to" +
                              "the same node, only one edge is visible")
 

@@ -1,9 +1,9 @@
 import unittest
 
-from qiskit import QuantumCircuit, execute, Aer
+from qiskit import execute
 from qiskit.circuit.library import HGate, SGate
 
-from deltalanguage.lib.hal import HardwareAbstractionLayerNode, command_creator
+from deltalanguage.lib.hal import command_creator
 from deltalanguage.lib.quantum_simulators import (CustomNoiseModel,
                                                   QiskitQuantumSimulator)
 
@@ -11,13 +11,13 @@ from deltalanguage.lib.quantum_simulators import (CustomNoiseModel,
 """ 
 Test file for the qiskit noise model with the following general idea:
 
-- For each gate avaliable in the HAL backend, a circuit is constructed that 
+- For each gate avaliable in the HAL backend, a circuit is constructed that
 implements the identity operation if and only if that gate has no errors.
 
-- When errors are introduced for that gate, the circuit will be faulty, hence 
-some measurements will not yield all zeros. 
+- When errors are introduced for that gate, the circuit will be faulty, hence
+some measurements will not yield all zeros.
 
-Example circuits (h_perfect is a Hadamard without errors): 
+Example circuits (h_perfect is a Hadamard without errors):
 
     - Test of parametrised z-rotation RZ with angle Pi:
          ┌───────────┐┌────┐┌────┐┌───────────┐
@@ -44,8 +44,8 @@ def run_gate_circuits(noise_model, gate_list, n_qubits):
 
         Parameters
         ----------
-        noise_model : NoiseModel    
-            the noise model to apply to all test circuits 
+        noise_model : NoiseModel
+            the noise model to apply to all test circuits
         gate_list : List[string]
             list of HAL strings strings corresponding to one gate each
             these are the gates that will be checked for noise
@@ -55,7 +55,7 @@ def run_gate_circuits(noise_model, gate_list, n_qubits):
         Returns
         -------
         List[bool]
-            for each test gate assigns true if there is noise on the test gate, 
+            for each test gate assigns true if there is noise on the test gate,
             false if there is no noise, i.e. all zeros measured
 
         Raises
@@ -82,78 +82,78 @@ def run_gate_circuits(noise_model, gate_list, n_qubits):
             q_sim.accept_command(command_creator(*[gate, 512, 0]))
 
         elif gate in ['Z', 'R', 'RZ']:
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
             q_sim.accept_command(command_creator(*[gate, 512, 0]))
             q_sim.accept_command(command_creator(*[gate, 512, 0]))
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
 
         elif gate in ['PIZX']:
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
             q_sim.accept_command(command_creator(*[gate, 0, 0]))
-            q_sim._circuit.append(S_perfect, [0])
-            q_sim._circuit.append(S_perfect, [0])
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(S_perfect, [0])
+            q_sim.circuit.append(S_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
 
         elif gate in ['PIYZ']:
-            q_sim._circuit.append(H_perfect, [0])
-            q_sim._circuit.append(S_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
+            q_sim.circuit.append(S_perfect, [0])
             q_sim.accept_command(command_creator(*[gate, 0, 0]))
-            q_sim._circuit.append(S_perfect, [0])
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(S_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
 
         elif gate in ['PIXY']:
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
             q_sim.accept_command(command_creator(*[gate, 0, 0]))
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
 
         elif gate in ['S', 'INVS']:
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
             for _ in range(4):
                 q_sim.accept_command(command_creator(*[gate, 0, 0]))
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
 
         elif gate in ['SQRT_X']:
             for _ in range(4):
                 q_sim.accept_command(command_creator(*[gate, 0, 0]))
 
         elif gate in ['T']:
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
             for _ in range(8):
                 q_sim.accept_command(command_creator(*[gate, 0, 0]))
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
 
         elif gate in ['CX']:
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
             q_sim.accept_command(command_creator(*['CONTROL', 0, 0]))
             q_sim.accept_command(command_creator(*['X', 0, 1]))
             q_sim.accept_command(command_creator(*['CONTROL', 0, 0]))
             q_sim.accept_command(command_creator(*['X', 0, 1]))
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
 
         elif gate in ['CY']:
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
             q_sim.accept_command(command_creator(*['CONTROL', 0, 0]))
             q_sim.accept_command(command_creator(*['Y', 0, 1]))
             q_sim.accept_command(command_creator(*['CONTROL', 0, 0]))
             q_sim.accept_command(command_creator(*['Y', 0, 1]))
-            q_sim._circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [0])
 
         elif gate in ['CZ']:
-            q_sim._circuit.append(H_perfect, [0])
-            q_sim._circuit.append(H_perfect, [1])
+            q_sim.circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [1])
             q_sim.accept_command(command_creator(*['CONTROL', 0, 0]))
             q_sim.accept_command(command_creator(*['Z', 0, 1]))
             q_sim.accept_command(command_creator(*['CONTROL', 0, 0]))
             q_sim.accept_command(command_creator(*['Z', 0, 1]))
-            q_sim._circuit.append(H_perfect, [0])
-            q_sim._circuit.append(H_perfect, [1])
+            q_sim.circuit.append(H_perfect, [0])
+            q_sim.circuit.append(H_perfect, [1])
 
         else:
             raise ValueError('test circuit not defined for this gate')
 
-        q_sim._circuit.measure_all()
+        q_sim.circuit.measure_all()
 
-        job = execute(q_sim._circuit, backend=q_sim._simulator_backend,
+        job = execute(q_sim.circuit, backend=q_sim._simulator_backend,
                       optimization_level=0,
                       basis_gates=q_sim._noise_model.basis_gates,
                       noise_model=q_sim._noise_model,
@@ -221,14 +221,14 @@ class TestNoiseModel(unittest.TestCase):
             self.assertFalse(outcome)
 
     def test_single_qubit_errors(self):
-        """Test that there are no errors on the single-qubit gates with the 
+        """Test that there are no errors on the single-qubit gates with the
         two-qubit noise channels
         """
         for noise_type in self.tq_noise_models:
             for outcome in run_gate_circuits(noise_type, self.sq_gate_list, 1):
                 self.assertFalse(outcome)
 
-        """Test that there are errors on all single-qubit gates for all types 
+        """Test that there are errors on all single-qubit gates for all types
         of single-qubit noise channels
         """
         for noise_type in self.sq_noise_models:

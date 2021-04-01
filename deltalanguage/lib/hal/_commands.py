@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Iterable, List
 
-from deltalanguage.data_types import UInt, Size, Array
+from deltalanguage.data_types import UInt, Size
 
 # Command fields
 # 31-26       25-16        15-0

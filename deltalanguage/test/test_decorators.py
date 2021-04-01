@@ -9,7 +9,7 @@ class DecoratorNoInputTypeTest(unittest.TestCase):
     def test_DeltaBlock(self):
         with self.assertRaises(TypeError):
             @dl.DeltaBlock()
-            def foo(a) -> int:
+            def _foo(a) -> int:
                 return a
 
     def test_DeltaMethodBlock(self):
@@ -23,7 +23,7 @@ class DecoratorNoInputTypeTest(unittest.TestCase):
     def test_Interactive(self):
         with self.assertRaises(ValueError):
             @dl.Interactive([('a')])
-            def foo(node):
+            def _foo(node):
                 node.receive("a")
 
     def test_MigenNodeTemplate(self):
@@ -44,7 +44,7 @@ class DecoratorSetTagsTest(unittest.TestCase):
     """
 
     def test_DeltaBlock(self):
-        @dl.DeltaBlock(allow_const = False, tags=['test_1'])
+        @dl.DeltaBlock(allow_const=False, tags=['test_1'])
         def foo(a: int):
             print(a)
 
@@ -90,7 +90,7 @@ class DecoratorSetTagsTest(unittest.TestCase):
 
 
 class DecoratorNoOutputTypeTest(unittest.TestCase):
-    """If output type is not provided in node definition Void is used."""
+    """If output type is not provided in node definition [] is used."""
 
     def test_DeltaBlock(self):
         @dl.DeltaBlock()
@@ -100,7 +100,7 @@ class DecoratorNoOutputTypeTest(unittest.TestCase):
         with dl.DeltaGraph():
             node = foo(1)
 
-        self.assertEqual(node.outputs, dl.Void)
+        self.assertEqual(len(node.outputs), 0)
 
     def test_DeltaMethodBlock(self):
         class AClass:
@@ -112,14 +112,14 @@ class DecoratorNoOutputTypeTest(unittest.TestCase):
         with dl.DeltaGraph():
             node = AClass().foo(1)
 
-        self.assertEqual(node.outputs, dl.Void)
+        self.assertEqual(len(node.outputs), 0)
 
     def test_Interactive(self):
         @dl.Interactive([("a", int)])
         def foo(node):
             print(node.receive("a"))
 
-        self.assertEqual(foo.outputs, dl.Void)
+        self.assertEqual(len(foo.outputs), 0)
 
     def test_MigenNodeTemplate(self):
         """This test will make more sense when migen nodes are created via
@@ -129,7 +129,7 @@ class DecoratorNoOutputTypeTest(unittest.TestCase):
             def migen_body(self, template):
                 template.add_pa_in_port('a', dl.Optional(int))
 
-        self.assertEqual(AMigenNode()._outputs, dl.Void)
+        self.assertEqual(len(AMigenNode().outputs), 0)
 
 
 if __name__ == "__main__":

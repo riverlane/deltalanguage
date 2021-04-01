@@ -1128,8 +1128,7 @@ class Union(CompoundDeltaType):
 
                 return buffer
 
-        else:
-            raise DeltaTypeError(f'Union does not support {val}')
+        raise DeltaTypeError(f'Union does not support {val}')
 
     def unpack(self, buffer):
         val_df_type_idx = self.meta.unpack(buffer[-8:])
@@ -1298,8 +1297,7 @@ class Optional:
 
         >>> with dl.DeltaGraph() as graph:
         ...     foo_out = foo(42, bar())
-        ...     s.save_and_exit(foo_out) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(foo_out)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -1326,136 +1324,7 @@ def is_primitive(t: BaseDeltaType) -> bool:
     return isinstance(t, PrimitiveDeltaType)
 
 
-class ForkedReturn:
-    """Wrapper class that is used when a node has multiple outputs.
-
-    This is simply due to a restriction of python language, which permits only
-    a single object returned by ``return``, note that several objects are
-    bundled in a named tuple automatically.
-
-    Thus this class is used in this case, as the Deltaflow language allows
-    users to send a node's output to multiple destinations.
-
-    Use :py:func:`make_forked_return` factory.
-
-    Parameters
-    ----------
-    elems : typing.Dict[str, typing.Union[typing.Type, BaseDeltaType]]
-        Dictionary mapping port index to data type.
-    """
-
-    def __init__(self, elems: typing.Dict[str, typing.Union[typing.Type, BaseDeltaType]]):
-        elem_dict = {}
-
-        for name, t in elems.items():
-            df_t = as_delta_type(t)
-            if isinstance(df_t, Optional):
-                raise DeltaTypeError('Outputs cannot be optional.')
-            elem_dict[name] = df_t
-
-        self.elem_dict = elem_dict
-
-    @property
-    def keys(self):
-        return self.elem_dict.keys()
-
-    @property
-    def types(self):
-        return self.elem_dict.values()
-
-    def __repr__(self) -> str:
-        return "ForkedReturn(" + \
-            ", ".join(f"{k}:{v}" for k, v in self.elem_dict.items()) + \
-            ")"
-
-    def __eq__(self, other):
-        if type(other) is ForkedReturn:
-            return self.elem_dict == other.elem_dict
-        return False
-
-
-def make_forked_return(elems: typing.Dict[str, typing.Union[typing.Type, BaseDeltaType]]):
-    """Factory function used when a node sends different results to multiple
-    destinations.
-
-    Creates a type and class of return, used by the
-    node to store multiple results in a single object.
-    The individual ports then only send their specific part of the output
-    to the destination nodes.
-    This workaround is needed because python natively supports functions
-    with only one output.
-
-    Parameters
-    ----------
-    elems : typing.Dict[str, typing.Union[typing.Type, BaseDeltaType]]
-        Dictionary mapping port index to data type sent by that port.
-
-    Returns
-    -------
-    ForkedReturn
-        Type of return objects.
-    typing.NamedTuple
-        Class of return objects.
-
-    Examples
-    --------
-    The return type and class should be defined before a node using them
-    is defined, thus this factory should be called first:
-
-    .. code-block:: python
-
-        >>> import deltalanguage as dl
-
-        >>> TwoIntsT, TwoIntsC = dl.make_forked_return({'x': int, 'y': int})
-
-        >>> @dl.DeltaBlock()
-        ... def foo(a: int) -> TwoIntsT:
-        ...     return TwoIntsC(a//2, a%2)
-
-    It also allows us to reuse the same type and class in multiple nodes.
-    Also users can send out only partial outputs, i.e. not fill up all
-    fields in output:
-
-    .. code-block:: python
-
-        >>> @dl.DeltaBlock()
-        ... def bar(a: int) -> TwoIntsT:
-        ...     if a%2 == 0:
-        ...         return TwoIntsC(a, None)
-        ...     else:
-        ...         return TwoIntsC(None, a)
-
-    Wiring into a graph then has one distinction in comparison with nodes
-    that have only one output, namely the outputs have to be called by their
-    labels:
-
-    .. code-block:: python
-
-        >>> @dl.DeltaBlock(allow_const=False)
-        ... def baz(a: int, b: int) -> dl.Void:
-        ...     print(f"{a=}, {b=}")
-        ...     raise dl.DeltaRuntimeExit
-
-        >>> with dl.DeltaGraph() as graph:
-        ...     foo_out = foo(20)
-        ...     baz(a=foo_out.x, b=foo_out.y) # doctest:+ELLIPSIS
-        baz...
-
-        >>> rt = dl.DeltaPySimulator(graph)
-        >>> rt.run()
-        a=10, b=0
-    """
-    py_type_elems = []
-
-    for name, t in elems.items():
-        if isinstance(t, BaseDeltaType):
-            t = t.as_python_type()
-        py_type_elems.append((name, t))
-
-    return ForkedReturn(elems), typing.NamedTuple("ForkedReturnNT", py_type_elems)
-
-
-def as_delta_type(t: typing.Type) -> typing.Union[BaseDeltaType, ForkedReturn, Optional]:
+def as_delta_type(t: typing.Type) -> typing.Union[BaseDeltaType, Optional]:
     """Map a generic python type to the corresponding Deltaflow type.
 
     Parameters
@@ -1465,7 +1334,7 @@ def as_delta_type(t: typing.Type) -> typing.Union[BaseDeltaType, ForkedReturn, O
 
     Returns
     -------
-    typing.Union[BaseDeltaType, ForkedReturn, Optional]
+    typing.Union[BaseDeltaType, Optional]
         Instance of :py:class:`BaseDeltaType` subclass representing the
         Deltaflow type mapped to the provided Python type.
 
@@ -1496,7 +1365,7 @@ def as_delta_type(t: typing.Type) -> typing.Union[BaseDeltaType, ForkedReturn, O
         >>> dl.as_delta_type(dict)
         T
     """
-    if isinstance(t, (BaseDeltaType, ForkedReturn, Optional)):
+    if isinstance(t, (BaseDeltaType, Optional)):
         return t
 
     elif t is Void:
@@ -1588,10 +1457,18 @@ def as_delta_type(t: typing.Type) -> typing.Union[BaseDeltaType, ForkedReturn, O
         raise DeltaTypeError(f'Type {t} is too complex, use data_type(obj) '
                              f'instead of as_data_type(type(obj))')
 
+    elif isinstance(t, str):
+        # This case enables doctest to use type annotations.
+        try:
+            actual_t = eval(t)
+            return as_delta_type(actual_t)
+        except:
+            pass
+
     return Top()
 
 
-def delta_type(val: object) -> typing.Union[BaseDeltaType, ForkedReturn, Optional]:
+def delta_type(val: object) -> typing.Union[BaseDeltaType, Optional]:
     """Identifies the Deltaflow type of the object.
 
     In case of a compound type it will recursively investigate its components
@@ -1605,7 +1482,7 @@ def delta_type(val: object) -> typing.Union[BaseDeltaType, ForkedReturn, Optiona
 
     Returns
     -------
-    typing.Union[BaseDeltaType, ForkedReturn, Optional]
+    typing.Union[BaseDeltaType, Optional]
         Deltaflow data type analogue.
 
     Examples

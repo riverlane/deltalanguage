@@ -6,10 +6,7 @@ import time
 import deltalanguage as dl
 
 
-ExpT, ExpVal = dl.make_forked_return({'pmt_trigger': bool, 'rf_trigger': bool})
-
-
-@dl.Interactive([], ExpT)
+@dl.Interactive(outputs=[('pmt_trigger', bool), ('rf_trigger', bool)])
 def triggers(node):
     """ triggers
     This node simulates the two trigger pulses.
@@ -29,16 +26,16 @@ def triggers(node):
         sys_clk += 1
 
         if sys_clk == 100:
-            node.send(ExpVal(pmt_trigger=False, rf_trigger=True))
+            node.send(pmt_trigger=False, rf_trigger=True)
             # The nodes are asynchronous, time is random even if fixed here
             photon = random.randrange(10, 99)
             sys_clk = 0
 
         elif photon == sys_clk:
-            node.send(ExpVal(pmt_trigger=True, rf_trigger=False))
+            node.send(pmt_trigger=True, rf_trigger=False)
 
         else:
-            node.send(ExpVal(pmt_trigger=False, rf_trigger=False))
+            node.send(pmt_trigger=False, rf_trigger=False)
 
 
 @dl.Interactive([('pmt', dl.Optional(bool)), ('rf', dl.Optional(bool))], int)
@@ -60,12 +57,8 @@ def counter(node):
             node.send(cnt)
 
 
-DACT, DACVals = dl.make_forked_return(
-    {'node_status': int, 'return_data': int, 'rx_data': int}
-)
-
-
-@dl.Interactive([('command', dl.Optional(int)), ('params', int)], DACT)
+@dl.Interactive(inputs=[('command', dl.Optional(int)), ('params', int)],
+                outputs=[('node_status', int), ('return_data', int), ('rx_data', int)])
 def DAC_control(node):
     """ DAC_control
     This node is the interface between our graph and the DAC hardware. rx_data
@@ -95,21 +88,19 @@ def DAC_control(node):
     def dac_status_callback():
         print("dac_status_callback")
         nonlocal node_status
-        node.send(DACVals(node_status=node_status,
-                          return_data=None,
-                          rx_data=None))
+        node.send(node_status=node_status)
 
     def dac_set_voltage_callback():
         print("dac_set_voltage_callback")
         nonlocal voltage
         voltage = node.receive('params')
         # Send voltage to the SPI controller
-        node.send(DACVals(node_status=None, return_data=None, rx_data=voltage))
+        node.send(rx_data=voltage)
 
     def dac_get_voltage_callback():
         print("dac_get_voltage_callback")
         nonlocal voltage
-        node.send(DACVals(node_status=None, return_data=voltage, rx_data=None))
+        node.send(return_data=voltage)
 
     # DAC finite state machine.
     switcher = {_STATUS: dac_status_callback,
@@ -125,16 +116,13 @@ def DAC_control(node):
             switcher[cmmd]()  # If we have a command issue that to the FSM
         time.sleep(0.001)
 
-
-AccumT, AccumVals = dl.make_forked_return({'DAC_command': int,
-                                           'DAC_param': int})
-
+outputs=[('DAC_command', int), ('DAC_param', int)]
 
 @dl.Interactive([('new_time', int),
                  ('DAC_status', int),
                  ('DAC_voltage', int),
-                 ('experiment_start', dl.Optional(bool))
-                 ], AccumT)
+                 ('experiment_start', dl.Optional(bool))],
+                [('DAC_command', int), ('DAC_param', int)])
 def accumulator(node):
     """ Accumulator Node
 

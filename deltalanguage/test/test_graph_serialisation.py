@@ -7,16 +7,13 @@ import tempfile
 import unittest
 from unittest.mock import Mock
 import zipfile
-from collections import OrderedDict
 
-import capnp
 import dill
 
 import deltalanguage.data_types.dotdf_capnp \
     as dotdf_capnp  # pylint: disable=E0401, disable=E0611
 from deltalanguage._utils import NamespacedName
-from deltalanguage.data_types import (BaseDeltaType,
-                                      DeltaTypeError,
+from deltalanguage.data_types import (DeltaTypeError,
                                       Optional,
                                       Int,
                                       Void,
@@ -33,11 +30,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   MigenNodeTemplate,
                                   NodeTemplate,
                                   OutPort,
-                                  PythonBody,
-                                  PyConstBody,
-                                  PyInteractiveBody,
                                   PyFuncBody,
-                                  PyMethodBody,
                                   RealNode)
 from deltalanguage.wiring._node_classes.node_bodies import PyMigenBody
 from deltalanguage.wiring._node_classes.migen_node import MigenNodeTemplate
@@ -263,7 +256,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         This is to distinguish their bodies from Python bodies, as they
         take different inputs.
         """
-        @Interactive(inputs=[('a', int), ('b', int)], outputs=Void)
+        @Interactive(inputs=[('a', int), ('b', int)])
         def add(node) -> int:
             a = node.receive('a')
             b = node.receive('b')
@@ -324,7 +317,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         """Test serialisation of nodes with no body.
         """
         template = NodeTemplate(inputs=[('a', int), ('b', int)],
-                                outputs=int, name="temp-test")
+                                outputs=[('output', int)], name="temp-test")
 
         with DeltaGraph() as test_graph:
             template.call(a=1, b=2)

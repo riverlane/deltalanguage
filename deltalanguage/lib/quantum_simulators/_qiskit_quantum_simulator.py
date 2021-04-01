@@ -137,7 +137,7 @@ class QiskitQuantumSimulator(IQuantumSimulator):
                  noise_model: NoiseModel = None
                  ):
 
-        self._circuit = None
+        self.circuit = None
         self._simulator_backend = simulator_backend
         np.random.seed(seed)
         self._seed = seed
@@ -194,14 +194,14 @@ class QiskitQuantumSimulator(IQuantumSimulator):
         parameter : float
             Angle of gate if parametrised.
         """
-        if self._circuit is not None:
+        if self.circuit is not None:
 
             if len(self._control_qubit_indices) == 0:  # single qubit gate
 
                 if parameter is not None:
-                    self._circuit.append(gate(parameter), [qubit_index])
+                    self.circuit.append(gate(parameter), [qubit_index])
                 else:
-                    self._circuit.append(gate(), [qubit_index])
+                    self.circuit.append(gate(), [qubit_index])
 
             else:  # controlled gate
 
@@ -230,7 +230,7 @@ class QiskitQuantumSimulator(IQuantumSimulator):
                 else:
                     controlled_gate = gate().control(control_number)
 
-                self._circuit.append(controlled_gate, gate_indices)
+                self.circuit.append(controlled_gate, gate_indices)
 
                 # reset control indices
                 self._control_qubit_indices = []
@@ -250,15 +250,15 @@ class QiskitQuantumSimulator(IQuantumSimulator):
             )
 
         if op == Opcode["STATE_PREPARATION"].value:
-            self._circuit = None
+            self.circuit = None
 
-            self._circuit = QuantumCircuit(self._qubit_register_size)
+            self.circuit = QuantumCircuit(self._qubit_register_size)
 
         elif op == Opcode["STATE_MEASURE"].value:
 
-            self._circuit.measure_all()
+            self.circuit.measure_all()
 
-            job = execute(self._circuit, backend=self._simulator_backend,
+            job = execute(self.circuit, backend=self._simulator_backend,
                           optimization_level=0,
                           basis_gates=self._noise_model.basis_gates,
                           noise_model=self._noise_model,

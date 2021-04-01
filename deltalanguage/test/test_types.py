@@ -24,15 +24,11 @@ from deltalanguage.data_types import (
     Tuple,
     UInt,
     Union,
-    ForkedReturn,
-    Void,
     Top,
     as_delta_type,
     delta_type
 )
 from deltalanguage.wiring import DeltaGraph
-
-from deltalanguage.test._utils import TwoIntsT
 
 
 @attr.s(slots=True)
@@ -204,8 +200,6 @@ class DeltaTypesTest(unittest.TestCase):
         self.assertEqual(str(Top()), "T")
         self.assertEqual(str(Size(5)), "5")
         self.assertEqual(str(Size(NamespacedName("a", "b"))), "(a.b)")
-        self.assertEqual(str(ForkedReturn(dict(x=int, y=bool, z=str))),
-                         "ForkedReturn(x:Int32, y:Bool, z:Str8192)")
 
     def test_as_python_type(self):
         """Test conversion of Deltaflow data types to python."""
@@ -271,10 +265,6 @@ class DeltaTypesTest(unittest.TestCase):
         self.assertEqual(Union([int, int]), Union([int]))
         self.assertNotEqual(Union([Int()]), Int())
 
-        # special
-        self.assertEqual(ForkedReturn(dict(x=int, y=bool, z=str)),
-                         ForkedReturn(dict(x=int, y=bool, z=str)))
-
     def test_Union(self):
         """Union specific types."""
 
@@ -286,6 +276,24 @@ class DeltaTypesTest(unittest.TestCase):
 
         with self.assertRaises(DeltaTypeError):
             Union([None, int])
+
+    def test_top_not_allowed(self):
+        """Compound types should not accept Top as a sub-type."""
+
+        with self.assertRaises(DeltaTypeError):
+            Array(object, Size(5))
+
+        with self.assertRaises(DeltaTypeError):
+            Tuple([object, int])
+
+        with self.assertRaises(DeltaTypeError):
+            Record(RecBT)
+
+        with self.assertRaises(DeltaTypeError):
+            Raw(object)
+
+        with self.assertRaises(DeltaTypeError):
+            Union([int, bool, object])
 
     def test_top_not_allowed(self):
         """Compound types should not accept Top as a sub-type."""
@@ -686,10 +694,6 @@ class WiresTest(unittest.TestCase):
         with self.assertRaises(DeltaTypeError):
             DeltaGraph.check_wire(Record(RecBIS), Record(RecBI))
 
-    def test_ForkedReturn(self):
-        self.assertTrue(DeltaGraph.check_wire(TwoIntsT.elem_dict['x'],
-                                              Int()))
-
 
 class UtilsTest(unittest.TestCase):
     """Helper functions."""
@@ -700,8 +704,7 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual(as_delta_type(object), Top())
         self.assertEqual(as_delta_type(type(object)), Top())
         self.assertEqual(as_delta_type(type), Top())
-
-        self.assertEqual(as_delta_type(Void), Void)
+        self.assertEqual(as_delta_type('random_text'), Top())
 
         with self.assertRaises(DeltaTypeError):
             as_delta_type(None)
@@ -751,6 +754,22 @@ class UtilsTest(unittest.TestCase):
             as_delta_type(Union([bool, float, int]).as_numpy_type()),
             Union([bool, float, int]))
 
+        # from string
+        self.assertEqual(as_delta_type('bool'), Bool())
+        self.assertEqual(as_delta_type('\'bool\''), Bool())
+        self.assertEqual(as_delta_type('np.bool_'), Bool())
+        self.assertEqual(as_delta_type('int'), Int(Size(32)))
+        self.assertEqual(as_delta_type('np.int32'), Int(Size(32)))
+        self.assertEqual(as_delta_type('np.uint32'), UInt(Size(32)))
+        self.assertEqual(as_delta_type('float'), Float())
+        self.assertEqual(as_delta_type('np.float32'), Float(Size(32)))
+        self.assertEqual(as_delta_type('complex'), Complex())
+        self.assertEqual(as_delta_type('np.complex64'), Complex(Size(64)))
+        self.assertEqual(as_delta_type('str'), Str())
+        self.assertEqual(as_delta_type("Int(Size(32))"), Int(Size(32)))
+        # 'RecBI' is out of scope when the string is evaluated
+        self.assertEqual(as_delta_type('RecBI'), Top())
+
     def test_delta_type(self):
         """Test mapping python objects to Deltaflow data types."""
         # special
@@ -790,7 +809,7 @@ class UtilsTest(unittest.TestCase):
             Str(Size(5)).as_numpy_object("abcde")), Str(Size(5)))
         self.assertEqual(
             delta_type(Tuple([int, float, bool]
-                              ).as_numpy_object((1, 2.0, True))),
+                             ).as_numpy_object((1, 2.0, True))),
             Tuple([int, float, bool])
         )
         self.assertEqual(
@@ -1023,7 +1042,7 @@ class RawTest(unittest.TestCase):
     """Test Raw packing/unpacking + transmission rules.
 
     .. todo::
-        This test case repeats everything from DeltaTypesPackTest but with 
+        This test case repeats everything from DeltaTypesPackTest but with
         different check method, specifically for Raw. This code repetition
         can be reduced via inheritance.
 
@@ -1245,6 +1264,9 @@ class RawTest(unittest.TestCase):
                    Union([Array(int, Size(2)), Tuple([int, int])]))
         self.assertTrue(DeltaGraph.check_wire(Raw(Union([Str(), int])),
                                               Raw(Union([Str(), int]))))
+
+        with self.assertRaises(DeltaTypeError):
+            self.check("Can't pack me", Union([int, float]))
 
 
 if __name__ == "__main__":

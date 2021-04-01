@@ -29,7 +29,7 @@
             "inPorts": [],
             "outPorts": [
                 {
-                    "name": ""
+                    "name": "output"
                 }
             ]
         },
@@ -39,7 +39,7 @@
             "inPorts": [],
             "outPorts": [
                 {
-                    "name": ""
+                    "name": "output"
                 }
             ]
         },
@@ -76,7 +76,7 @@
             ],
             "outPorts": [
                 {
-                    "name": ""
+                    "name": "output"
                 }
             ]
         },
@@ -95,7 +95,7 @@
             ],
             "outPorts": [
                 {
-                    "name": ""
+                    "name": "output"
                 }
             ]
         },

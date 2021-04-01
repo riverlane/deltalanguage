@@ -9,7 +9,7 @@ SLEEPTIME = 1e-3
 STORE = []
 
 
-@dl.Interactive([], int, name="send_and_check_time")
+@dl.Interactive(outputs=[('out', int)], name="send_and_check_time")
 def send_and_check_time(node: dl.PythonNode):
     """This node should be blocked at ``send`` if the receiving node is busy
     and the queue is full.
@@ -66,7 +66,7 @@ class BlockingQueueTest(unittest.TestCase):
 
             self.assertGreaterEqual(TIME_DIFF, SLEEPTIME)
 
-        self.assertEqual(n.out_queues[None].maxsize, 1)
+        self.assertEqual(n.out_queues['out'].maxsize, 1)
 
     def test_blocking_queue_queue_size(self):
         """The queue size is defined globally by queue_size."""
@@ -83,7 +83,7 @@ class BlockingQueueTest(unittest.TestCase):
 
             self.assertGreaterEqual(TIME_DIFF, SLEEPTIME)
 
-        self.assertEqual(n.out_queues[None].maxsize, 1)
+        self.assertEqual(n.out_queues['out'].maxsize, 1)
 
     def test_queue_size(self):
         """If both queue_size and in_port_size are defined, the minimum is
@@ -98,11 +98,11 @@ class BlockingQueueTest(unittest.TestCase):
 
         # 1 < 2
         dl.DeltaPySimulator(graph, queue_size=1)
-        self.assertEqual(n.out_queues[None].maxsize, 1)
+        self.assertEqual(n.out_queues['out'].maxsize, 1)
 
         # 2 < 3
         dl.DeltaPySimulator(graph, queue_size=3)
-        self.assertEqual(n.out_queues[None].maxsize, 2)
+        self.assertEqual(n.out_queues['out'].maxsize, 2)
 
 
 class RuntimeBlockingTest(unittest.TestCase):
@@ -142,7 +142,7 @@ class RuntimeBlockingTest(unittest.TestCase):
         gen = dl.lib.make_generator(1, reps=N_ITER)
         s = dl.lib.StateSaver(int)
 
-        @dl.Interactive([('a', int)], int)
+        @dl.Interactive([('a', int)], [('output', int)])
         def aggregator(node):
             result = 0
             for _ in range(N_ITER):
@@ -174,7 +174,7 @@ class RuntimeBlockingTest(unittest.TestCase):
         they always call ``send``.
         """
 
-        @dl.Interactive([('a', dl.Optional(int))], dl.Void)
+        @dl.Interactive(inputs=[('a', dl.Optional(int))])
         def node_to_investigate(node):
             while True:
                 a = node.receive('a')
@@ -182,7 +182,7 @@ class RuntimeBlockingTest(unittest.TestCase):
                     STORE.append(a)
                     raise dl.DeltaRuntimeExit
 
-        @dl.Interactive([], int)
+        @dl.Interactive(outputs=[('output', int)])
         def rest_of_graph(node):
             """This node imitates the rest of the graph that does some
             computations and occasionally provides an input."""
@@ -212,7 +212,7 @@ class RuntimeBlockingTest(unittest.TestCase):
         """Similar to the test above, but here the tests node does not have
         inputs.
         """
-        @dl.Interactive(inputs=[], outputs=int)
+        @dl.Interactive(outputs=[('output', int)])
         def unstoppable(node):
             i = 0
             while True:

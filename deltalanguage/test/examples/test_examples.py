@@ -108,7 +108,6 @@ class TestMicromotion(unittest.TestCase):
                         "DEBUG" in error), error)
 
 
-
 class TestCombTree(unittest.TestCase):
     """Test examples/comb_tree."""
 

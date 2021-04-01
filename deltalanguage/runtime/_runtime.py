@@ -1,8 +1,6 @@
 import logging
-from queue import Empty, Queue
 import sys
 import threading
-from time import sleep
 from typing import Dict, Tuple, Type, Union
 
 from deltalanguage.wiring import (DeltaGraph,
@@ -43,8 +41,7 @@ class DeltaRuntimeExit(Exception):
         ...     raise dl.DeltaRuntimeExit
 
         >>> with dl.DeltaGraph() as graph:
-        ...     foo(42) # doctest:+ELLIPSIS
-        foo...
+        ...     foo(42)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -156,8 +153,7 @@ class DeltaPySimulator:
         >>> s = dl.lib.StateSaver(int, verbose=True)
 
         >>> with dl.DeltaGraph() as graph:
-        ...     s.save_and_exit(5) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(5)
 
         >>> rt = dl.DeltaPySimulator(graph)
         >>> rt.run()
@@ -379,8 +375,6 @@ class DeltaPySimulator:
             else:
                 self.log.log(logging.ERROR, f"Thread stopped: {args}")
                 self._stop_workers()
-
-            return
 
         threading.excepthook = excepthook
 

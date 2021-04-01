@@ -93,13 +93,10 @@ Wiring techniques
 
 This section overviews various intricacies of connecting a complex graph:
 
-- Use
-  :py:func:`make_forked_return<deltalanguage.data_types.make_forked_return>`
-  to send split output of a node to multiple channels.
-  Please check out the examples section of this class.
+- See more detail on the topic of sending data from one node to multiple
+  others in the 
   `Outputting to Multiple Destinations <multiple_destinations.html>`_
-  (:download:`multiple_destinations.ipynb`)
-  will cover this topic in more detail.
+  (:download:`multiple_destinations.ipynb`) notebook.
   
 - Use
   :py:func:`placeholder_node_factory<deltalanguage.wiring.placeholder_node_factory>`

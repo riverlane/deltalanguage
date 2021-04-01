@@ -10,7 +10,6 @@ their construction.
 """
 
 import unittest
-from collections import OrderedDict
 
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
@@ -40,7 +39,7 @@ def foo_non_const(a: int) -> int:
 
 
 class ConstFolding(unittest.TestCase):
-    """Test that single-bodies nodes are folded correctly during graph 
+    """Test that single-bodies nodes are folded correctly during graph
     construction.
     """
 
@@ -123,7 +122,7 @@ class ConstFolding(unittest.TestCase):
         All the forked outputs go to const nodes ->
         source is a constant node as well.
         """
-        with DeltaGraph() as graph:
+        with DeltaGraph():
             nums = return_12()
             p1 = foo_const(nums.x)
             p2 = foo_const(nums.y)
@@ -155,7 +154,7 @@ class ConstFolding(unittest.TestCase):
         Same as above but with splitting ->
         no funny business.
         """
-        with DeltaGraph() as graph:
+        with DeltaGraph():
             nums = return_12()
             p1 = foo_const(nums.x)
             p2 = foo_non_const(nums.y)
@@ -171,7 +170,7 @@ class ConstFolding(unittest.TestCase):
 
 const_template = NodeTemplate(name="ConstFoldTestTemplate",
                               inputs=[('a', int)],
-                              outputs=int)
+                              outputs=[('output', int)])
 
 
 @DeltaBlock(template=const_template, allow_const=True)
@@ -186,7 +185,7 @@ def foo_const_2_t(a: int) -> int:
 
 non_const_template = NodeTemplate(name="NonConstFoldTestTemplate",
                                   inputs=[('a', int)],
-                                  outputs=int)
+                                  outputs=[('output', int)])
 
 
 @DeltaBlock(template=non_const_template, allow_const=False)
@@ -201,7 +200,7 @@ def foo_non_const_2_t(a: int) -> int:
 
 semi_const_template = NodeTemplate(name="SemiConstFoldTestTemplate",
                                    inputs=[('a', int)],
-                                   outputs=int)
+                                   outputs=[('output', int)])
 
 
 @DeltaBlock(template=semi_const_template, allow_const=False)

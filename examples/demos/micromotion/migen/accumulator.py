@@ -9,20 +9,17 @@ import logging
 
 import deltalanguage as dl
 
-AccumT, AccumC = dl.make_forked_return({'DAC_command': int,
-                                        'DAC_param': int,
-                                        'photon': int,
-                                        'reset': int})
-
-
 TIME_RES = 30
 
 
-@dl.Interactive([('new_time', dl.UInt()),
-                 ('DAC_status', int),
-                 ('DAC_voltage', int),
-                 ('experiment_start', dl.Optional(bool))
-                 ], AccumT)
+@dl.Interactive(inputs=[('new_time', dl.UInt()),
+                        ('DAC_status', int),
+                        ('DAC_voltage', int),
+                        ('experiment_start', dl.Optional(bool))],
+                outputs=[('DAC_command', int),
+                         ('DAC_param', int),
+                         ('photon', int),
+                         ('reset', int)])
 def accumulator(node):
     """ Accumulator Node
 
@@ -65,21 +62,19 @@ def accumulator(node):
         logging.basicConfig()
 
         print(f"Setting new voltage: {voltage}V")
-        node.send(AccumC(DAC_command=DAC_SET_VOLTAGE,
-                         DAC_param=voltage, photon=None, reset=0))
+        node.send(DAC_command=DAC_SET_VOLTAGE,
+                  DAC_param=voltage, reset=0)
         # Poll the DAC controller while it's busy, this time it is setting the
         # voltage and waiting for it to settle.
         state = BUSY
         while state == BUSY:
-            node.send(AccumC(DAC_command=STATUS,
-                             DAC_param=None, photon=None, reset=None))
+            node.send(DAC_command=STATUS)
             state = node.receive('DAC_status')
             time.sleep(0.001)
         print("Voltage set")
 
         # Request the new voltage back from the DAC
-        node.send(AccumC(DAC_command=DAC_GET_VOLTAGE,
-                         DAC_param=None, photon=None, reset=None))
+        node.send(DAC_command=DAC_GET_VOLTAGE)
         volts = node.receive('DAC_voltage')
         print(f"New DAC voltage: {volts}V")
 
@@ -94,8 +89,7 @@ def accumulator(node):
             for n in range(NB_STEPS):
                 # dictionary for storing all the times received from counter.
                 tau_range = [t for t in range(1, TIME_RES+1)]
-                node.send(AccumC(DAC_command=None, DAC_param=None,
-                                 photon=random.choice(tau_range), reset=1))
+                node.send(photon=random.choice(tau_range), reset=1)
                 # calculate the expected distribution
                 limit = {t: math.trunc(EXP_LENGTH/(TIME_RES)
                                        * math.fabs(v_comp - V_REF)/V_REF
@@ -126,14 +120,7 @@ def accumulator(node):
                                     tau_range.remove(tau)
                             if tau_range:
                                 photon = random.choice(tau_range)
-                                node.send(
-                                    AccumC(
-                                        DAC_command=None,
-                                        DAC_param=None,
-                                        photon=photon,
-                                        reset=1
-                                    )
-                                )
+                                node.send(photon=photon, reset=1)
                                 bar.next()
 
                 # calculate compensation voltage

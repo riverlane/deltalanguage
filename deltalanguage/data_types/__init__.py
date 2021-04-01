@@ -28,7 +28,6 @@ This submodule contains the following user-facing parts:
   :py:class:`Void`
 
 - Auxiliary functions:
-  :py:func:`make_forked_return`
   :py:func:`as_delta_type`
   :py:func:`delta_type`
 
@@ -38,7 +37,7 @@ the top level module and can be used like this:
 .. code-block:: python
 
     import deltalanguage as dl
-    
+
     print(dl.Bool())
     print(dl.delta_type(5))
 
@@ -64,12 +63,10 @@ from ._delta_types import (BaseDeltaType,
                            Tuple,
                            UInt,
                            Union,
-                           ForkedReturn,
                            as_delta_type,
-                           delta_type,
-                           make_forked_return)
+                           delta_type)
 from ._exceptions import DeltaIOError, DeltaTypeError
-                          
+
 from ._special import Size, Void
 
 # user-facing classes
@@ -90,6 +87,5 @@ __all__ = ["Top",
            "Union",
            "Optional",
            "Void",
-           "make_forked_return",
            "as_delta_type",
            "delta_type"]

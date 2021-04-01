@@ -1,6 +1,6 @@
 """Testing queues work."""
 
-from queue import Empty, Full, Queue
+from queue import Empty, Full
 import unittest
 
 from deltalanguage.data_types import Optional, Int
@@ -8,8 +8,6 @@ from deltalanguage.runtime import ConstQueue, DeltaQueue
 from deltalanguage.runtime._queues import Flusher
 from deltalanguage._utils import NamespacedName, QueueMessage
 from deltalanguage.wiring import InPort, OutPort
-
-from deltalanguage.test._utils import TwoInts, TwoIntsT
 
 
 class TestDeltaQueue(unittest.TestCase):
@@ -83,7 +81,7 @@ class TestDeltaQueue(unittest.TestCase):
             for _ in range(10):
                 q.put(self.msg_with_none)
             self.assertEqual(q.empty(), True)
-            self.assertTrue(q._saved_value == None)
+            self.assertIsNone(q._saved_value)
 
     def test_put_to_full(self):
         """What happens when the queue is already full."""
@@ -179,44 +177,6 @@ class TestDeltaQueue(unittest.TestCase):
         # ConstQueue keeps holding the cached message
         for q in (self.const_queue_obl, self.const_queue_opt):
             self.assertEqual(q.get(), self.msg1_answer)
-
-
-class TestDeltaQueueForkedReturn(TestDeltaQueue):
-    """In this case queues are attached to a port with a forker output."""
-
-    def setUp(self):
-        # obligatory and optional ports
-        out_port_obl = OutPort(
-            NamespacedName("port_name", "x"),
-            TwoIntsT,
-            InPort(NamespacedName("port_name", None),
-                   Int(), None, 0),
-            None
-        )
-        out_port_opt = OutPort(
-            NamespacedName("port_name", "x"),
-            TwoIntsT,
-            InPort(NamespacedName("port_name", None),
-                   Optional(Int()), None, 0),
-            None
-        )
-
-        # 4 types of queues
-        self.delta_queue_obl = DeltaQueue(out_port_obl)
-        self.delta_queue_opt = DeltaQueue(out_port_opt)
-        self.const_queue_obl = ConstQueue(out_port_obl)
-        self.const_queue_opt = ConstQueue(out_port_opt)
-
-        # test messages
-        self.msg1 = QueueMessage(TwoInts(1, 20))
-        self.msg2 = QueueMessage(TwoInts(2, 30))
-        self.msg_with_none = QueueMessage(TwoInts(None, 20))
-        self.msg_unpackable = QueueMessage(TwoInts("abcde", 20))
-
-        # these messages should be received
-        self.msg1_answer = QueueMessage(1)
-        self.msg2_answer = QueueMessage(2)
-        self.msg_with_none_answer = QueueMessage(None)
 
 
 if __name__ == "__main__":

@@ -149,13 +149,9 @@ def generate_data_vector(N_BITS, N_INPUTS):
     return np.random.randint(0, pow(2, N_BITS), size=N_INPUTS)
 
 
-TbT, TbVals = dl.make_forked_return(
-    {'cmd': dl.Int(),
-     'data': dl.Int(dl.Size(C_VECTOR_LEN))})
-
-
-@dl.Interactive([('result', dl.Int()),
-                 ('error', dl.Int())], TbT)
+@dl.Interactive(inputs=[('result', dl.Int()), ('error', dl.Int())],
+                outputs=[('cmd', dl.Int()),
+                         ('data', dl.Int(dl.Size(C_VECTOR_LEN)))])
 def testbench(node):
 
     data_array = generate_data_vector(C_N_BITS, C_N_INPUTS)
@@ -169,7 +165,7 @@ def testbench(node):
                           ).from_numpy_object(data_vector)
 
     for cmd in range(0x01, 0x06):
-        node.send(TbVals(data=data_vector, cmd=cmd))
+        node.send(data=data_vector, cmd=cmd)
         result = node.receive('result')
         error = node.receive('error')
         logging.debug(f'cmd: {cmd}')

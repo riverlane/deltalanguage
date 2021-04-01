@@ -8,27 +8,26 @@ import sys
 import unittest
 import unittest.mock
 
-import dill
 import migen
 
-from deltalanguage.data_types import BaseDeltaType, Optional
+from deltalanguage.data_types import Optional
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import (DeltaPySimulator,
                                    deserialize_graph,
                                    serialize_graph)
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
-                                  MigenNodeTemplate,
-                                  PythonBody)
+                                  MigenNodeTemplate)
+
+from deltalanguage.test._utils import (InputCheckerWithExit, add_non_const,
+                                       assert_capnp_content_types)
 
 sys.path.insert(0, "/workdir")
+
 from examples.tutorials.migen_hardware_examples import (
     generate_graph_constant_input,
     generate_graph_interactive_input
 )
-
-from deltalanguage.test._utils import (InputCheckerWithExit, add_non_const,
-                                       assert_capnp_content_types)
 
 
 class AlternatingOutputsMigen(MigenNodeTemplate):

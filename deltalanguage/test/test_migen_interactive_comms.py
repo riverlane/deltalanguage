@@ -7,9 +7,7 @@ import unittest
 
 from migen import FSM, If, NextState, NextValue
 
-from deltalanguage.data_types import (Int,
-                                      Optional,
-                                      make_forked_return)
+from deltalanguage.data_types import Int, Optional
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import DeltaPySimulator
 from deltalanguage.wiring import (DeltaGraph,
@@ -18,35 +16,25 @@ from deltalanguage.wiring import (DeltaGraph,
                                   PythonNode)
 
 
-TestBenchForkT, TestBenchFork = make_forked_return(
-    {
-        'inp': int,
-        'trigger': int
-    }
-)
-
-
-@Interactive([], TestBenchForkT)
+@Interactive(outputs=[('inp', int), ('trigger', int)])
 def test_bench_no_trigger(node: PythonNode):
     """This node sends 2 consecutive messages, the first is a data signal, the
     second is a trigger to move out of a specific state of the migen FSM.
     """
+    node.send(15, 0)
+    node.send(0, 1)
 
-    node.send(TestBenchFork(15, 0))
-    node.send(TestBenchFork(0, 1))
 
-
-@Interactive([], TestBenchForkT)
+@Interactive(outputs=[('inp', int), ('trigger', int)])
 def test_bench_yes_trigger(node: PythonNode):
     """This node sends 3 consecutive messages, the first is a data signal, the
     second is the same data signal, and the third is a trigger to move out of
     a specific state of the migen FSM.
     """
-
-    node.send(TestBenchFork(15, 0))
+    node.send(15, 0)
     # make inp.data available for an extra cycle of migen clock
-    node.send(TestBenchFork(15, 0))
-    node.send(TestBenchFork(0, 1))
+    node.send(15, 0)
+    node.send(0, 1)
 
 
 class TestMigenNode(MigenNodeTemplate):

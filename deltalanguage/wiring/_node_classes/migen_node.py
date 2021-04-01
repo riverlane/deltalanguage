@@ -1,7 +1,6 @@
 from abc import abstractmethod
 import atexit
 import logging
-from time import sleep
 from collections import OrderedDict
 from typing import Callable, List, Type, Union
 
@@ -10,9 +9,7 @@ import migen
 from deltalanguage.data_types import (BaseDeltaType,
                                       DeltaTypeError,
                                       Optional,
-                                      Void,
-                                      as_delta_type,
-                                      make_forked_return)
+                                      as_delta_type)
 from deltalanguage.logging import make_logger
 from .._body_templates import BodyTemplate
 from .._node_templates import NodeTemplate
@@ -118,8 +115,7 @@ class MigenNodeTemplate(BodyTemplate):
         # note how I/O is handled
         >>> with dl.DeltaGraph() as graph:
         ...     res = foo.call(a=40, b=2)
-        ...     s.save_and_exit(res.out) # doctest:+ELLIPSIS
-        save_and_exit...
+        ...     s.save_and_exit(res.out)
 
     And run it:
 
@@ -139,7 +135,7 @@ class MigenNodeTemplate(BodyTemplate):
                  vcd_name: str = None,
                  generics: dict = None,
                  node_template: NodeTemplate = None,
-                 tags: List[str] = []):
+                 tags: List[str] = None):
         if name is None:
             name = type(self).__name__
         super().__init__(name, Latency(clocks=1), lvl, tags)
@@ -163,20 +159,11 @@ class MigenNodeTemplate(BodyTemplate):
         self.debug_signals = {}
 
         self._dut = migen.Module()
-        self._dut.in_ports = {}
-        self._dut.out_ports = {}
+        self._dut.in_ports = []
+        self._dut.out_ports = []
 
         self.__class__.migen_body(self=self._dut, template=self)
         self.rename_port_signals()
-
-        if len(self._dut.out_ports.items()) > 0:
-            # Make all outputs named, as it's needed for verilog
-            self._outputs, self._ForkedOutput = make_forked_return(
-                {name: type_ for name, (_, type_)
-                 in self._dut.out_ports.items()}
-            )
-        else:
-            self._outputs = Void
 
         # define a stimulus generator
         self._tb = self.tb_generator(tb_num_iter)
@@ -186,11 +173,15 @@ class MigenNodeTemplate(BodyTemplate):
         atexit.register(self.cleanup)
 
         # Merge with or create a new NodeTemplate
-        inputs = OrderedDict()
-        for name, (_, type_) in self._dut.in_ports.items():
-            inputs[name] = type_
-        NodeTemplate.merge_migenblock(node_template, self, inputs,
-                                      self._outputs)
+        _outputs = OrderedDict([(name, type_)
+                                for name, _, type_ in self._dut.out_ports])
+        for name, _, type_ in self._dut.out_ports:
+            _outputs[name] = type_
+
+        _inputs = OrderedDict([(name, type_)
+                        for name, _, type_ in self._dut.in_ports])
+
+        NodeTemplate.merge_migenblock(node_template, self, _inputs, _outputs)
 
     def add_pa_in_port(self, name: str, t: Optional):
         """Add input protocol adaptor v2.
@@ -220,7 +211,7 @@ class MigenNodeTemplate(BodyTemplate):
             ("ready", 1, migen.DIR_S_TO_M)
         ])
 
-        self._dut.in_ports[name] = (in_port, t)
+        self._dut.in_ports.append((name, in_port, t))
 
         return in_port
 
@@ -250,7 +241,7 @@ class MigenNodeTemplate(BodyTemplate):
             ("ready", 1, migen.DIR_M_TO_S)
         ])
 
-        self._dut.out_ports[name] = (out_port, t)
+        self._dut.out_ports.append((name, out_port, t))
 
         return out_port
 
@@ -277,12 +268,12 @@ class MigenNodeTemplate(BodyTemplate):
 
     def rename_port_signals(self):
         """Rename signals used in ports"""
-        for port_name, (port, _) in self._dut.in_ports.items():
+        for port_name, port, _ in self._dut.in_ports:
             for signal_name, _, _ in port.layout:
                 signal = getattr(port, signal_name)
                 signal.name_override = port_name + "_in_" + signal_name
 
-        for port_name, (port, _) in self._dut.out_ports.items():
+        for port_name, port, _ in self._dut.out_ports:
             for signal_name, _, _ in port.layout:
                 signal = getattr(port, signal_name)
                 signal.name_override = port_name + "_out_" + signal_name
@@ -337,7 +328,7 @@ class MigenNodeTemplate(BodyTemplate):
             # 1. Determine if all in_ports are ready, thus the module is ready
             # to receive data
             is_module_ready = True
-            for _, (port, _) in self._dut.in_ports.items():
+            for _, port, _ in self._dut.in_ports:
                 is_port_ready = yield port.ready
                 if not is_port_ready:
                     is_module_ready = False
@@ -353,7 +344,7 @@ class MigenNodeTemplate(BodyTemplate):
             # provided. This is not the case in general, for instance
             # the input can have all sort of junk if valid == False.
             if bool(self.in_buffer) and is_module_ready:
-                for name, (port, _) in self._dut.in_ports.items():
+                for name, port, _ in self._dut.in_ports:
                     if name in self.in_buffer:
                         data = self.in_buffer[name]
                         if data is None:
@@ -376,7 +367,7 @@ class MigenNodeTemplate(BodyTemplate):
             # This will be controlled by Runtime in the future, which will
             # set it according to the readiness of the receiving node and any
             # other extra conditions.
-            for _, (port, _) in self._dut.out_ports.items():
+            for _, port, _ in self._dut.out_ports:
                 yield port.ready.eq(1)
             self.log.debug("out_ports set ready")
 
@@ -384,18 +375,18 @@ class MigenNodeTemplate(BodyTemplate):
             #
             # If output data for a channel is not valid,
             # the corresponding output is set to None
-            if len(self._dut.out_ports.items()) > 0:
+            if len(self._dut.out_ports) > 0:
                 out_tmp = {}
-                for name, (port, _) in self._dut.out_ports.items():
+                for name, port, _ in self._dut.out_ports:
                     if (yield port.valid):
                         out_tmp[name] = yield port.data
                     else:
                         out_tmp[name] = None
-                self.out_buffer = self._ForkedOutput(**out_tmp)
+                self.out_buffer = tuple(out_tmp.values())
 
                 self.log.debug(f"retrieved data output={self.out_buffer}")
             else:
-                self.log.debug(f"no out_ports => no output")
+                self.log.debug("no out_ports => no output")
 
             self.log.debug(f"end of iteration {tb_iter}")
 
@@ -406,7 +397,7 @@ class MigenNodeTemplate(BodyTemplate):
             self.log.debug(f'<<<<<<<<<<< STATUS AFTER YIELD IN ITER {tb_iter}')
             self.log.debug(f'{self.in_buffer=}')
             self.log.debug('in_ports:')
-            for name, (port, _) in self._dut.in_ports.items():
+            for name, port, _ in self._dut.in_ports:
                 data = yield port.data
                 valid = yield port.valid
                 ready = yield port.ready
@@ -418,7 +409,7 @@ class MigenNodeTemplate(BodyTemplate):
                 self.log.debug(f'{name=}: {sig:{format_}}')
 
             self.log.debug('out_ports:')
-            for name, (port, _) in self._dut.out_ports.items():
+            for name, port, _ in self._dut.out_ports:
                 data = yield port.data
                 valid = yield port.valid
                 ready = yield port.ready
@@ -532,11 +523,11 @@ class MigenNodeTemplate(BodyTemplate):
         if fully_parameterised:
             ios = set()
 
-            for _, (port, _) in self._dut.in_ports.items():
+            for _, port, _ in self._dut.in_ports:
                 for signal in self.unpack_record(port):
                     ios.add(signal)
 
-            for _, (port, _) in self._dut.out_ports.items():
+            for _, port, _ in self._dut.out_ports:
                 for signal in self.unpack_record(port):
                     ios.add(signal)
 

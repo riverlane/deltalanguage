@@ -6,7 +6,11 @@ import unittest.mock
 import deltalanguage as dl
 
 
-class TestExecutionDLBase(unittest.TestCase):
+# True if DeltaPySimulator is used
+PYSIMULATOR = True
+
+
+class TestExecutionBaseDL(unittest.TestCase):
     """Test execution base for Deltalanguage's ``DeltaPySimulator``,
     defines method for executing and checking test graphs.
     """
@@ -41,8 +45,7 @@ class TestExecutionDLBase(unittest.TestCase):
                 self.python_output_suffix
             )
 
-
-    def check_executes_graph(self, graph, expect=None, files=[], reqs=[]):
+    def check_executes_graph(self, graph, expect=None, files=None, reqs=None):
         """Main checking routine that should be overwritten when for
         testting of other simulators and runtime simulators.
         """

@@ -4,7 +4,7 @@ import numpy as np
 from numpy.random import RandomState
 
 from projectq import MainEngine
-from projectq.backends import CircuitDrawer, Simulator
+from projectq.backends import Simulator
 from projectq.ops import (All, C, DaggeredGate, H, Measure, R,
                           Rx, Ry, Rz, S, SqrtX, T, X, Y, Z)
 from projectq.ops._basics import BasicGate, BasicRotationGate
@@ -87,7 +87,8 @@ class ProjectqQuantumSimulator(IQuantumSimulator):
         Random number generator seed for both the ProjectQ Simulator and
         circuit errors.
     backend
-        ProjectQ backend, could use CircuitDrawer for debugging purposes.
+        ProjectQ backend, could use projectq.backends.CircuitDrawer for
+        debugging purposes.
 
 
     .. TODO::
@@ -162,7 +163,6 @@ class ProjectqQuantumSimulator(IQuantumSimulator):
             self._engine = MainEngine(backend=Simulator(rnd_seed=self.seed))
         else:
             self._engine = MainEngine(backend=self.backend())
-
 
     def cleanup(self):
         """Release all the qubits that haven't been handled yet."""

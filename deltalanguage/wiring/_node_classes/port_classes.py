@@ -147,9 +147,7 @@ class OutPort(
     """
 
     def __str__(self):
-        name = self.port_name.n_index if self.port_name.n_index is not None \
-            else "output"
-
+        name = self.port_name.n_index
         ret = f"{name}, {self.port_type} -> {self.destination.port_name}"
         return ret
 

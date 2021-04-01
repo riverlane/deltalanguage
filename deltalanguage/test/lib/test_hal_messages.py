@@ -1,10 +1,6 @@
 """Characterization test BaseDeltaType and its subclasses."""
 
-import random
 import unittest
-
-import attr
-import numpy as np
 
 from deltalanguage.lib.hal._commands import *
 

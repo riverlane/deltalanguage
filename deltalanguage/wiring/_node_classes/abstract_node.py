@@ -1,4 +1,4 @@
-"""Module to describe the AbstractNode, ProxyNode and ForkedNode node classes.
+"""Module to describe the AbstractNode, ProxyNode and IndexProxyNode node classes.
 """
 
 from abc import ABC, abstractmethod
@@ -41,21 +41,20 @@ class AbstractNode(ABC):
         AbstractNode.global_name_id = 0
 
     @abstractmethod
-    def add_out_port(self, port_destination, index=None):
+    def add_out_port(self, port_destination, index: str):
         """Add out port.
 
         Parameters
         ----------
         port_destination : InPort
             The in-port that this out-port exports to.
-        index : Optional[str]
-            If this port is a fork then the type will be an indexed part
-            of the output of the node.
+        index : str
+            Index corresponding to the name of this specficic out-port
         """
         pass
 
     @abstractmethod
-    def add_in_port(self, port_name: str, in_type: Type):
+    def add_in_port(self, arg_name: str, in_type: Type, in_port_size: int):
         """Add in port.
 
         Parameters
@@ -64,6 +63,8 @@ class AbstractNode(ABC):
             The name of the argument this port supplies.
         in_type : BaseDeltaType
             The type that is expected to be supplied for this port.
+        in_port_size : int
+            Limit on how many message can queue for the port to be added
         """
         pass
 
@@ -112,13 +113,13 @@ class ProxyNode(AbstractNode):
         """
         return getattr(self.referee, item)
 
-    def add_in_port(self, port_name: str, in_type: Type):
+    def add_in_port(self, arg_name: str, in_type: Type, in_port_size: int = 0):
         """This function has been explicitly created as this is an abstract
         method calls add in-port on referee node.
         """
-        self.referee.add_in_port(port_name, in_type)
+        self.referee.add_in_port(arg_name, in_type, in_port_size)
 
-    def add_out_port(self, port_destination, index=None):
+    def add_out_port(self, port_destination, index: str):
         """This function has been explicitly created as this is an abstract
         method calls add out-port on referee node.
         """
@@ -133,20 +134,20 @@ class ProxyNode(AbstractNode):
         return self.referee.body
 
 
-class ForkedNode(ProxyNode):
-    """Node class to represent a pointer to a node that is forking its
-    output to several other nodes.
+class IndexProxyNode(ProxyNode):
+    """Node class to represent a pointer to a node when the user is trying to
+    index a particular part of said nodes output.
 
-    The main use of this class is to store the index at which this
-    particular forked data can be found.
+    The main use of this class is to store the index to address a particular
+    out-port.
 
     Parameters
     ----------
     referee :
-        The node that this node forks.
+        The node that this node indexes.
     index : str
-        Index as string at which the data for this fork can be found
-        on the referee nodes output.
+        Index as string corresponding to the index of an out-port on the
+        refereee node
     """
 
     def __init__(self, referee, index: str):
