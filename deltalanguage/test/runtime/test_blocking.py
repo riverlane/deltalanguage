@@ -228,7 +228,7 @@ class RuntimeBlockingTest(unittest.TestCase):
 
         unstoppable = graph.find_node_by_name("unstoppable")
 
-        self.assertFalse(rt.threads[unstoppable.name].is_alive())
+        self.assertFalse(rt.threads[unstoppable.full_name].is_alive())
         self.assertEqual(exit_if.saved, list(range(12)))
 
 

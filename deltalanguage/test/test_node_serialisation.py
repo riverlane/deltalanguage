@@ -1,5 +1,6 @@
 import math
 import subprocess
+import textwrap
 import unittest
 
 import dill
@@ -12,7 +13,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   PyFuncBody,
                                   PyMethodBody)
 
-from deltalanguage.test._utils import return_2
+from deltalanguage.test._lib import return_2_const
 
 
 class Adder:
@@ -171,38 +172,41 @@ class NodeSerialisationTest(unittest.TestCase):
     def test_load_and_runtime_new_environment_independent_const(self):
 
         # build up python script to run in separate environment
-        python_string = """
-import dill
+        python_string = textwrap.dedent(
+            """
+            import dill
 
-from deltalanguage.data_types import Void
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.wiring import DeltaBlock, DeltaGraph
+            from deltalanguage.data_types import Void
+            from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
+            from deltalanguage.wiring import DeltaBlock, DeltaGraph
 
-@DeltaBlock(name="add")
-def add(a: int, b: int) -> int:
-    return a + b
-
-
-@DeltaBlock(name="print_exit", allow_const=False)
-def print_then_exit(to_print: object) -> Void:
-    print(to_print)
-    raise DeltaRuntimeExit
+            @DeltaBlock(name="add")
+            def add(a: int, b: int) -> int:
+                return a + b
 
 
-with DeltaGraph() as graph:
-    added = add(a=4, b=3)
-    print_then_exit(to_print=added)
-"""
+            @DeltaBlock(name="print_exit", allow_const=False)
+            def print_then_exit(to_print: object) -> Void:
+                print(to_print)
+                raise DeltaRuntimeExit
 
-        python_string += f"""
-deserialized_node = dill.loads({self.serialized_independent_const})
 
-graph.nodes[2]._body = deserialized_node
+            with DeltaGraph() as graph:
+                added = add(a=4, b=3)
+                print_then_exit(to_print=added)
+            """
+        )
 
-rt = DeltaPySimulator(graph)
-rt.run()
+        python_string += textwrap.dedent(
+            f"""
+            deserialized_node = dill.loads({self.serialized_independent_const})
 
-"""
+            graph.nodes[2]._body = deserialized_node
+
+            rt = DeltaPySimulator(graph)
+            rt.run()
+            """
+        )
 
         # begin python process in separate environment
         p = subprocess.run(
@@ -218,38 +222,41 @@ rt.run()
     def test_load_and_runtime_new_environment_env_func(self):
 
         # build up python script to run in separate environment
-        python_string = """
-import dill
+        python_string = textwrap.dedent(
+            """
+            import dill
 
-from deltalanguage.data_types import Void
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.wiring import DeltaBlock, DeltaGraph
+            from deltalanguage.data_types import Void
+            from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
+            from deltalanguage.wiring import DeltaBlock, DeltaGraph
 
-@DeltaBlock(name="add", allow_const=False)
-def add(a: int, b: int) -> int:
-    return a + b
-
-
-@DeltaBlock(name="print_exit", allow_const=False)
-def print_then_exit(to_print: object) -> Void:
-    print(to_print)
-    raise DeltaRuntimeExit
+            @DeltaBlock(name="add", allow_const=False)
+            def add(a: int, b: int) -> int:
+                return a + b
 
 
-with DeltaGraph() as graph:
-    added = add(a=14, b=21)
-    print_then_exit(to_print=added)
-"""
+            @DeltaBlock(name="print_exit", allow_const=False)
+            def print_then_exit(to_print: object) -> Void:
+                print(to_print)
+                raise DeltaRuntimeExit
 
-        python_string += f"""
-deserialized_node = dill.loads({self.serialized_env_func})
 
-graph.nodes[2]._body = deserialized_node
+            with DeltaGraph() as graph:
+                added = add(a=14, b=21)
+                print_then_exit(to_print=added)
+            """
+        )
 
-rt = DeltaPySimulator(graph)
-rt.run()
+        python_string += textwrap.dedent(
+            f"""
+            deserialized_node = dill.loads({self.serialized_env_func})
 
-"""
+            graph.nodes[2]._body = deserialized_node
+
+            rt = DeltaPySimulator(graph)
+            rt.run()
+            """
+        )
 
         # begin python process in separate environment
         p = subprocess.run(
@@ -265,44 +272,47 @@ rt.run()
     def test_load_and_runtime_new_environment_method(self):
 
         # build up python script to run in separate environment
-        python_string = """
-import dill
+        python_string = textwrap.dedent(
+            """
+            import dill
 
-from deltalanguage.data_types import Void
-from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
-from deltalanguage.wiring import DeltaBlock, DeltaMethodBlock, DeltaGraph
+            from deltalanguage.data_types import Void
+            from deltalanguage.runtime import DeltaPySimulator, DeltaRuntimeExit
+            from deltalanguage.wiring import DeltaBlock, DeltaMethodBlock, DeltaGraph
 
-class Adder:
+            class Adder:
 
-    def __init__(self, x: int):
-        self._x = x
+                def __init__(self, x: int):
+                    self._x = x
 
-    @DeltaMethodBlock(name="add_x")
-    def add_x(self, a: int) -> int:
-        return a + self._x
+                @DeltaMethodBlock(name="add_x")
+                def add_x(self, a: int) -> int:
+                    return a + self._x
 
 
-@DeltaBlock(name="print_exit", allow_const=False)
-def print_then_exit(to_print: object) -> Void:
-    print(to_print)
-    raise DeltaRuntimeExit
+            @DeltaBlock(name="print_exit", allow_const=False)
+            def print_then_exit(to_print: object) -> Void:
+                print(to_print)
+                raise DeltaRuntimeExit
 
-add_2 = Adder(2)
+            add_2 = Adder(2)
 
-with DeltaGraph() as graph:
-    added_2 = add_2.add_x(a=3)
-    print_then_exit(to_print=added_2)
-"""
+            with DeltaGraph() as graph:
+                added_2 = add_2.add_x(a=3)
+                print_then_exit(to_print=added_2)
+            """
+        )
 
-        python_string += f"""
-deserialized_node = dill.loads({self.serialized_method})
+        python_string += textwrap.dedent(
+            f"""
+            deserialized_node = dill.loads({self.serialized_method})
 
-graph.nodes[1]._body = deserialized_node
+            graph.nodes[1]._body = deserialized_node
 
-rt = DeltaPySimulator(graph)
-rt.run()
-
-"""
+            rt = DeltaPySimulator(graph)
+            rt.run()
+            """
+        )
 
         # begin python process in separate environment
         p = subprocess.run(
@@ -322,13 +332,15 @@ class StateSaverSerialisationTest(unittest.TestCase):
         """Serialise a state saver and load it in a new instance."""
         saver = StateSaver(t=int, verbose=True)
         with DeltaGraph():
-            saver_node = saver.save(return_2())
+            saver_node = saver.save(return_2_const())
         saver_body = saver_node.body.as_serialized
-        python_string = f"""
-import dill
-saver_body = dill.loads({saver_body})
-saver_body.eval(5)
-"""
+        python_string = textwrap.dedent(
+            f"""
+            import dill
+            saver_body = dill.loads({saver_body})
+            saver_body.eval(5)
+            """
+        )
         p = subprocess.run(
             [r"python"],
             input=str.encode(python_string),

@@ -14,11 +14,19 @@ The majority of tests already exist either in ``../runtime/``
 or in the test suite for Deltasimulator in ``test_execution.py``.
 """
 
-from .base import PYSIMULATOR
-from .test_basic import TestExecutionBasic
+
+from .test_basic import (TestExecutionPyFuncBody,
+                         TestExecutionPyInteractiveBody,
+                         TestExecutionPyInteractiveBodySend,
+                         TestExecutionPyMigenBody,
+                         TestExecutionGeneral)
 from .test_constant_nodes import TestExecutionConstantNodes
 from .test_multibody_nodes import TestExecutionMultibodyNodes
-from .test_multioutput import TestExecutionMultioutput
+from .test_multioutput import (
+    TestExecutionSplittingSingleOutputNodeToSameNodeTest,
+    TestExecutionSplittingSingleOutputNodeToDiffNodesTest,
+    TestExecutionSplittingMultiOutputNodeTest
+)
 from .test_optional_inputs import TestExecutionOptionalInputs
 from .test_performance import TestExecutionPerformance
 from .test_primitives import TestExecutionPrimitives

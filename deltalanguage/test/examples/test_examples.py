@@ -4,6 +4,7 @@
 import os
 import subprocess
 import unittest
+import textwrap
 
 from deltalanguage.test._utils import get_full_filelist, run_notebook
 
@@ -121,6 +122,29 @@ class TestCombTree(unittest.TestCase):
         for error in errors.decode("utf-8").split("\n"):
             if error:
                 self.assertTrue(("INFO" in error) or ("DEBUG" in error), error)
+
+
+class TestMigenHardwareExamples(unittest.TestCase):
+
+    def test_main(self):
+        filename = "examples/tutorials/migen_hardware_examples.py"
+        print('running ' + filename)
+        pipes = subprocess.Popen(['python', filename],
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+        stdout, stderr = pipes.communicate()
+
+        self.assertEqual(
+            stdout.decode("utf-8"),
+            textwrap.dedent(
+                """\
+                CHECK_SHAPE: reset has lasted exactly 5 clk cycles
+                CHECK_SHAPE: reset has lasted at least 5 clk cycles
+                """
+            )
+        )
+
+        self.assertEqual(stderr.decode("utf-8"), "")
 
 
 if __name__ == '__main__':

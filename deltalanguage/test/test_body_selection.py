@@ -6,7 +6,7 @@ from deltalanguage.wiring import (DeltaGraph,
                                   RealNode)
 
 
-class SelectBody(unittest.TestCase):
+class SelectBodyTest(unittest.TestCase):
     """Tests associated with body selection system
     including how to exclude and prefer different bodies using tags.
     """

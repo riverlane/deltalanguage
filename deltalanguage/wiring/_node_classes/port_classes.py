@@ -6,7 +6,6 @@ from typing import NamedTuple, Union
 
 import dill
 
-from deltalanguage._utils import NamespacedName
 from deltalanguage.data_types import BaseDeltaType, Optional
 
 from .abstract_node import AbstractNode
@@ -16,7 +15,7 @@ class InPort(
     NamedTuple(
         "InPort",
         [
-            ("port_name", NamespacedName),
+            ("index", str),
             ("port_type_", Union[BaseDeltaType, Optional]),
             ("node", AbstractNode),
             ("in_port_size", int)
@@ -30,7 +29,7 @@ class InPort(
 
     Attributes
     ----------
-    port_name
+    index
         The name of the argument this port is supplying.
     port_type_
         The expected type of the value to be supplied.
@@ -49,25 +48,26 @@ class InPort(
     """
 
     def __str__(self):
-        ret = f"{self.port_name.n_index}, {self.port_type}"
+        ret = f"{self.index}, {self.port_type}"
         if self.is_optional:
             ret += ", optional"
 
         return ret
 
     def __repr__(self):
-        return f"({self.port_name}, {self.port_type}, " +\
+        return f"({self.name}, {self.port_type}, " +\
             f"{self.in_port_size}, {self.is_optional})"
 
     @property
-    def index(self):
-        """Index of this port."""
-        return self.port_name.n_index
+    def name(self) -> str:
+        """Unique port name as string, formed from the node name and port index.
+        """
+        return f"{self.node.full_name}.{self.index}"
 
     @property
     def node_name(self):
         """Node name of this port."""
-        return self.port_name.domain
+        return self.node.full_name
 
     @property
     def port_type(self):
@@ -89,7 +89,7 @@ class InPort(
         capnp_in_port
             The ``capnp`` object of this in port.
         """
-        capnp_in_port.name = self.port_name.n_index
+        capnp_in_port.name = self.index
         capnp_in_port.type = dill.dumps(self.port_type)
         capnp_in_port.optional = self.is_optional
 
@@ -105,10 +105,10 @@ class InPort(
             The capnp object of this wire.
         """
         for i, node in enumerate(nodes):
-            if node.name == self.port_name.domain:
+            if node.name == self.node.full_name:
                 capnp_wire.destNode = i
                 for j, in_port in enumerate(node.inPorts):
-                    if in_port.name == self.port_name.n_index:
+                    if in_port.name == self.index:
                         capnp_wire.destInPort = j
                         break
                 break
@@ -119,7 +119,7 @@ class OutPort(
     NamedTuple(
         "OutPort",
         [
-            ("port_name", NamespacedName),
+            ("index", str),
             ("port_type_", BaseDeltaType),
             ("destination", InPort),
             ("node", AbstractNode)
@@ -133,7 +133,7 @@ class OutPort(
 
     Attributes
     ----------
-    port_name
+    index
         The name of the part of the node output this port will export.
     port_type_
         The type of the part of the node output this port will export.
@@ -147,12 +147,11 @@ class OutPort(
     """
 
     def __str__(self):
-        name = self.port_name.n_index
-        ret = f"{name}, {self.port_type} -> {self.destination.port_name}"
+        ret = f"{self.index}, {self.port_type} -> {self.destination.name}"
         return ret
 
     def __repr__(self):
-        return f"({self.destination.port_name}, {self.port_name}, " +\
+        return f"({self.destination.name}, {self.name}, " +\
             f"{self.port_type})"
 
     @property
@@ -163,11 +162,6 @@ class OutPort(
             return self.port_type_
 
     @property
-    def index(self):
-        """Index of this port."""
-        return self.port_name.n_index
-
-    @property
     def dest_port_index(self):
         """Index of destination port."""
         return self.destination.index
@@ -175,7 +169,13 @@ class OutPort(
     @property
     def dest_port_name(self):
         """Name of destination port (node name + index)."""
-        return self.destination.port_name
+        return self.destination.name
+
+    @property
+    def name(self) -> str:
+        """Unique port name as string, formed from node name and port index
+        """
+        return f"{self.node.full_name}.{self.index}"
 
     @property
     def dest_node_name(self):
@@ -190,10 +190,7 @@ class OutPort(
         capnp_in_port
             The ``capnp`` object of this in port.
         """
-        if self.port_name.n_index:
-            capnp_out_port.name = self.port_name.n_index
-        else:
-            capnp_out_port.name = ""
+        capnp_out_port.name = self.index
         capnp_out_port.type = dill.dumps(self.port_type)
 
     def capnp_wiring(self, nodes, capnp_wire):

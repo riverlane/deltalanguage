@@ -15,30 +15,18 @@ from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
                                   PyConstBody,
                                   PyFuncBody,
-                                  NodeTemplate)
+                                  NodeTemplate,
+                                  placeholder_node_factory)
 
-from deltalanguage.test._utils import (return_12,
-                                       add,
-                                       add_non_const,
-                                       return_2)
-
-
-@DeltaBlock(allow_const=True)
-def foo_const(a: int) -> int:
-    return a
+from deltalanguage.test._lib import (add_const,
+                                     add_non_const,
+                                     forward_const,
+                                     forward_non_const,
+                                     return_2_const,
+                                     return_1_2_const)
 
 
-@DeltaBlock(allow_const=True)
-def foo_const_2(a: int) -> int:
-    return a
-
-
-@DeltaBlock(allow_const=False)
-def foo_non_const(a: int) -> int:
-    return a
-
-
-class ConstFolding(unittest.TestCase):
+class ConstFoldingTest(unittest.TestCase):
     """Test that single-bodies nodes are folded correctly during graph
     construction.
     """
@@ -47,7 +35,7 @@ class ConstFolding(unittest.TestCase):
         """Test that nodes producing constants are constant nodes."""
 
         with DeltaGraph() as graph:
-            n1 = add(4, 3)
+            n1 = add_const(4, 3)
             n2 = add_non_const(4, 2)
 
         # nodes producing constants are turned to constant nodes
@@ -68,8 +56,8 @@ class ConstFolding(unittest.TestCase):
         """
 
         with DeltaGraph() as graph:
-            n1 = add(4, foo_non_const(3))
-            n2 = add_non_const(4, foo_non_const(2))
+            n1 = add_const(4, forward_non_const(3))
+            n2 = add_non_const(4, forward_non_const(2))
 
         # nodes producing constants are turned to constant nodes
         for node in graph.find_node_by_name('node'):
@@ -88,9 +76,9 @@ class ConstFolding(unittest.TestCase):
         constant nodes.
         """
         with DeltaGraph() as graph:
-            n0 = return_2()
-            n1 = foo_const(n0)
-            n2 = foo_const(n1)
+            n0 = return_2_const()
+            n1 = forward_const(n0)
+            n2 = forward_const(n1)
 
         self.assertIsInstance(n0.body, PyConstBody)
         self.assertIsInstance(n1.body, PyConstBody)
@@ -104,10 +92,10 @@ class ConstFolding(unittest.TestCase):
         only one of the destinations is constant.
         """
         with DeltaGraph() as graph:
-            n0 = return_2()
-            n1 = foo_const(n0)
-            n2 = foo_const(n1)
-            n3 = foo_non_const(n1)
+            n0 = return_2_const()
+            n1 = forward_const(n0)
+            n2 = forward_const(n1)
+            n3 = forward_non_const(n1)
 
         self.assertIsInstance(n0.body, PyConstBody)
         self.assertIsInstance(n1.body, PyConstBody)
@@ -123,9 +111,9 @@ class ConstFolding(unittest.TestCase):
         source is a constant node as well.
         """
         with DeltaGraph():
-            nums = return_12()
-            p1 = foo_const(nums.x)
-            p2 = foo_const(nums.y)
+            nums = return_1_2_const()
+            p1 = forward_const(nums.x)
+            p2 = forward_const(nums.y)
 
         self.assertIsInstance(nums.body, PyConstBody)
         self.assertIsInstance(p1.body, PyConstBody)
@@ -138,9 +126,9 @@ class ConstFolding(unittest.TestCase):
         the rest of destinations stay const.
         """
         with DeltaGraph() as graph:
-            nums = return_12()
-            p1 = foo_const(nums.x)
-            p2 = foo_non_const(nums.y)
+            nums = return_1_2_const()
+            p1 = forward_const(nums.x)
+            p2 = forward_non_const(nums.y)
 
         self.assertIsInstance(nums.body, PyConstBody)
         self.assertIsInstance(p1.body, PyConstBody)
@@ -155,11 +143,11 @@ class ConstFolding(unittest.TestCase):
         no funny business.
         """
         with DeltaGraph():
-            nums = return_12()
-            p1 = foo_const(nums.x)
-            p2 = foo_non_const(nums.y)
-            p3 = foo_const(nums.x)
-            p4 = foo_const(nums.y)
+            nums = return_1_2_const()
+            p1 = forward_const(nums.x)
+            p2 = forward_non_const(nums.y)
+            p3 = forward_const(nums.x)
+            p4 = forward_const(nums.y)
 
         self.assertIsInstance(nums.body, PyConstBody)
         self.assertIsInstance(p1.body, PyConstBody)
@@ -213,7 +201,7 @@ def foo_semi_const_2_t(a: int) -> int:
     return a
 
 
-class ConstFoldingNodeTemplates(unittest.TestCase):
+class ConstFoldingNodeTemplatesTest(unittest.TestCase):
     """Test that nodes created via multi-bodies NodeTemplates are folded
     correctly during graph construction."""
 
@@ -222,7 +210,7 @@ class ConstFoldingNodeTemplates(unittest.TestCase):
         constant nodes.
         """
         with DeltaGraph() as graph:
-            n0 = return_2()
+            n0 = return_2_const()
             n1 = foo_const_1_t(n0)
             n2 = foo_const_2_t(n1)
 
@@ -238,7 +226,7 @@ class ConstFoldingNodeTemplates(unittest.TestCase):
         """
 
         with DeltaGraph() as graph:
-            n1 = add(4, foo_non_const_1_t(3))
+            n1 = add_const(4, foo_non_const_1_t(3))
             n2 = add_non_const(4, foo_non_const_1_t(2))
 
         # nodes producing constants are turned to constant nodes
@@ -264,7 +252,7 @@ class ConstFoldingNodeTemplates(unittest.TestCase):
         """
 
         with DeltaGraph() as graph:
-            n1 = add(4, foo_semi_const_1_t(3))
+            n1 = add_const(4, foo_semi_const_1_t(3))
             n2 = add_non_const(4, foo_semi_const_1_t(2))
 
         # nodes producing constants are turned to constant nodes
@@ -278,6 +266,42 @@ class ConstFoldingNodeTemplates(unittest.TestCase):
         self.assertIsInstance(n2.body, PyFuncBody)
 
         self.assertTrue(graph.check())
+
+
+class ConstantNodeAndPlaceholderTest(unittest.TestCase):
+    """Testing that a loop of constant nodes cannot be created via
+    PlaceholderNode.
+    """
+
+    def test_specify_by_node(self):
+        with DeltaGraph() as graph:
+            p = placeholder_node_factory()
+            b = forward_const(p)
+            p.specify_by_node(forward_const(b))
+
+        for node in graph.nodes:
+            self.assertIsInstance(node.body, PyFuncBody)
+
+    def test_specify_by_func(self):
+        def forward_func(val: int) -> int:
+            return val
+
+        with DeltaGraph() as graph:
+            p_1 = placeholder_node_factory()
+            p_2 = placeholder_node_factory(p_1)
+            p_1.specify_by_node(forward_const(p_2))
+            p_2.specify_by_func(forward_func, allow_const=True)
+
+        for node in graph.nodes:
+            self.assertIsInstance(node.body, PyFuncBody)
+
+    def test_const_selfloop(self):
+        with DeltaGraph() as graph:
+            p = placeholder_node_factory()
+            p.specify_by_node(forward_const(p))
+
+        for node in graph.nodes:
+            self.assertIsInstance(node.body, PyFuncBody)
 
 
 if __name__ == "__main__":

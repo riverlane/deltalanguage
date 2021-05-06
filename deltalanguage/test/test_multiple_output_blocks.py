@@ -9,7 +9,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
                                   Interactive,
                                   PythonNode)
-from deltalanguage.test._utils import TripleStateSaver
+from deltalanguage.test._lib import TripleStateSaver
 
 
 class ForkedSendTester:
@@ -52,12 +52,12 @@ def tuple_first_alone():
     return 7, 7
 
 
-class InteractiveSendBehaviour(unittest.TestCase):
+class BlockSendBehaviourTest(unittest.TestCase):
     """Test the different ways an block body can return
     values when it has multiple outputs
     """
 
-    def test_positional_interactive_send(self):
+    def test_positional_block_send(self):
         ts = TripleStateSaver(11)
         fs = ForkedSendTester()
 

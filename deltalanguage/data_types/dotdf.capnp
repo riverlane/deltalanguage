@@ -41,6 +41,7 @@ struct Body {
       dillImpl @3 :Data;
     }
   }
+  tags @4 :Data; # tags used to identify a particular body
 }
 
 struct InPort {

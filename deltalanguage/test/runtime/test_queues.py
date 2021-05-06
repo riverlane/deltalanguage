@@ -1,37 +1,32 @@
-"""Testing queues work."""
-
 from queue import Empty, Full
 import unittest
 
 from deltalanguage.data_types import Optional, Int
 from deltalanguage.runtime import ConstQueue, DeltaQueue
 from deltalanguage.runtime._queues import Flusher
-from deltalanguage._utils import NamespacedName, QueueMessage
-from deltalanguage.wiring import InPort, OutPort
+from deltalanguage._utils import QueueMessage
+from deltalanguage.wiring import InPort, OutPort, RealNode, DeltaGraph
 
 
 class TestDeltaQueue(unittest.TestCase):
-    """Base test class for testing DeltaQueue and a ConstQueue attached to
+    """Test functionality of DeltaQueue and ConstQueue attached to
     an out port leading to either an obligatory or an optional in port.
-
-    In this case queues are attached to a port with a non-forker output.
     """
 
     def setUp(self):
         # obligatory and optional ports
+        g = DeltaGraph()
         out_port_obl = OutPort(
-            NamespacedName("port_name", None),
+            'out',
             Int(),
-            InPort(NamespacedName("port_name", None),
-                   Int(), None, 0),
-            None
+            InPort(None, Int(), None, 0),
+            RealNode(g, [], name='node_name'),
         )
         out_port_opt = OutPort(
-            NamespacedName("port_name", None),
+            'out',
             Int(),
-            InPort(NamespacedName("port_name", None),
-                   Optional(Int()), None, 0),
-            None
+            InPort(None, Optional(Int()), None, 0),
+            RealNode(g, [], name='node_name'),
         )
 
         # 4 types of queues

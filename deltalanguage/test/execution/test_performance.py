@@ -18,9 +18,13 @@ import unittest
 
 import deltalanguage as dl
 
-from deltalanguage.test.execution.base import TestExecutionBaseDL, PYSIMULATOR
+from deltalanguage.test.execution.base import TestExecutionBaseDL
 
 
 class TestExecutionPerformance(TestExecutionBaseDL):
 
     pass
+
+
+if __name__ == "__main__":
+    unittest.main()

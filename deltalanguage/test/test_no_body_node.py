@@ -11,6 +11,8 @@ from deltalanguage.wiring import (DeltaBlock,
                                   PyMigenBody,
                                   RealNode)
 
+from deltalanguage.test._lib import add_const, add_non_const
+
 
 class NoBodyNodeTest(unittest.TestCase):
     """Tests regarding using `NodeTemplate` to create a node with no bodies
@@ -44,7 +46,6 @@ class NoBodyNodeTest(unittest.TestCase):
             forked_input = template_o.call()
             template_i.call(a=forked_input.a, b=forked_input.b)
 
-        print(graph)
         self.assertTrue(graph.check())
 
     def test_placeholder_input(self):
@@ -63,6 +64,7 @@ class NoBodyNodeTest(unittest.TestCase):
         @DeltaBlock()
         def bool_and(a: bool, b: bool) -> bool:
             return a and b
+
         with DeltaGraph() as graph:
             a = placeholder_node_factory()
             template_4.call(a=a,
@@ -72,15 +74,11 @@ class NoBodyNodeTest(unittest.TestCase):
         self.assertTrue(graph.check())
 
     def test_template_input_raises_exception(self):
-        @DeltaBlock()
-        def add(a: int, b: int) -> int:
-            return a+b
-
         template_1 = NodeTemplate(inputs=[('a', bool)])
 
         with self.assertRaises(DeltaTypeError):
             with DeltaGraph() as graph:
-                template_1.call(a=add(a=1, b=2))
+                template_1.call(a=add_const(1, 2))
             graph.check()
 
 
@@ -90,7 +88,7 @@ class OpCacher2():
         self._add_cache = {}
 
     @DeltaMethodBlock()
-    def cached_add(self, a: int, b: int) -> int:
+    def cached_add(self, n1: int, n2: int) -> int:
         if (a, b) in self._add_cache:
             return self._add_cache[(a, b)]
         else:
@@ -99,31 +97,27 @@ class OpCacher2():
             return result
 
 
-class NoBodyAddBody(unittest.TestCase):
+class NoBodyAddBodyTest(unittest.TestCase):
     """Tests for when the default call is used to create a node with no bodies
     and then ``add_body`` is used to give the node a body.
     """
 
     def test_add_func(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      inputs=[('a', int), ('b', int)],
+                                      inputs=[('n1', int), ('n2', int)],
                                       outputs=[('output', int)])
-
-        @DeltaBlock(allow_const=False)
-        def simple_add(a: int, b: int) -> int:
-            return a + b
 
         with DeltaGraph():
             n1 = test_template1.call(2, 3)
 
         self.assertEqual(len(n1.bodies), 0)
-        n1.add_body(simple_add)
+        n1.add_body(add_non_const)
         self.assertEqual(len(n1.bodies), 1)
-        self.assertIn('simple_add', n1.body.access_tags)
+        self.assertIn('add_non_const', n1.body.access_tags)
 
     def test_add_method(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      inputs=[('a', int), ('b', int)],
+                                      inputs=[('n1', int), ('n2', int)],
                                       outputs=[('output', int)])
         with DeltaGraph():
             n1 = test_template1.call(2, 3)
@@ -135,28 +129,24 @@ class NoBodyAddBody(unittest.TestCase):
 
     def test_add_multiple(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      inputs=[('a', int), ('b', int)],
+                                      inputs=[('n1', int), ('n2', int)],
                                       outputs=[('output', int)])
-
-        @DeltaBlock(allow_const=False)
-        def simple_add(a: int, b: int) -> int:
-            return a + b
 
         with DeltaGraph():
             n1 = test_template1.call(2, 3)
 
         self.assertEqual(len(n1.bodies), 0)
         n1.add_body(OpCacher2().cached_add)
-        n1.add_body(simple_add)
+        n1.add_body(add_non_const)
         self.assertEqual(len(n1.bodies), 2)
         self.assertIn('cached_add', n1.body.access_tags)
 
     def test_add_interactive(self):
         test_template1 = NodeTemplate(name="test_1",
-                                      inputs=[('a', int), ('b', int)],
+                                      inputs=[('n1', int), ('n2', int)],
                                       outputs=[('output', int)])
 
-        @Interactive(inputs=[('a', int), ('b', int)],
+        @Interactive(inputs=[('n1', int), ('n2', int)],
                      outputs=[('output', int)])
         def broken_adder(node: RealNode):
             a = node.receive('a')

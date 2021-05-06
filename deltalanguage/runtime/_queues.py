@@ -56,7 +56,7 @@ class DeltaQueue(Queue):
         super().__init__(maxsize=maxsize)
         self._src = out_port
         self._log = make_logger(logging.WARNING,
-                                f"Queue {out_port.port_name}")
+                                f"Queue {out_port.name}")
         self._queue_interval = queue_interval
         self.optional = out_port.destination.is_optional
 

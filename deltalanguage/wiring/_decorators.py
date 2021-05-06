@@ -423,7 +423,7 @@ def Interactive(
         >>> import deltalanguage as dl
 
         >>> @dl.Interactive([("a", int), ("b", int)], [('output', int)])
-        ... def foo(node: PythonNode):
+        ... def foo(node: dl.PythonNode):
         ...     internal_memory = 0
         ...
         ...     for i in range(10):
@@ -456,7 +456,7 @@ def Interactive(
     .. code-block:: python
 
         >>> @dl.Interactive([("a", int), ("b", int)], [('output', int)])
-        ... def bar(node: PythonNode):
+        ... def bar(node: dl.PythonNode):
         ...     internal_memory = 0
         ...
         ...     for i in range(10):
@@ -481,7 +481,7 @@ def Interactive(
     .. code-block:: python
 
         >>> @dl.Interactive([("a", int), ("b", int)], [('x', int), ('y', int)])
-        ... def bar(node: PythonNode):
+        ... def bar(node: dl.PythonNode):
         ...     internal_memory = 0
         ...
         ...     for i in range(10):

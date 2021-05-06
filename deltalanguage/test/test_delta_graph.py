@@ -6,23 +6,13 @@ import unittest
 
 import deltalanguage as dl
 from deltalanguage.data_types import DeltaTypeError
-from deltalanguage.test._utils import return_1
-
-
-@dl.DeltaBlock()
-def union_one_receiver(x: dl.Union([int])) -> int:
-    return x
+from deltalanguage.test._lib import return_1_const
 
 
 @dl.DeltaBlock(outputs=[('a', int), ('b', bool), ('c', int), ('d', int)])
 def forked_return_output(x: dl.Int(dl.Size(8)),
                          y: dl.Int(dl.Size(8))
                          ) -> Tuple[int, bool, int, int]:
-    return 0, 1, 1, 0
-
-
-@dl.DeltaBlock(outputs=[('a', int), ('b', bool), ('c', int), ('d', int)])
-def forked_return_output_no_input() -> Tuple[int, bool, int, int]:
     return 0, 1, 1, 0
 
 
@@ -101,7 +91,7 @@ class DeltaGraphTest(unittest.TestCase):
         """Top is allowed by default"""
         s = dl.lib.StateSaver()
         with dl.DeltaGraph() as graph:
-            s.save_and_exit(return_1())
+            s.save_and_exit(return_1_const())
 
         self.assertTrue(graph.check())
 
@@ -113,13 +103,6 @@ class DeltaGraphTest(unittest.TestCase):
 
         with self.assertRaises(DeltaTypeError):
             graph.check(allow_top=False)
-
-
-def to_union_of_one(node: dl.RealNode) -> dl.RealNode:
-    org_t = node.outputs
-    node.outputs = dl.Union([org_t])
-
-    return node
 
 
 class DeltaGraphStrTest(unittest.TestCase):

@@ -53,7 +53,7 @@ class TestSingleOutputIndexing(unittest.TestCase):
         port_under_test = r.out_ports[0]
         self.assertEqual(port_under_test.destination.node, s)
         self.assertEqual(port_under_test.port_type, Int(Size(32)))
-        self.assertEqual(port_under_test.port_name[1], 'output')
+        self.assertEqual(port_under_test.index, 'output')
 
     def test_default_name_method_block(self):
         saver = StateSaver(int)
@@ -69,7 +69,7 @@ class TestSingleOutputIndexing(unittest.TestCase):
         port_under_test = r.out_ports[0]
         self.assertEqual(port_under_test.destination.node, s)
         self.assertEqual(port_under_test.port_type, Int(Size(32)))
-        self.assertEqual(port_under_test.port_name[1], 'output')
+        self.assertEqual(port_under_test.index, 'output')
 
     def test_custom_name_func_block(self):
         saver = StateSaver(int)
@@ -84,7 +84,7 @@ class TestSingleOutputIndexing(unittest.TestCase):
         port_under_test = r.out_ports[0]
         self.assertEqual(port_under_test.destination.node, s)
         self.assertEqual(port_under_test.port_type, Int(Size(32)))
-        self.assertEqual(port_under_test.port_name[1], 'out')
+        self.assertEqual(port_under_test.index, 'out')
 
     def test_custom_name_method_block(self):
         saver = StateSaver(int)
@@ -100,7 +100,7 @@ class TestSingleOutputIndexing(unittest.TestCase):
         port_under_test = r.out_ports[0]
         self.assertEqual(port_under_test.destination.node, s)
         self.assertEqual(port_under_test.port_type, Int(Size(32)))
-        self.assertEqual(port_under_test.port_name[1], 'out')
+        self.assertEqual(port_under_test.index, 'out')
 
     def test_custom_name_interactive(self):
         saver = StateSaver(int)
@@ -115,7 +115,7 @@ class TestSingleOutputIndexing(unittest.TestCase):
         port_under_test = r.out_ports[0]
         self.assertEqual(port_under_test.destination.node, s)
         self.assertEqual(port_under_test.port_type, Int(Size(32)))
-        self.assertEqual(port_under_test.port_name[1], 'out')
+        self.assertEqual(port_under_test.index, 'out')
 
 
 @DeltaBlock(outputs=[('out1', int), ('out2', int)])

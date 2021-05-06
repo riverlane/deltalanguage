@@ -156,7 +156,7 @@ class NodeTemplate():
                               in_port_size=self.in_port_size,
                               node_key=self.node_key,
                               lvl=lvl)
-        log.debug(f"making {type(ret_node)}: {ret_node.name}")
+        log.debug(f"making {type(ret_node)}: {ret_node.full_name}")
         return ret_node
 
     def merge(self, other: 'NodeTemplate'):

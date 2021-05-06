@@ -7,7 +7,9 @@ class MigenNodeTemplateTest(unittest.TestCase):
     """"Tests only relevant for MigenNodeTemplate."""
 
     def test_optional_input(self):
-        """Only optional inputs are supported."""
+        """Only optional inputs are allowed, thus the migen logic and Protocol
+        Addaptors in particular will be handling data retrival.
+        """
 
         class AMigenNodeA(dl.MigenNodeTemplate):
             def migen_body(self, template):
@@ -21,6 +23,7 @@ class MigenNodeTemplateTest(unittest.TestCase):
             AMigenNodeA()
 
         AMigenNodeB()
+
 
 if __name__ == "__main__":
     unittest.main()

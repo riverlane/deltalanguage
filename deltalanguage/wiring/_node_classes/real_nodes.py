@@ -1,5 +1,6 @@
 """Module defining Real Node types, which can be run using our DeltaPySimulator."""
 from __future__ import annotations
+import dill
 from inspect import _empty, signature
 import logging
 from queue import Full
@@ -17,8 +18,7 @@ from deltalanguage.data_types import (BaseDeltaType,
                                       as_delta_type,
                                       delta_type)
 from deltalanguage.logging import MessageLog, make_logger
-from deltalanguage._utils import (NamespacedName,
-                                  QueueMessage)
+from deltalanguage._utils import QueueMessage
 
 from .._body_templates import BodyTemplate, MethodBodyTemplate
 from .abstract_node import AbstractNode, IndexProxyNode
@@ -89,16 +89,16 @@ class RealNode(AbstractNode):
         idx = RealNode.get_next_index()
         if name is None:
             # set my name to the next unique available name
-            self._name = f"node_{idx}"
+            self._name = ("node", idx)
         else:
-            self._name = f"{name}_{idx}"
+            self._name = (name, idx)
 
         # Ports in/out to this node
-        self.in_ports: typing.Dict[NamespacedName, InPort] = {}
+        self.in_ports: typing.List[InPort] = []
         self.out_ports: typing.List[OutPort] = []
 
         self.log = make_logger(lvl,
-                               f"{self.__class__.__name__} {self._name}")
+                               f"{self.__class__.__name__} {self.full_name}")
 
         # See MessageLog for detail
         self._clock = 0
@@ -107,7 +107,7 @@ class RealNode(AbstractNode):
         for out_name in self.out_names:
             if out_name in dir(self):
                 raise NameError("Invalid out name: " +
-                                out_name + " for node " + self.name)
+                                out_name + " for node " + self.full_name)
 
     def select_body(self,
                     exclusions: typing.List[object] = None,
@@ -170,7 +170,7 @@ class RealNode(AbstractNode):
             ret += textwrap.indent(
                 'in:\n' + textwrap.indent(
                     ''.join(
-                        [f"{in_port}\n" for in_port in self.in_ports.values()]
+                        [f"{in_port}\n" for in_port in self.in_ports]
                     ),
                     prefix=indent_prefix),
                 prefix=indent_prefix)
@@ -201,28 +201,28 @@ class RealNode(AbstractNode):
                 prefix=indent_prefix
             ) + '\n'
 
-        ret = f"node[{self.name}]:\n" + textwrap.indent(
+        ret = f"node[{self.full_name}]:\n" + textwrap.indent(
             ret, prefix=indent_prefix
         )
 
         return ret
 
     def __repr__(self):
-        return self.name
+        return self.full_name
 
     def __getattr__(self, item):
         if item in self.out_names:
             return IndexProxyNode(self, item)
         elif len(self.outputs) == 0:
             raise AttributeError(
-                f"Cannot fetch {item} from {self.name}, as we don't "
+                f"Cannot fetch {item} from {self.full_name}, as we don't "
                 f"have multiple outputs. Suggest using the node on it's own."
             )
         elif item == '__del__':
             raise AttributeError('Migen tries to get this attribute')
         else:
             raise DeltaIOError(
-                f"Node {self.name} has out ports {self.out_names}. "
+                f"Node {self.full_name} has out ports {self.out_names}. "
                 f"The requested out port \'{item}\' is not found. "
                 "Please check the node's definition."
             )
@@ -247,7 +247,7 @@ class RealNode(AbstractNode):
         """
         if len(self.outputs) == 0:
             raise DeltaIOError(
-                f"Cannot make an out-port on node {self.name} "
+                f"Cannot make an out-port on node {self.full_name} "
                 "with no outputs.\n"
                 "Please either add the proper outputs to the "
                 "node definition or do not try to create an "
@@ -265,9 +265,7 @@ class RealNode(AbstractNode):
         else:
             type_out = self.outputs[index]
 
-        self.out_ports.append(
-            OutPort(NamespacedName(self.name, index),
-                    type_out, port_destination, self))
+        self.out_ports.append(OutPort(index, type_out, port_destination, self))
 
         # If this port is going into a port on a different graph,
         # flatten this graph into said graph
@@ -293,11 +291,8 @@ class RealNode(AbstractNode):
         InPort
             The created port.
         """
-        my_port = InPort(NamespacedName(self.name, arg_name),
-                         as_delta_type(in_type),
-                         self,
-                         in_port_size)
-        self.in_ports[my_port.port_name] = my_port
+        my_port = InPort(arg_name, as_delta_type(in_type), self, in_port_size)
+        self.in_ports.append(my_port)
         return my_port
 
     def _create_upstream_ports(self,
@@ -320,7 +315,7 @@ class RealNode(AbstractNode):
         for arg_name, type_wanted in required_in_ports.items():
             if not arg_name in given_nodes:
                 raise DeltaIOError(
-                    f"Node {self.name} has a mismatch between defined and "
+                    f"Node {self.full_name} has a mismatch between defined and "
                     f"used input ports.\nArgument \'{arg_name}\' cannot be "
                     f"found in given ports {list(given_nodes.keys())}."
                 )
@@ -364,8 +359,18 @@ class RealNode(AbstractNode):
                                     in_port_size=in_port_size)
 
     @property
+    def full_name(self) -> str:
+        """Unique name of this node as string
+        Made unique by appending an underscore followed by unique integer to
+        user-specified name
+        """
+        return f"{self._name[0]}_{self._name[1]}"
+    
+    @property
     def name(self) -> str:
-        return self._name
+        """Non-unique name of this node as string
+        """
+        return self._name[0]
 
     @property
     def body(self):
@@ -374,10 +379,10 @@ class RealNode(AbstractNode):
         else:
             if self.bodies:
                 raise ValueError("Please call select_body on node "
-                                 f"{self.name} before body access")
+                                 f"{self.full_name} before body access")
             else:
                 raise ValueError("No bodies available for selection on node "
-                                 f"{self.name}.")
+                                 f"{self.full_name}.")
 
 
 class PythonNode(RealNode):
@@ -455,8 +460,8 @@ class PythonNode(RealNode):
         runtime : DeltaPySimulator
             API of a runtime simulator or a runtime.
         """
-        self.in_queues = runtime.in_queues[self.name]
-        self.out_queues = runtime.out_queues[self.name]
+        self.in_queues = runtime.in_queues[self.full_name]
+        self.out_queues = runtime.out_queues[self.full_name]
         self.sig_stop = runtime.sig_stop
 
     def check_stop(self):
@@ -502,7 +507,7 @@ class PythonNode(RealNode):
                     f"Queue {in_q} from port {repr(in_q._src)} contained "
                     f"an item which was not a QueueMessage: {values[name]}"
                 )
-            self.msg_log.add_message(self.name, name, values[name])
+            self.msg_log.add_message(self.full_name, name, values[name])
 
         # logical clock update
         self._clock = max([self._clock] + [v.clk for v in values.values()])
@@ -579,7 +584,7 @@ class PythonNode(RealNode):
         self._clock += 1
 
         if len(self.outputs) < len(args) + len(kwargs):
-            raise ValueError(f"Node {self.name} tried to send too many values")
+            raise ValueError(f"Node {self.full_name} tried to send too many values")
 
         positional_indicies = []
         for index, send_val in zip(self.outputs.keys(), args):
@@ -590,10 +595,10 @@ class PythonNode(RealNode):
 
         for index, send_val in kwargs.items():
             if index not in self.outputs:
-                raise NameError(f"Node {self.name} tried to send value with "
+                raise NameError(f"Node {self.full_name} tried to send value with "
                                 f"invalid keyword {index}")
             if index in positional_indicies:
-                raise ValueError(f"Node {self.name} tried to send the same "
+                raise ValueError(f"Node {self.full_name} tried to send the same "
                                  "output positionaly and by keyword.")
             if index in self.out_queues:
                 out_q = self.out_queues[index]
@@ -662,7 +667,7 @@ class PythonNode(RealNode):
         capnp_bodies
             List of bodies so we can check if a body is already serialised.
         """
-        capnp_node.name = self.name
+        capnp_node.name = self.full_name
         capnp_node.init("bodies", len(self.bodies))
 
         for i_bod, bod in enumerate(self.bodies):
@@ -694,6 +699,7 @@ class PythonNode(RealNode):
                 body = capnp_bodies.add()
                 body.init(body_id)
                 set_body_impl(body, body_impl)
+                body.tags = dill.dumps(bod.access_tags)
                 capnp_node.bodies[i_bod] = len(capnp_bodies) - 1
 
         # 2. save I/O ports
@@ -708,7 +714,7 @@ class PythonNode(RealNode):
             The node of the interest.
         """
         in_ports = capnp_node.init("inPorts", len(self.in_ports))
-        for capnp_in_port, in_port in zip(in_ports, self.in_ports.values()):
+        for capnp_in_port, in_port in zip(in_ports, self.in_ports):
             in_port.capnp(capnp_in_port)
 
         out_ports = capnp_node.init("outPorts", len(self.out_ports))
@@ -726,7 +732,7 @@ class PythonNode(RealNode):
             List of wires so we can add our relevant wires.
         """
         for i, capnp_node in enumerate(capnp_nodes):
-            if capnp_node.name == self.name:
+            if capnp_node.name == self.full_name:
                 capnp_node_index = i
                 break
 

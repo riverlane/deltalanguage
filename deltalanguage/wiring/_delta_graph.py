@@ -159,10 +159,12 @@ class DeltaGraph:
         if not self.select_bodies(override=False):
             self.log.info(f'Graph {self.name} contains a node without a body, '
                           'please define it before execution.')
+        
+        self.do_automatic_splitting()
         DeltaGraph.global_stack.pop()
 
         if 'doctest' in sys.modules:
-            sys.displayhook = self._org_displayhook 
+            sys.displayhook = self._org_displayhook
 
     def __str__(self) -> str:
         ret = f"DeltaGraph[{self.name}] {{\n"
@@ -219,14 +221,14 @@ class DeltaGraph:
 
         elif len(out_ports) > 1:
             # name type and node should be the same across all given out-ports
-            merged_name = out_ports[0].port_name
+            merged_index = out_ports[0].index
             merged_type = out_ports[0].port_type
             merged_node = out_ports[0].node
             for out_port in out_ports[1:]:
-                if out_port.port_name != merged_name:
+                if out_port.index != merged_index:
                     raise ValueError("Merged out-port names " +
-                                     f"{str(merged_name)} and " +
-                                     f"{str(out_port.port_name)} " +
+                                     f"{str(merged_index)} and " +
+                                     f"{str(out_port.index)} " +
                                      "do not match.")
                 if out_port.port_type != merged_type:
                     raise ValueError("Merged out-port types " +
@@ -254,12 +256,8 @@ class DeltaGraph:
                                         annotation=merged_type)]
             _splitter.__signature__ = inspect.Signature(parameters=params)
 
-            # If merged_node has multi output only get the relevant argument
-            # TODO This duplicates PyConstBody.eval and should be refactored
-            if out_ports[0].index is None:
-                merged_node_output = merged_node
-            else:
-                merged_node_output = getattr(merged_node, out_ports[0].index)
+            # Get the relevant part of the output
+            merged_node_output = getattr(merged_node, out_ports[0].index)
 
             # Construct the node using NodeTemplate
             template = NodeTemplate.merge_deltablock(None,
@@ -276,11 +274,10 @@ class DeltaGraph:
                 new_node.add_out_port(dest, 'out' + str(i))
 
             # get in port of the splitter
-            _in_port_name = list(new_node.in_ports.keys())[0]
-            merged_destination = new_node.in_ports[_in_port_name]
+            merged_destination = new_node.in_ports[0]
 
             # return a new out port instead of original out_ports
-            return OutPort(merged_name,
+            return OutPort(merged_index,
                            merged_type,
                            merged_destination,
                            merged_node)
@@ -300,10 +297,10 @@ class DeltaGraph:
         for node in self.nodes:
             out_ports_dict: Dict[str, List[OutPort]] = {}
             for x in node.out_ports:
-                if x.port_name in out_ports_dict:
-                    out_ports_dict[x.port_name].append(x)
+                if x.name in out_ports_dict:
+                    out_ports_dict[x.name].append(x)
                 else:
-                    out_ports_dict[x.port_name] = [x]
+                    out_ports_dict[x.name] = [x]
 
             # Set this nodes out ports to a list of merged out ports
             node.out_ports = [self._merge_out_ports(x)
@@ -342,7 +339,7 @@ class DeltaGraph:
             Add extra checks of splitting/multi-output of wires in step 1.
         """
         # check node names
-        nodes_names = [node.name for node in self.nodes]
+        nodes_names = [node.full_name for node in self.nodes]
         if len(set(nodes_names)) != len(nodes_names):
             raise DeltaIOError(f"nodes' names should be unique\n"
                                f"graph={self}")
@@ -350,7 +347,7 @@ class DeltaGraph:
         # check ports
         in_ports_all = [port
                         for node in self.nodes
-                        for port in node.in_ports.values()]
+                        for port in node.in_ports]
         out_ports_all = [port
                          for node in self.nodes
                          for port in node.out_ports]
@@ -368,11 +365,14 @@ class DeltaGraph:
                                f"graph={self}")
 
         # check port names
-        # note: out_ports_names can be not unique
-        in_ports_names = [port.port_name for port in in_ports_all]
-        out_ports_dest_names = [port.port_name for port in out_ports_dest]
+        in_ports_names = [port.name for port in in_ports_all]
+        out_ports_names = [port.name for port in out_ports_all]
+        out_ports_dest_names = [port.name for port in out_ports_dest]
         if len(set(in_ports_names)) != len(in_ports_names):
             raise DeltaIOError(f"in_ports' names should be unique\n"
+                               f"graph={self}")
+        if len(set(out_ports_names)) != len(out_ports_names):
+            raise DeltaIOError(f"out_ports' names should be unique\n"
                                f"graph={self}")
         if len(set(out_ports_dest_names)) != len(out_ports_dest_names):
             raise DeltaIOError(f"out_ports' destination names should be unique\n"
@@ -398,7 +398,7 @@ class DeltaGraph:
         # check missing inputs
         in_ports_unused = [port
                            for node in self.nodes
-                           for port in node.in_ports.values()
+                           for port in node.in_ports
                            if not port in out_ports_dest]
         for port in in_ports_unused:
             if not port.is_optional:
@@ -500,13 +500,7 @@ class DeltaGraph:
         Union[AbstractNode, List[AbstractNode]]
             Node or list of nodes matching this name.
         """
-        nodes = []
-        for node in self.nodes:
-            if not node.name.split('_')[-1].isdigit():
-                raise ValueError(f'Node {node.name} has a strange name')
-
-            if '_'.join(node.name.split('_')[:-1]) == name:
-                nodes.append(node)
+        nodes = [node for node in self.nodes if name == node.name]
 
         if len(nodes) == 0:
             return None
@@ -558,14 +552,14 @@ class DeltaGraph:
         """
         graph = nx.MultiDiGraph()
         for node in self.nodes:
-            graph.add_node(node.name, name=node.name, type="block")
+            graph.add_node(node.full_name, name=node.full_name, type="block")
             for out_port in node.out_ports:
                 if port_nodes:
-                    src = f"out_{str(out_port.port_name)}"
+                    src = f"out_{str(out_port.name)}"
                     graph.add_node(src,
-                                    name=out_port.index,
-                                    type="out_port")
-                    graph.add_edge(node.name, src)
+                                   name=out_port.index,
+                                   type="out_port")
+                    graph.add_edge(node.full_name, src)
                     dest = f"in_{str(out_port.dest_port_name)}"
                     graph.add_node(dest,
                                    name=out_port.dest_port_index,
@@ -575,7 +569,7 @@ class DeltaGraph:
                 else:
                     src = out_port.index
                     dest = out_port.dest_port_index
-                    graph.add_edge(node.name,
+                    graph.add_edge(node.full_name,
                                    out_port.dest_node_name,
                                    src=src,
                                    type=str(out_port.port_type),

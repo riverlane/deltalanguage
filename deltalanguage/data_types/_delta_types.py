@@ -1144,11 +1144,10 @@ class Union(CompoundDeltaType):
     def is_packable(self, val):
         if type(val) is np.ndarray:
             return False
-        return typing.Any(elem.is_packable(val) for elem in self.elems)
+        return any(elem.is_packable(val) for elem in self.elems)
 
     def set_pack_format(self):
-        # this method does not make sence here as the data format is encoded
-        # in the meta byte
+        # the data format is encoded in the 1-byte meta buffer
         pass
 
 

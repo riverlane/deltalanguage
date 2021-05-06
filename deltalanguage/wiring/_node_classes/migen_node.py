@@ -500,7 +500,7 @@ class MigenNodeTemplate(BodyTemplate):
         if DeltaGraph.stack():
             graph = DeltaGraph.current_graph()
             retval = self._call(graph, *args, **kwargs)
-            self.module_name = retval.name
+            self.module_name = retval.full_name
         else:
             # it does only one clock, so you need to place it in a loop
             retval = self._py_sim_body(self, **kwargs)

@@ -191,21 +191,27 @@ class DeltaPySimulator:
 
         # the graph
         self.graph = graph
-        self.graph.do_automatic_splitting()
         self.graph.check()
         self.add_message_log()
 
         # i/o queues
         self.in_queues: Dict[str, Dict[str, DeltaQueue]] = {
-            node.name: {}
+            node.full_name: {}
             for node in self.graph.nodes
         }
         self.out_queues: Dict[str, Dict[str, DeltaQueue]] = {
-            node.name: {}
+            node.full_name: {}
             for node in self.graph.nodes
         }
         for node in self.graph.nodes:
-            self._create_io_queues(node)
+            try:
+                if node.body:
+                    self._create_io_queues(node)
+            except ValueError:
+                raise RuntimeError(
+                    f"cannot select body for node '{node.name}'! " +
+                    "Make sure there is a body selected."
+                )
 
         # Signal to stop child threads
         self.sig_stop = threading.Event()
@@ -229,22 +235,22 @@ class DeltaPySimulator:
 
             if q is not None:
                 self.log.info(
-                    f"creating queue: {str(out_port.port_name):_<30s} "
-                    f"to {str(out_port.destination.port_name):_<30s} "
+                    f"creating queue: {str(out_port.name):_<30s} "
+                    f"to {str(out_port.destination.name):_<30s} "
                     f"{str(out_port.port_type):_<20s}"
                 )
                 self.log.debug(f"It is a {type(q).__name__}. "
                                f"Optional: {q.optional}")
 
                 # attach the queue to both nodes it connects
-                self.out_queues[node.name][out_port.port_name.n_index] = q
-                self.in_queues[out_port.destination.node.name][
-                    out_port.destination.port_name.n_index] = q
+                self.out_queues[node.full_name][out_port.index] = q
+                self.in_queues[out_port.destination.node.full_name][
+                    out_port.destination.index] = q
 
             else:
                 self.log.info(
-                    f"constant queue: {str(out_port.port_name):_<30s} "
-                    f"to {str(out_port.destination.port_name):_<30s} "
+                    f"constant queue: {str(out_port.name):_<30s} "
+                    f"to {str(out_port.destination.name):_<30s} "
                     f"{str(out_port.port_type):_<20s} "
                     f"is not created"
                 )
@@ -321,16 +327,16 @@ class DeltaPySimulator:
                 continue
 
             elif isinstance(node.body, self.running_body_cls):
-                self.log.info(f"Starting node {node.name}")
-                self.threads[node.name] = DeltaThread(
+                self.log.info(f"Starting node {node.full_name}")
+                self.threads[node.full_name] = DeltaThread(
                     target=node.thread_worker,
                     args=(self,),
-                    name=f"Thread_{node.name}"
+                    name=f"Thread_{node.full_name}"
                 )
-                self.threads[node.name].start()
+                self.threads[node.full_name].start()
 
             else:
-                self.log.error(f"node {node.name} is not of a recognised " +
+                self.log.error(f"node {node.full_name} is not of a recognised " +
                                f"class {type(node)}")
 
         if len(self.threads) == 0:

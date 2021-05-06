@@ -3,8 +3,8 @@ import unittest
 
 import deltalanguage as dl
 
-from deltalanguage.test.execution.base import PYSIMULATOR, TestExecutionBaseDL
-from deltalanguage.test._utils import add_non_const, send_gates_list_then_exit
+from deltalanguage.test.execution.base import TestExecutionBaseDL
+from deltalanguage.test._lib import send_gates_list_then_exit
 
 
 class TestExecutionPrimitives(TestExecutionBaseDL):
@@ -46,8 +46,10 @@ class TestExecutionPrimitives(TestExecutionBaseDL):
             """
         )
 
-    @unittest.skipIf(not PYSIMULATOR, "Occasionally fails due to a segfault.")
     def test_loop_with_Qiskit(self):
+        """Occasionally fails in Deltasimulator due to a segfault, thus need to
+        be fixed.
+        """
         with dl.DeltaGraph() as graph:
             ph_hal_result = dl.placeholder_node_factory()
 

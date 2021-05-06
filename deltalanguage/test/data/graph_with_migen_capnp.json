@@ -81,15 +81,15 @@
             ]
         },
         {
-            "name": "adder_4",
+            "name": "add_non_const_4",
             "bodies": [4],
             "inPorts": [
                 {
-                    "name": "a",
+                    "name": "n1",
                     "optional": false
                 },
                 {
-                    "name": "b",
+                    "name": "n2",
                     "optional": false
                 }
             ],

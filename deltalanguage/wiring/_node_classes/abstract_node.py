@@ -59,7 +59,7 @@ class AbstractNode(ABC):
 
         Parameters
         ----------
-        port_name : str
+        arg_name : str
             The name of the argument this port supplies.
         in_type : BaseDeltaType
             The type that is expected to be supplied for this port.
@@ -70,7 +70,7 @@ class AbstractNode(ABC):
 
     @property
     @abstractmethod
-    def name(self) -> str:
+    def full_name(self) -> str:
         """Name of this node as str.
 
         Returns
@@ -126,8 +126,8 @@ class ProxyNode(AbstractNode):
         self.referee.add_out_port(port_destination, index)
 
     @property
-    def name(self) -> str:
-        return self.referee.name
+    def full_name(self) -> str:
+        return self.referee.full_name
 
     @property
     def body(self) -> Body:

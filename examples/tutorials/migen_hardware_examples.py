@@ -1,13 +1,14 @@
 import logging
 
 import migen
+
 import deltalanguage as dl
 
 
 class LengthChecker:
     """The LengthChecker block verifies that we have received a sequence
     of n reset signals (rst=1). If the argument interactive is set
-    to True, it also checks that the reset returns to a deasserted
+    to True, it also checks that the reset returns to a de-asserted
     (rst=0) state.
     """
 
@@ -111,7 +112,7 @@ class HwResetShaper(dl.MigenNodeTemplate):
         self.sync += (reset_out.data.eq(self.shaper[0]))
 
         # Always ready to receive a reset, always generating an output.
-        # Note: comb (combinatorial logic) is executed istantaneously
+        # Note: comb (combinatorial logic) is executed instantaneously
         # when inputs change. In this example, inputs for the
         # reset_out.valid is a constant 1 so it is always = 1.
         # If it was a signal the value of reset_out.valid would change
@@ -122,68 +123,55 @@ class HwResetShaper(dl.MigenNodeTemplate):
 
 
 def generate_graph_constant_input():
-    """This function returns an acyclical graph:
+    """This function returns an acyclic graph:
 
     Constant -> HwResetShaper -> LengthChecker.
     Limitations: the HwResetShaper will always receive a
     reset request and we can't check that the reset
-    gets deasserted by the node
+    gets de-asserted by the node
     """
     with dl.DeltaGraph() as graph:
-        shaper = HwResetShaper(tb_num_iter=100,
-                               name='reset_shaper',
-                               lvl=logging.INFO)
+        shaper = HwResetShaper(name='reset_shaper')
         shaper_runner = shaper.call(pulse_in=1)
         checker = LengthChecker(5)
         checker.check_shape(shaper_runner.reset_out)
-    return (graph, shaper)
+
+    return graph, shaper
 
 
-def generate_graph_interactive_input(verbose=False):
-    """This function returns instead a cyclical graph:
+def generate_graph_interactive_input():
+    """This function returns instead a cyclic graph:
 
      -> Checker -> one_shot_run -> HwResetShaper-
     |                                            |
      --------------------------------------------
-    In this way we can assert and deassert the reset
+    In this way we can assert and de-assert the reset
     and verify that the migen code extend the reset
     signal for N clock cycles
     """
-    if verbose:
-        lvl = logging.DEBUG
-    else:
-        lvl = logging.INFO
     with dl.DeltaGraph() as graph:
         ph = dl.placeholder_node_factory()
         oneshot = one_shot_run.call(status=ph)
-        shaper = HwResetShaper(tb_num_iter=50,
-                               name='reset_shaper_one_shot',
-                               lvl=lvl,
+        shaper = HwResetShaper(name='reset_shaper_one_shot',
                                vcd_name='reset_shaper_one_shot.vcd')
         shaper_runner = shaper.call(pulse_in=oneshot)
         checker = LengthChecker(5, interactive=True).check_shape(
             shaper_runner.reset_out)
         ph.specify_by_node(checker)
 
-    return (graph, shaper)
+    return graph, shaper
 
 
 def main(simple):
-    verbose = False
-    if verbose:
-        verbosity = 3
-    else:
-        verbosity = 0
-
     if simple:
-        graph, shaper = generate_graph_constant_input()
+        graph, _ = generate_graph_constant_input()
     else:
-        graph, shaper = generate_graph_interactive_input(verbose)
+        graph, _ = generate_graph_interactive_input()
 
     rt = dl.DeltaPySimulator(graph, lvl=logging.ERROR)
     rt.run()
 
 
 if __name__ == "__main__":
-    simple = False
-    main(simple)
+    main(False)
+    main(True)

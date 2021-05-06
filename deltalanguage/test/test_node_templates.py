@@ -95,7 +95,7 @@ class AMigenNode(MigenNodeTemplate):
         template.add_pa_in_port('b', Optional(int))
 
 
-class NodeTemplateViaMigenClass(unittest.TestCase):
+class NodeTemplateViaMigenClassTest(unittest.TestCase):
     """Test that migen body templates can be added to node templates
     using the migen node template constructor.
     """
@@ -158,7 +158,7 @@ class NodeTemplateTest(unittest.TestCase):
         self.assertEqual([5], saver.saved)
 
 
-class NodeTemplateDefaultCall(unittest.TestCase):
+class NodeTemplateDefaultCallTest(unittest.TestCase):
     """Tests for when the default call is used to create nodes with one or
     more bodies.
 
@@ -199,7 +199,7 @@ class AMigenNode2(MigenNodeTemplate):
         template.add_pa_in_port('b', Optional(int))
 
 
-class NodeTemplateAddConstructor(unittest.TestCase):
+class NodeTemplateAddConstructorTest(unittest.TestCase):
     """Tests for ``add_constructor`` method for adding new constructors
     to a ``NodeTemplate`` without re-defining the original constructor.
     """
@@ -330,7 +330,7 @@ class NodeTemplateAddConstructor(unittest.TestCase):
             test_template_h.add_constructor(simple_add_to_bool)
 
 
-class InvalidNodeTemplate(unittest.TestCase):
+class InvalidNodeTemplateTest(unittest.TestCase):
     """Test that errors are raised when node templates
     are created in some way that is invalid.
     """
@@ -387,7 +387,7 @@ class InvalidNodeTemplate(unittest.TestCase):
                 return a + b
 
 
-class NodeTemplateMerge(unittest.TestCase):
+class NodeTemplateMergeTest(unittest.TestCase):
     """Test that node templates can be merged correctly or raise errors when
     merge is not appropriate.
     """

@@ -6,10 +6,6 @@ import unittest.mock
 import deltalanguage as dl
 
 
-# True if DeltaPySimulator is used
-PYSIMULATOR = True
-
-
 class TestExecutionBaseDL(unittest.TestCase):
     """Test execution base for Deltalanguage's ``DeltaPySimulator``,
     defines method for executing and checking test graphs.
@@ -24,18 +20,27 @@ class TestExecutionBaseDL(unittest.TestCase):
         self.python_output_suffix = ""
 
     @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)
-    def check_executes(self, graph, expect, mock_stdout):
+    def check_executes(self, graph, expect, exception, mock_stdout):
         """DeltaPySimulator executes the graph execution.
 
         Parameters
         ----------
+        graph : dl.DeltaGraph
+            The graph to execute.
         expect : str
-            Should contain the exact multistring expression we expect on
-            stdout, excluding both Python prefix and postfix.
+            The exact multistring expression we expect on stdout
+            (excluding any housekeeping messages).
+        exception : Exception
+            Exception thrown by a runtime/simulator at _any_ stage
+            (includes building, deployment, execution, etc.).
         mock_stdout
             ``unittest.mock`` captures stdout and refers to this object.
         """
-        dl.DeltaPySimulator(graph).run()
+        if exception:
+            with self.assertRaises(exception):
+                dl.DeltaPySimulator(graph).run()
+        else:
+            dl.DeltaPySimulator(graph).run()
 
         if expect:
             self.assertMultiLineEqual(
@@ -45,8 +50,9 @@ class TestExecutionBaseDL(unittest.TestCase):
                 self.python_output_suffix
             )
 
-    def check_executes_graph(self, graph, expect=None, files=None, reqs=None):
+    def check_executes_graph(self, graph, expect=None, files=None, reqs=None,
+                             exception=None):
         """Main checking routine that should be overwritten when for
         testting of other simulators and runtime simulators.
         """
-        self.check_executes(graph, expect)
+        self.check_executes(graph, expect, exception)
