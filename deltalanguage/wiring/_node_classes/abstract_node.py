@@ -113,6 +113,12 @@ class ProxyNode(AbstractNode):
         """
         return getattr(self.referee, item)
 
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
     def add_in_port(self, arg_name: str, in_type: Type, in_port_size: int = 0):
         """This function has been explicitly created as this is an abstract
         method calls add in-port on referee node.

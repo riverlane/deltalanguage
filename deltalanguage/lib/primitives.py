@@ -105,7 +105,7 @@ def make_generator(val: typing.Union[object, typing.Iterable],
         vals_to_send = val
     else:
         elem_type = delta_type(val)
-        vals_to_send = (deepcopy(val) for _ in range(reps))
+        vals_to_send = [deepcopy(val) for _ in range(reps)]
 
     if as_delta_type is not None:
         elem_type = as_delta_type
