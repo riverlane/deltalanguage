@@ -4,7 +4,7 @@ import unittest
 import deltalanguage as dl
 
 from deltalanguage.test.execution.base import TestExecutionBaseDL
-from deltalanguage.test._lib import send_gates_list_then_exit
+from deltalanguage.test._node_lib import send_gates_list_then_exit
 
 
 class TestExecutionPrimitives(TestExecutionBaseDL):

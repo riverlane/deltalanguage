@@ -2,7 +2,9 @@ import unittest
 from unittest.mock import Mock
 from typing import OrderedDict
 
-from deltalanguage.wiring import (PyConstBody,
+from deltalanguage.wiring._node_classes.node_bodies import PythonBody
+from deltalanguage.wiring import (Latency,
+                                  PyConstBody,
                                   PyFuncBody,
                                   PyMethodBody)
 
@@ -12,6 +14,36 @@ class MockCallback(Mock):
     @property
     def __name__(self):
         return "mock_callback"
+
+
+class TestBody(unittest.TestCase):
+    """Tests for the abstract Body class. Tests are of behaviour that is common
+    accross all body classes, but will use PyFuncBody in particular as Body is
+    abstract and cannot be instantiated.
+    """
+
+    def test_eq(self):
+        b1 = PythonBody(Latency(time=150), tags=['test_tag'])
+        b2 = PythonBody(Latency(time=150), tags=['test_tag'])
+        self.assertEqual(b1, b2)
+
+    def test_neq_instance_diff(self):
+        b1 = PythonBody(Latency(time=150), tags=['test_tag'])
+        b2 = object()
+        self.assertNotEqual(b1, b2)
+
+    def test_neq_tags_diff(self):
+        b1 = PythonBody(Latency(time=150), tags=['test_tag'])
+        b2 = PythonBody(Latency(time=150))
+        self.assertNotEqual(b1, b2)
+
+        b3 = PythonBody(Latency(time=150), tags=['test_tag', 'test_tag_2'])
+        self.assertNotEqual(b1, b3)
+
+    def test_neq_latency_diff(self):
+        b1 = PythonBody(Latency(time=151), tags=['test_tag'])
+        b2 = PythonBody(Latency(time=150), tags=['test_tag'])
+        self.assertNotEqual(b1, b2)
 
 
 class TestPyConstBody(unittest.TestCase):
@@ -156,6 +188,79 @@ class TestPyConstBody(unittest.TestCase):
         with self.assertRaises(ValueError):
             node_body.eval()
 
+    def make_b3(self, *args, **kwargs):
+        def b_callback(a, b):
+            return a + b
+
+        return PyConstBody(b_callback, value=None, *args, **kwargs)
+
+    def make_b4(self, *args, **kwargs):
+        def b_callback(a, b):
+            return a + b + 0
+
+        return PyConstBody(b_callback, value=None, *args, **kwargs)
+
+    def test_eq_with_args(self):
+        const_value = 1
+        b1_1 = PyConstBody(lambda: const_value, value=const_value)
+        b2_1 = PyConstBody(lambda: const_value, value=const_value)
+        b3_1 = self.make_b3(b1_1, b2_1)
+
+        b1_2 = PyConstBody(lambda: const_value, value=const_value)
+        b2_2 = PyConstBody(lambda: const_value, value=const_value)
+        b3_2 = self.make_b3(b1_2, b2_2)
+
+        self.assertEqual(b3_1, b3_2)
+
+    def test_eq_with_kwargs(self):
+        const_value = 1
+        b1_1 = PyConstBody(lambda: const_value, value=const_value)
+        b2_1 = PyConstBody(lambda: const_value, value=const_value)
+        b3_1 = self.make_b3(a=b1_1, b=b2_1)
+
+        b1_2 = PyConstBody(lambda: const_value, value=const_value)
+        b2_2 = PyConstBody(lambda: const_value, value=const_value)
+        b3_2 = self.make_b3(a=b1_2, b=b2_2)
+
+        self.assertEqual(b3_1, b3_2)
+
+    def test_eq_with_args_and_kwargs(self):
+        const_value = 1
+        b1_1 = PyConstBody(lambda: const_value, value=const_value)
+        b2_1 = PyConstBody(lambda: const_value, value=const_value)
+        b3_1 = self.make_b3(b1_1, b2_1)
+
+        b1_2 = PyConstBody(lambda: const_value, value=const_value)
+        b2_2 = PyConstBody(lambda: const_value, value=const_value)
+        b3_2 = self.make_b3(a=b1_2, b=b2_2)
+
+        self.assertEqual(b3_1, b3_2)
+
+    def test_eq_const_value(self):
+        const_value = 7
+        b1 = PyConstBody(lambda: const_value, value=const_value)
+        b2 = PyConstBody(lambda: const_value, value=const_value)
+        self.assertEqual(b1, b2)
+
+    def test_neq_const_value_diff(self):
+        const_value = 7
+        const_value_2 = 8
+        b1 = PyConstBody(lambda: const_value, value=const_value)
+        b2 = PyConstBody(lambda: const_value_2, value=const_value_2)
+        self.assertNotEqual(b1, b2)
+
+    def test_neq_func_body_diff(self):
+        const_value = 1
+        b1_1 = PyConstBody(lambda: const_value, value=const_value)
+        b2_1 = PyConstBody(lambda: const_value, value=const_value)
+        b3 = self.make_b3(b1_1, b2_1)
+
+        b1_2 = PyConstBody(lambda: const_value, value=const_value)
+        b2_2 = PyConstBody(lambda: const_value, value=const_value)
+        b4 = self.make_b4(b1_2, b2_2)
+
+        self.assertNotEqual(b3, b4)
+
 
 class TestPyFuncBody(unittest.TestCase):
 
@@ -183,6 +288,80 @@ class TestPyFuncBody(unittest.TestCase):
         node_body = PyFuncBody(return_global)
         self.assertEqual(node_body.eval(), 6)
 
+    def make_b1(self):
+        def b_callback(a, b):
+            return a + b
+
+        return PyFuncBody(b_callback)
+
+    def make_b2(self):
+        def b_callback(a, b):
+            return a + b
+
+        return PyFuncBody(b_callback)
+
+    def make_b3(self):
+        def b_callback(a, b):
+            return a + b + 0
+
+        return PyFuncBody(b_callback)
+
+    def make_b4(self):
+        def b4_callback(a, b):
+            return a + b
+
+        return PyFuncBody(b4_callback)
+
+    def make_b5(self):
+        local_var = 1
+
+        def b_callback(a, b):
+            return a + b + local_var
+
+        return PyFuncBody(b_callback)
+
+    def make_b6(self):
+        local_var = 2
+
+        def b_callback(a, b):
+            return a + b + local_var
+
+        return PyFuncBody(b_callback)
+
+    def test_eq(self):
+        b1_1 = self.make_b1()
+        b1_2 = self.make_b1()
+        self.assertEqual(b1_1, b1_2)
+
+        b2 = self.make_b2()
+        self.assertEqual(b1_1, b2)
+
+    def test_neq_func_code_diff(self):
+        b1 = self.make_b1()
+        b3 = self.make_b3()
+
+        self.assertNotEqual(b1, b3)
+
+    def test_neq_func_name_diff(self):
+        b1 = self.make_b1()
+        b4 = self.make_b4()
+
+        self.assertNotEqual(b1, b4)
+
+    def test_neq_func_local_diff(self):
+        """Behavioral demonstration test.
+        b5 and b6 are not actually equal. They will return different
+        values for different inputs. But we currently have no way to
+        tell that these two are not equal because their difference in
+        behavior is hidden behind a free variable. So what we do is
+        say return they are equal and also log a warning that there were
+        free variables involved in a comparison between bodies.
+        """
+        b5 = self.make_b5()
+        b6 = self.make_b6()
+
+        self.assertEqual(b5, b6)
+
 
 class TestPyMethodBody(unittest.TestCase):
 
@@ -206,6 +385,58 @@ class TestPyMethodBody(unittest.TestCase):
         node_body = PyMethodBody(
             TestClass.add_5, test_object)
         self.assertEqual(17, node_body.eval())
+
+    def make_b1(self):
+        class BodyInstance:
+            def b_callback(self, a, b):
+                return a + b
+
+        instance = BodyInstance()
+        return PyMethodBody(instance.b_callback, instance)
+
+    def make_b2(self):
+        class BodyInstance:
+            def b_callback(self, a, b):
+                return a + b
+
+        instance = BodyInstance()
+        return PyMethodBody(instance.b_callback, instance)
+
+    def make_b3(self):
+        class BodyInstance:
+            def b_callback(self, a, b):
+                return a + b + 0
+
+        instance = BodyInstance()
+        return PyMethodBody(instance.b_callback, instance)
+
+    def make_b4(self):
+        class BodyInstance4:
+            def b_callback(self, a, b):
+                return a + b
+
+        instance = BodyInstance4()
+        return PyMethodBody(instance.b_callback, instance)
+
+    def test_eq(self):
+        b1_1 = self.make_b1()
+        b1_2 = self.make_b1()
+        self.assertEqual(b1_1, b1_2)
+
+        b2 = self.make_b2()
+        self.assertEqual(b1_1, b2)
+
+    def test_neq_func_body_diff(self):
+        b1 = self.make_b1()
+        b3 = self.make_b3()
+
+        self.assertNotEqual(b1, b3)
+
+    def test_neq_instance_class_name_diff(self):
+        b1 = self.make_b1()
+        b4 = self.make_b4()
+
+        self.assertNotEqual(b1, b4)
 
 
 if __name__ == "__main__":

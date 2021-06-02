@@ -2,14 +2,14 @@ import unittest
 
 import deltalanguage as dl
 
-from deltalanguage.test._lib import (add_non_const,
-                                     increment_const,
-                                     increment_non_const,
-                                     return_1_const,
-                                     return_1_non_const,
-                                     return_1_2_const,
-                                     return_1_2_non_const,
-                                     terminate_non_const)
+from deltalanguage.test._node_lib import (add_non_const,
+                                          increment_const,
+                                          increment_non_const,
+                                          return_1_const,
+                                          return_1_non_const,
+                                          return_1_2_const,
+                                          return_1_2_non_const,
+                                          terminate_non_const)
 
 
 class SplittingNodeTest(unittest.TestCase):

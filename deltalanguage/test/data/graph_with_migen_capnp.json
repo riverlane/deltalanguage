@@ -58,10 +58,10 @@
             ],
             "outPorts": [
                 {
-                    "name": "out2"
+                    "name": "out1"
                 },
                 {
-                    "name": "out1"
+                    "name": "out2"
                 }
             ]
         },
@@ -129,14 +129,14 @@
         {
             "srcNode": 2,
             "srcOutPort": 0,
-            "destNode": 3,
+            "destNode": 4,
             "destInPort": 0,
             "direct": false
         },
         {
             "srcNode": 2,
             "srcOutPort": 1,
-            "destNode": 4,
+            "destNode": 3,
             "destInPort": 0,
             "direct": false
         },

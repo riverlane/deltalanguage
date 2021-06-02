@@ -81,6 +81,29 @@ class InPort(
         """Returns ``True`` if this port is created for an optional input."""
         return isinstance(self.port_type_, Optional)
 
+    def __eq__(self, other) -> bool:
+        """Equality, up to isomorphism as component of .df file
+        """
+        if not isinstance(other, InPort):
+            return False
+
+        if self.index != other.index:
+            return False
+        
+        if self.port_type != other.port_type:
+            return False
+
+        if self.is_optional != other.is_optional:
+            return False
+
+        if self.in_port_size != other.in_port_size:
+            return False
+
+        if self.node != other.node:
+            return False
+
+        return True
+
     def capnp(self, capnp_in_port):
         """Serialise this port in ``capnp`` structure.
 
@@ -181,6 +204,27 @@ class OutPort(
     def dest_node_name(self):
         """Name of destination node."""
         return self.destination.node_name
+
+    def __eq__(self, other) -> bool:
+        """Equality, up to isomorphism as component of .df file
+        """
+        if not isinstance(other, OutPort):
+            return False
+
+        if self.index != other.index:
+            return False
+        
+        if self.port_type != other.port_type:
+            return False
+
+        if self.destination != other.destination:
+            return False
+
+        if self.node != other.node:
+            return False
+
+        return True
+
 
     def capnp(self, capnp_out_port):
         """Serialise this port in ``capnp`` structure.

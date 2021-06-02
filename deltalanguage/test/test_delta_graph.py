@@ -6,7 +6,7 @@ import unittest
 
 import deltalanguage as dl
 from deltalanguage.data_types import DeltaTypeError
-from deltalanguage.test._lib import return_1_const
+from deltalanguage.test._node_lib import return_1_const
 
 
 @dl.DeltaBlock(outputs=[('a', int), ('b', bool), ('c', int), ('d', int)])
@@ -273,6 +273,96 @@ class DeltaGraphWiringWrongOutputTest(unittest.TestCase):
         with self.assertRaises(dl.data_types.DeltaIOError):
             with dl.DeltaGraph():
                 baa(baa(1).z)
+
+
+class DeltaGraphEquality(unittest.TestCase):
+    """Tests for checking equality between two graphs.
+    """
+
+    def test_eq_func_and_const_graph(self):
+        @dl.DeltaBlock()
+        def baa(a: int) -> int:
+            return 1
+
+        with dl.DeltaGraph() as g1:
+            baa(baa(1))
+
+        with dl.DeltaGraph() as g2:
+            baa(baa(1))
+
+        self.assertEqual(g1, g2)
+
+    def test_neq_pure_const_diff(self):
+        @dl.DeltaBlock()
+        def baa(a: int) -> int:
+            return 1
+
+        with dl.DeltaGraph() as g1:
+            baa(baa(1))
+
+        with dl.DeltaGraph() as g2:
+            baa(baa(2))
+
+        self.assertNotEqual(g1, g2)
+
+    def test_neq_body_name_diff(self):
+        @dl.DeltaBlock()
+        def foo(a: int) -> int:
+            return 1
+
+        @dl.DeltaBlock()
+        def baa(a: int) -> int:
+            return 1
+
+        with dl.DeltaGraph() as g1:
+            baa(baa(1))
+
+        with dl.DeltaGraph() as g2:
+            baa(foo(1))
+
+        self.assertNotEqual(g1, g2)
+
+    def test_neq_body_impl_diff(self):
+        def get_g1():
+            @dl.DeltaBlock()
+            def foo(a: int) -> int:
+                return 2
+
+            with dl.DeltaGraph() as g1:
+                foo(foo(1))
+            return g1
+
+        def get_g2():
+            @dl.DeltaBlock()
+            def foo(a: int) -> int:
+                return 1
+
+            with dl.DeltaGraph() as g2:
+                foo(foo(1))
+            return g2
+
+        self.assertNotEqual(get_g1(), get_g2())
+
+    def test_neq_connectivity_diff(self):
+        def get_g1():
+            @dl.DeltaBlock()
+            def foo(a: int) -> int:
+                return 1
+
+            with dl.DeltaGraph() as g1:
+                foo(1)
+            return g1
+
+        def get_g2():
+            @dl.DeltaBlock()
+            def foo(a: int) -> int:
+                return 1
+
+            with dl.DeltaGraph() as g2:
+                foo(foo(1))
+            return g2
+
+        self.assertNotEqual(get_g1(), get_g2())
 
 
 if __name__ == "__main__":

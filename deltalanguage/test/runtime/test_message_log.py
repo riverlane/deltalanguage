@@ -3,11 +3,11 @@ import unittest
 
 import deltalanguage as dl
 
-from deltalanguage.test._lib import (add_non_const,
-                                     forward_non_const,
-                                     return_1_const,
-                                     return_2_const,
-                                     TripleStateSaver)
+from deltalanguage.test._node_lib import (add_non_const,
+                                          forward_non_const,
+                                          return_1_const,
+                                          return_2_const,
+                                          TripleStateSaver)
 
 
 class MessageLogTest(unittest.TestCase):

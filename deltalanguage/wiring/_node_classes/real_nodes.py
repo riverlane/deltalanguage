@@ -9,6 +9,7 @@ import textwrap
 from threading import Event
 from time import sleep
 import typing
+from collections import OrderedDict
 
 from deltalanguage.data_types import (BaseDeltaType,
                                       DeltaTypeError,
@@ -94,7 +95,9 @@ class RealNode(AbstractNode):
             self._name = (name, idx)
 
         # Ports in/out to this node
+        # Note that in_ports are always stored in the same order as inputs
         self.in_ports: typing.List[InPort] = []
+        # Note that out_ports are always stored in the same order as outputs
         self.out_ports: typing.List[OutPort] = []
 
         self.log = make_logger(lvl,
@@ -108,6 +111,25 @@ class RealNode(AbstractNode):
             if out_name in dir(self):
                 raise NameError("Invalid out name: " +
                                 out_name + " for node " + self.full_name)
+
+    def __eq__(self, other) -> bool:
+        """Equality, up to isomorphism as component of .df file.
+        """
+        if not isinstance(other, RealNode):
+            return False
+
+        if self._name[0] != other._name[0]:
+            return False
+
+        if self.inputs != other.inputs:
+            return False
+
+        if self.outputs != other.outputs:
+            return False
+
+        # Ports not checked due to recursion, check separately if needed
+
+        return self.bodies == other.bodies
 
     def select_body(self,
                     exclusions: typing.List[object] = None,
@@ -227,12 +249,6 @@ class RealNode(AbstractNode):
                 "Please check the node's definition."
             )
 
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, state):
-        self.__dict__ = state
-
     def add_out_port(self, port_destination: InPort, index=None):
         """Creates an out-port and adds it to my out-port store.
 
@@ -265,7 +281,16 @@ class RealNode(AbstractNode):
         else:
             type_out = self.outputs[index]
 
-        self.out_ports.append(OutPort(index, type_out, port_destination, self))
+        # Create new port and insert in correct position according to outputs
+        new_port = OutPort(index, type_out, port_destination, self)
+        new_port_i = list(self.outputs).index(new_port.index)
+        for i, curr_port in enumerate(self.out_ports):
+            curr_port_i = list(self.outputs).index(curr_port.index)
+            if new_port_i < curr_port_i:
+                self.out_ports.insert(i, new_port)
+                break
+        else:
+            self.out_ports.append(new_port)
 
         # If this port is going into a port on a different graph,
         # flatten this graph into said graph
@@ -365,7 +390,7 @@ class RealNode(AbstractNode):
         user-specified name
         """
         return f"{self._name[0]}_{self._name[1]}"
-    
+
     @property
     def name(self) -> str:
         """Non-unique name of this node as string
@@ -584,7 +609,8 @@ class PythonNode(RealNode):
         self._clock += 1
 
         if len(self.outputs) < len(args) + len(kwargs):
-            raise ValueError(f"Node {self.full_name} tried to send too many values")
+            raise ValueError(
+                f"Node {self.full_name} tried to send too many values")
 
         positional_indicies = []
         for index, send_val in zip(self.outputs.keys(), args):
@@ -811,7 +837,7 @@ def as_node(potential_node: typing.Union[AbstractNode, object],
     else:
         return PythonNode(
             graph,
-            [PyConstBody(lambda: potential_node)],
+            [PyConstBody(lambda: potential_node, value=potential_node)],
             {},
             [],
             {},

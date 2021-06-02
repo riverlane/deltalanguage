@@ -13,7 +13,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   PyFuncBody,
                                   PyMethodBody)
 
-from deltalanguage.test._lib import return_2_const
+from deltalanguage.test._node_lib import return_2_const
 
 
 class Adder:

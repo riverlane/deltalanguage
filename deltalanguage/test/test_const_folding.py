@@ -18,12 +18,12 @@ from deltalanguage.wiring import (DeltaBlock,
                                   NodeTemplate,
                                   placeholder_node_factory)
 
-from deltalanguage.test._lib import (add_const,
-                                     add_non_const,
-                                     forward_const,
-                                     forward_non_const,
-                                     return_2_const,
-                                     return_1_2_const)
+from deltalanguage.test._node_lib import (add_const,
+                                          add_non_const,
+                                          forward_const,
+                                          forward_non_const,
+                                          return_2_const,
+                                          return_1_2_const)
 
 
 class ConstFoldingTest(unittest.TestCase):

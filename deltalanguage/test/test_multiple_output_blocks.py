@@ -9,7 +9,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
                                   Interactive,
                                   PythonNode)
-from deltalanguage.test._lib import TripleStateSaver
+from deltalanguage.test._node_lib import TripleStateSaver
 
 
 class ForkedSendTester:

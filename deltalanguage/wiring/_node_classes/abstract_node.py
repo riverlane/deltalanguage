@@ -90,6 +90,12 @@ class AbstractNode(ABC):
         """
         pass
 
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
 
 class ProxyNode(AbstractNode):
     """Node class for a node that just refers to another node for all
@@ -112,12 +118,6 @@ class ProxyNode(AbstractNode):
         otherwise it is fetched from the referee
         """
         return getattr(self.referee, item)
-
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, state):
-        self.__dict__ = state
 
     def add_in_port(self, arg_name: str, in_type: Type, in_port_size: int = 0):
         """This function has been explicitly created as this is an abstract

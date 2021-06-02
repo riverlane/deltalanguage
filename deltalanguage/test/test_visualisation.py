@@ -14,7 +14,7 @@ from deltalanguage.runtime import DeltaRuntimeExit
 from deltalanguage.wiring import (DeltaBlock, DeltaGraph,
                                   placeholder_node_factory)
 
-from deltalanguage.test._lib import add_non_const
+from deltalanguage.test._node_lib import add_non_const
 
 
 @DeltaBlock()

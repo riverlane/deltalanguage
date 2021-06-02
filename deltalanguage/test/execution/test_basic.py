@@ -13,15 +13,19 @@ import unittest
 import migen
 
 import deltalanguage as dl
-
-from deltalanguage.test._lib import (add_non_const,
-                                     multiplier,
-                                     return_2_const,
-                                     DUT1,
-                                     MigenDUT,
-                                     InputCheckerWithExit,
-                                     MigenIncrementer,
-                                     TripleStateSaver)
+from deltalanguage import DeltaRuntimeExit
+from deltalanguage.test._graph_lib import (getg_PyFunc_body_graph,
+                                           getg_PyInteractiveBody_one_in_one_out,
+                                           getg_PyInteractiveBody_one_in_two_out,
+                                           getg_PyInteractiveBody_two_in_one_out,
+                                           getg_PyInteractiveBody_two_in_two_out)
+from deltalanguage.test._node_lib import (add_non_const,
+                                          multiplier,
+                                          return_2_const,
+                                          DUT1,
+                                          MigenDUT,
+                                          MigenIncrementer,
+                                          TripleStateSaver)
 from deltalanguage.test.execution.base import TestExecutionBaseDL
 
 
@@ -223,10 +227,7 @@ class TestExecutionPyFuncBody(TestExecutionBaseDL):
     """Minimal test of nodes with PyFuncBody."""
 
     def test_PyFuncBody(self):
-        s = dl.lib.StateSaver(int, verbose=True)
-        with dl.DeltaGraph() as graph:
-            s.save_and_exit(add_non_const(2, 3))
-
+        graph = getg_PyFunc_body_graph()
         self.check_executes_graph(graph, "saving 5\n")
 
 
@@ -234,18 +235,7 @@ class TestExecutionPyInteractiveBody(TestExecutionBaseDL):
     """Minimal test of nodes with PyInteractiveBody."""
 
     def test_PyInteractiveBody_one_in_one_out(self):
-        @dl.Interactive([("num", int)], [("output", int)])
-        def interactive_func(node: dl.PythonNode):
-            for _ in range(2):
-                num = node.receive("num")
-                print(f"received num: {num}")
-            node.send(num + 1)
-
-        s = dl.lib.StateSaver(int, verbose=True)
-
-        with dl.DeltaGraph() as graph:
-            s.save_and_exit(interactive_func.call(add_non_const(2, 3)))
-
+        graph = getg_PyInteractiveBody_one_in_one_out()
         self.check_executes_graph(
             graph,
             """\
@@ -256,24 +246,7 @@ class TestExecutionPyInteractiveBody(TestExecutionBaseDL):
         )
 
     def test_PyInteractiveBody_one_in_two_out(self):
-        @dl.Interactive(
-            [("num", dl.Int(dl.Size(32)))],
-            [('num_out', dl.Int(dl.Size(32))), ('val_out', dl.Bool())]
-        )
-        def interactive_func(node: dl.PythonNode):
-            for _ in range(2):
-                num = node.receive("num")
-                print(f"received num: {num}")
-            node.send(num_out=None, val_out=False)
-            node.send(num_out=14, val_out=False)
-
-        s0 = dl.lib.StateSaver(bool, condition=lambda x: x)
-        s1 = dl.lib.StateSaver(int, verbose=True)
-
-        with dl.DeltaGraph() as graph:
-            int_func = interactive_func.call(4)
-            s0.save_and_exit_if(int_func.val_out)
-            s1.save_and_exit(int_func.num_out)
+        graph = getg_PyInteractiveBody_one_in_two_out()
 
         self.check_executes_graph(
             graph,
@@ -285,23 +258,7 @@ class TestExecutionPyInteractiveBody(TestExecutionBaseDL):
         )
 
     def test_PyInteractiveBody_two_in_one_out(self):
-        @dl.Interactive([("num", dl.Int(dl.Size(32))),
-                         ("opt_val", dl.Optional(dl.Bool()))],
-                        [("output", dl.Bool())])
-        def interactive_func(node: dl.PythonNode):
-            for _ in range(2):
-                num = node.receive("num")
-                opt_val = node.receive("opt_val")
-                print(f"received opt_val: {opt_val}")
-                print(f"received num: {num}")
-            node.send(True)
-
-        s = dl.lib.StateSaver(bool, verbose=True, condition=lambda x: x)
-
-        with dl.DeltaGraph() as graph:
-            int_func = interactive_func.call(num=4, opt_val=True)
-            s.save_and_exit_if(int_func)
-
+        graph = getg_PyInteractiveBody_two_in_one_out()
         self.check_executes_graph(
             graph,
             """\
@@ -314,28 +271,7 @@ class TestExecutionPyInteractiveBody(TestExecutionBaseDL):
         )
 
     def test_PyInteractiveBody_two_in_two_out(self):
-        @dl.Interactive(
-            [("num", dl.Int(dl.Size(32))),
-             ("opt_val", dl.Optional(dl.Bool()))],
-            [('num_out', dl.Int(dl.Size(32))),
-             ('val_out', dl.Bool())]
-        )
-        def interactive_func(node: dl.PythonNode):
-            for _ in range(2):
-                num = node.receive("num")
-                opt_val = node.receive("opt_val")
-                print(f"received opt_val: {opt_val}")
-                print(f"received num: {num}")
-            node.send(num_out=None, val_out=False)
-            node.send(num_out=14, val_out=False)
-
-        s0 = dl.lib.StateSaver(bool, condition=lambda x: x)
-        s1 = dl.lib.StateSaver(int, verbose=True)
-
-        with dl.DeltaGraph() as graph:
-            int_func = interactive_func.call(num=4, opt_val=True)
-            s0.save_and_exit_if(int_func.val_out)
-            s1.save_and_exit(int_func.num_out)
+        graph = getg_PyInteractiveBody_two_in_two_out()
 
         self.check_executes_graph(
             graph,
@@ -459,7 +395,7 @@ class TestExecutionPyMigenBody(TestExecutionBaseDL):
         def exit_if_6_else_inc(n: int) -> int:
             print(n)
             if n == 6:
-                raise dl.DeltaRuntimeExit
+                raise DeltaRuntimeExit
             else:
                 return n+1
 
@@ -529,14 +465,15 @@ class TestExecutionPyMigenBody(TestExecutionBaseDL):
         the correct valid values (for the different ports).
         The migen node should be generating a sequence of outputs
         (1, None), (None, 2), (3, None) etc... """
+        checker = dl.lib.StateSaver(int, condition=lambda x: x==3, verbose=True)
+        
         with dl.DeltaGraph() as graph:
             alt = AlternatingOutputsMigen().call(1)
             my_adder = add_non_const(alt.out_a, alt.out_b)
             # Checking that we have received a 1 and a 2
-            checker = InputCheckerWithExit(lambda x: x == 3)
-            checker.check(my_adder)
+            checker.save_and_exit_if(my_adder)
 
-        self.check_executes_graph(graph, "Condition met\n")
+        self.check_executes_graph(graph, "saving 3\n")
 
 
 class TestExecutionGeneral(TestExecutionBaseDL):

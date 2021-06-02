@@ -1,4 +1,4 @@
-"""Collection of nodes and graphs used in tests.
+"""Collection of nodes used in tests.
 
 If any of the components become useful for examples and more general use
 please move it to `deltalanguage.lib`.
@@ -9,10 +9,7 @@ import time
 import migen
 
 import deltalanguage as dl
-
-
-# NODES
-
+from deltalanguage import DeltaRuntimeExit
 
 # Add: 2 inputs, 1 output
 
@@ -297,27 +294,6 @@ def mix_interactive_loop_optional(node):
 # Miscellaneous
 
 
-class InputCheckerWithExit:
-    """Compares input vs a user provided condition and exits if matches.
-
-    TODO: can be replaced by StateSaver
-    """
-
-    def __init__(self, condition):
-        self.condition = condition
-        self.cond_met = False
-
-    @dl.DeltaMethodBlock()
-    def check(self, item: object) -> object:
-        if item:
-            if self.condition(item):
-                self.cond_met = True
-                print("Condition met")
-                raise dl.DeltaRuntimeExit
-            else:
-                return item
-
-
 class DUT1(dl.MigenNodeTemplate):
 
     def migen_body(self, template):
@@ -412,7 +388,7 @@ def send_gates_list_then_exit(node: dl.PythonNode):
     measurement = node.receive("measurement")
     print(f"Measurement: {measurement}")
 
-    raise dl.DeltaRuntimeExit
+    raise DeltaRuntimeExit
 
 
 class TripleStateSaver:
@@ -449,7 +425,7 @@ class TripleStateSaver:
             print(self.x_store)
             print(self.y_store)
             print(self.z_store)
-            raise dl.DeltaRuntimeExit
+            raise DeltaRuntimeExit
 
 
 @dl.DeltaBlock(allow_const=False)
@@ -514,30 +490,3 @@ class MigenDUT(dl.MigenNodeTemplate):
                 out2.valid.eq(0)
             )
         )
-
-
-# GRAPHS
-
-
-def get_graph_with_const_chain():
-    s = dl.lib.StateSaver(int, verbose=True)
-
-    with dl.DeltaGraph() as graph:
-        n0 = return_2_const()
-        n1 = forward_const(n0)
-        n2 = forward_non_const(n1)
-        s.save_and_exit(n2)
-
-    return graph
-
-
-def get_graph_with_optional_queues():
-    s = dl.lib.StateSaver(int, verbose=True)
-
-    with dl.DeltaGraph() as graph:
-        n0 = return_nothing()
-        n1 = return_2_const()
-        n2 = add_optional(n0, n1)
-        s.save_and_exit(n2)
-
-    return graph

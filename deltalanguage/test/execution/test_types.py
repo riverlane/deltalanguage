@@ -1,6 +1,7 @@
 import unittest
 
 import deltalanguage as dl
+from deltalanguage import DeltaRuntimeExit
 
 from deltalanguage.test.execution.base import TestExecutionBaseDL
 from deltalanguage.test.test_types import RecATI
@@ -34,7 +35,7 @@ class TestExecutionTypes(TestExecutionBaseDL):
         ])
         tuple_bool_char = dl.Tuple([
             dl.Bool(),
-            dl.Char()
+            dl.Str(dl.Size(1))
         ])
 
         @dl.Interactive([("ack_int", bool),
@@ -71,7 +72,7 @@ class TestExecutionTypes(TestExecutionBaseDL):
             node.send(out_bool_char=(True, 'a'))
             assert node.receive("ack_bool_char")
 
-            raise dl.DeltaRuntimeExit
+            raise DeltaRuntimeExit
 
         s_int = dl.lib.StateSaver(tuple_int, verbose=True)
         s_uint = dl.lib.StateSaver(tuple_uint, verbose=True)
@@ -115,12 +116,12 @@ class TestExecutionTypes(TestExecutionBaseDL):
         array_float = dl.Array(dl.Float(dl.Size(64)), dl.Size(3))
         record_mix = dl.Record(RecATI)
 
-        @ dl.Interactive([("ack_tuple_mix", bool),
-                          ("ack_array_float", bool),
-                          ("ack_record_mix", bool)],
-                         [("out_tuple_mix", tuple_mix),
-                          ("out_array_float", array_float),
-                          ("out_record_mix", record_mix)])
+        @dl.Interactive([("ack_tuple_mix", bool),
+                         ("ack_array_float", bool),
+                         ("ack_record_mix", bool)],
+                        [("out_tuple_mix", tuple_mix),
+                         ("out_array_float", array_float),
+                         ("out_record_mix", record_mix)])
         def testbench(node: dl.PythonNode):
             node.send(out_tuple_mix=(-5, 1000, -100.5, (1.5+2.5j), False,
                                      '0123456789'))
@@ -132,7 +133,7 @@ class TestExecutionTypes(TestExecutionBaseDL):
             node.send(out_record_mix=RecATI([1, 2], (3.0, 4), 5))
             assert node.receive("ack_record_mix")
 
-            raise dl.DeltaRuntimeExit
+            raise DeltaRuntimeExit
 
         s_tuple_mix = dl.lib.StateSaver(tuple_mix, verbose=True)
         s_array_float = dl.lib.StateSaver(array_float, verbose=True)
@@ -190,7 +191,7 @@ class TestExecutionTypes(TestExecutionBaseDL):
             node.send(out_union_mix=RecATI([1, 2], (3.0, 4), 5))
             assert node.receive("ack_union_mix")
 
-            raise dl.DeltaRuntimeExit
+            raise DeltaRuntimeExit
 
         s_union_mix = dl.lib.StateSaver(union_mix, verbose=True)
 

@@ -31,7 +31,7 @@ DBUILD=docker build . \
 DRUN=docker run \
 	--interactive \
 	--rm \
-	--volume ${PWD}:/workdir \
+	--volume "${PWD}":/workdir \
 	--workdir /workdir \
 	--name=${CONTAINERNAME}
 

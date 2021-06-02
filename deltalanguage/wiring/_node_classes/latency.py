@@ -36,3 +36,8 @@ class Latency:
             return f"t{self._time}"
 
         return "t0"
+
+    def __eq__(self, other):
+        return (self._clocks == other._clocks and
+                self._time == other._time and 
+                self.variance == other.variance)

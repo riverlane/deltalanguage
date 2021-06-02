@@ -67,7 +67,7 @@ class TestRabiDemo(unittest.TestCase):
     """Test examples/rabi_demo."""
 
     def test_main(self):
-        filename = "examples/rabi_demo/run_test.py"
+        filename = "examples/rabi_demo/run_demo.py"
         print('running ' + filename)
         pipes = subprocess.Popen(['python', filename],
                                  stdout=subprocess.PIPE,

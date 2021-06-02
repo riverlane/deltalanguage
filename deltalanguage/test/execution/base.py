@@ -20,7 +20,8 @@ class TestExecutionBaseDL(unittest.TestCase):
         self.python_output_suffix = ""
 
     @unittest.mock.patch('sys.stdout', new_callable=io.StringIO)
-    def check_executes(self, graph, expect, exception, mock_stdout):
+    def check_executes(self, graph, expect, exception, mock_stdout,
+                       excluded_body_tags=None, preferred_body_tags=None):
         """DeltaPySimulator executes the graph execution.
 
         Parameters
@@ -35,7 +36,14 @@ class TestExecutionBaseDL(unittest.TestCase):
             (includes building, deployment, execution, etc.).
         mock_stdout
             ``unittest.mock`` captures stdout and refers to this object.
+        excluded_body_tags
+            Body tags to exclude.
+        preferred_body_tags
+            Body tags to prefer.
         """
+        graph.select_bodies(exclusions=excluded_body_tags,
+                            preferred=preferred_body_tags)
+
         if exception:
             with self.assertRaises(exception):
                 dl.DeltaPySimulator(graph).run()
@@ -51,8 +59,11 @@ class TestExecutionBaseDL(unittest.TestCase):
             )
 
     def check_executes_graph(self, graph, expect=None, files=None, reqs=None,
-                             exception=None):
+                             exception=None, excluded_body_tags=None,
+                             preferred_body_tags=None):
         """Main checking routine that should be overwritten when for
         testting of other simulators and runtime simulators.
         """
-        self.check_executes(graph, expect, exception)
+        self.check_executes(graph, expect, exception,
+                            excluded_body_tags=excluded_body_tags,
+                            preferred_body_tags=preferred_body_tags)

@@ -2,7 +2,7 @@ import unittest
 
 import deltalanguage as dl
 
-from deltalanguage.test._lib import add_interactive_once
+from deltalanguage.test._node_lib import add_interactive_once
 
 
 class InteractiveNodeGeneralTest(unittest.TestCase):

@@ -38,10 +38,10 @@ from deltalanguage.lib.hal import HardwareAbstractionLayerNode
 from deltalanguage.lib.quantum_simulators import (ProjectqQuantumSimulator,
                                                   QiskitQuantumSimulator)
 
-from deltalanguage.test._lib import (add_non_const,
-                                     return_1_const,
-                                     multiplier,
-                                     MigenDUT)
+from deltalanguage.test._node_lib import (add_non_const,
+                                          return_1_const,
+                                          multiplier,
+                                          MigenDUT)
 from deltalanguage.test._utils import assert_capnp_content_types
 
 

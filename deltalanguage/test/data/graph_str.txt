@@ -23,8 +23,8 @@ DeltaGraph[main] {
             out:
                 a, Int32 -> template_template_no_output_no_body_3.i
                 b, Bool -> multi_body_no_output_4.i
-                d, Int32 -> MigenFoo_5.i
                 c, Int32 -> experiment_stopper_6.completed
+                d, Int32 -> MigenFoo_5.i
         bodies:
             *PyConstBody
                 tags: forked_return_output

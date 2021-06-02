@@ -4,10 +4,8 @@ import unittest
 
 import deltalanguage as dl
 
-from deltalanguage.test._lib import (
-    get_graph_with_const_chain,
-    get_graph_with_optional_queues
-)
+from deltalanguage.test._graph_lib import (getg_const_chain,
+                                           getg_optional_queues)
 
 
 class DeltaQueueCreationTest(unittest.TestCase):
@@ -17,7 +15,7 @@ class DeltaQueueCreationTest(unittest.TestCase):
         """Test that queues of correct types are created (or not) depending on
         the type of the source and destination nodes.
         """
-        graph = get_graph_with_const_chain()
+        graph = getg_const_chain()
         dl.DeltaPySimulator(graph)
 
         self.assertEqual(len(graph.nodes[0].out_queues), 0)
@@ -33,7 +31,7 @@ class DeltaQueueCreationTest(unittest.TestCase):
         """Test that queues inhere correct optionality depending on the type of
         the destination node.
         """
-        graph = get_graph_with_optional_queues()
+        graph = getg_optional_queues()
         dl.DeltaPySimulator(graph)
 
         self.assertEqual(graph.nodes[0].out_queues['output'].optional, True)

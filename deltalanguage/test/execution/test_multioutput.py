@@ -5,14 +5,16 @@ import unittest
 import deltalanguage as dl
 
 from deltalanguage.test.execution.base import TestExecutionBaseDL
-from deltalanguage.test._lib import (add_const,
-                                     add_non_const,
-                                     increment_const,
-                                     increment_non_const,
-                                     return_1_const,
-                                     return_1_non_const,
-                                     return_1_2_const,
-                                     return_1_2_non_const)
+from deltalanguage.test._node_lib import (add_const,
+                                          add_non_const,
+                                          increment_const,
+                                          increment_non_const,
+                                          return_1_const,
+                                          return_1_non_const,
+                                          return_1_2_const,
+                                          return_1_2_non_const)
+from deltalanguage.test._graph_lib import (getg_splitting_const_const_same,
+                                           getg_splitting_const_const_same_and_diff)
 
 
 class TestExecutionSplittingSingleOutputNodeToSameNodeTest(TestExecutionBaseDL):
@@ -21,11 +23,7 @@ class TestExecutionSplittingSingleOutputNodeToSameNodeTest(TestExecutionBaseDL):
 
     def test_splitting_const_const(self):
         """Const -> const -> exit."""
-        s = dl.lib.StateSaver(int, verbose=True)
-        with dl.DeltaGraph() as graph:
-            val = return_1_const()
-            s.save_and_exit(add_const(val, val))
-
+        graph = getg_splitting_const_const_same()
         self.check_executes_graph(graph, "saving 2\n")
 
     def test_splitting_const_non_const(self):
@@ -90,21 +88,7 @@ class TestExecutionSplittingMultiOutputNodeTest(TestExecutionBaseDL):
     for multiple destinations both in the same or different nodes."""
 
     def test_splitting_const_const(self):
-        s = dl.lib.StateSaver(int, verbose=True)
-        with dl.DeltaGraph() as graph:
-            val = return_1_2_const()
-            s.save_and_exit(
-                add_const(
-                    add_const(
-                        add_const(
-                            val.x,
-                            val.x
-                        ),
-                        val.y),
-                    val.y
-                )
-            )
-
+        graph = getg_splitting_const_const_same_and_diff()
         self.check_executes_graph(graph, "saving 6\n")
 
     def test_splitting_const_non_const(self):

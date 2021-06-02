@@ -11,7 +11,7 @@ from deltalanguage.wiring import (DeltaBlock,
                                   PyMigenBody,
                                   RealNode)
 
-from deltalanguage.test._lib import add_const, add_non_const
+from deltalanguage.test._node_lib import add_const, add_non_const
 
 
 class NoBodyNodeTest(unittest.TestCase):

@@ -5,10 +5,11 @@ nodes and placeholders.
 from __future__ import annotations
 from copy import deepcopy
 import inspect
-from typing import TYPE_CHECKING, Dict, List
+from typing import TYPE_CHECKING, Dict, List, Union, OrderedDict
 import logging
 import textwrap
 import sys
+import dill
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -18,16 +19,24 @@ from deltalanguage.logging import make_logger
 from ..data_types import (BaseDeltaType,
                           DeltaIOError,
                           DeltaTypeError,
-                          Union,
+                          Optional,
                           Top)
 from ._node_classes.abstract_node import AbstractNode
-from ._node_classes.node_bodies import Latency, PyInteractiveBody
-from ._node_classes.real_nodes import OutPort
+from ._node_classes.node_bodies import (Latency,
+                                        PyConstBody,
+                                        PyFuncBody,
+                                        PyMethodBody,
+                                        PythonBody,
+                                        PyInteractiveBody)
+from ._node_classes.real_nodes import (PythonNode,
+                                       OutPort,
+                                       as_node)
 from ._node_templates import NodeTemplate
 
 if TYPE_CHECKING:
     from ._node_classes.placeholder_node import PlaceholderNode
     from ._node_classes.real_nodes import RealNode
+    import capnp
 
 
 class DeltaGraph:
@@ -130,6 +139,72 @@ class DeltaGraph:
         # used below to silent doctest unwanted outputs
         self._org_displayhook = None
 
+    def __eq__(self, other) -> bool:
+        """Equality, up to isomorphism via .df file.
+        """
+
+        def get_networkx_iso_graph(d_graph):
+            """Create a modified networkx graph that has enough information in to 
+            evaluated isomorphism between DeltaGraphs.
+            """
+            graph = nx.MultiDiGraph()
+            for node in d_graph.nodes:
+                graph.add_node(node.full_name,
+                               name=node.name,
+                               inputs=node.inputs,
+                               outputs=node.outputs,
+                               in_ports=node.in_ports,
+                               out_ports=node.out_ports,
+                               bodies=node.bodies)
+                for out_port in node.out_ports:
+                    src = out_port.index
+                    dest = out_port.destination.index
+                    graph.add_edge(node.full_name,
+                                   out_port.dest_node_name,
+                                   key=(src, dest))
+
+            return graph
+
+        def netx_edge_match(e1, e2):
+            """Edges get given as dict of key to edge data. We have no 
+            interesting edge data as it is stored in the ports.
+            So all the data we need to compare is in the key.
+            """
+            return e1.keys() == e1.keys()
+
+        def netx_node_match(n1, n2):
+            if n1['name'] != n2['name']:
+                return False
+
+            if n1['inputs'] != n2['inputs']:
+                return False
+
+            if n1['outputs'] != n2['outputs']:
+                return False
+
+            if n1['in_ports'] != n2['in_ports']:
+                return False
+
+            if n1['out_ports'] != n2['out_ports']:
+                return False
+
+            return n1['bodies'] == n2['bodies']
+
+        if not isinstance(other, DeltaGraph):
+            return False
+
+        if self.name != other.name:
+            return False
+
+        if self.placeholders != other.placeholders:
+            return False
+
+        g1 = get_networkx_iso_graph(self)
+        g2 = get_networkx_iso_graph(other)
+        return nx.algorithms.is_isomorphic(g1, g2,
+                                           node_match=netx_node_match,
+                                           edge_match=netx_edge_match)
+
     @property
     def name(self):
         return self._name
@@ -159,7 +234,7 @@ class DeltaGraph:
         if not self.select_bodies(override=False):
             self.log.info(f'Graph {self.name} contains a node without a body, '
                           'please define it before execution.')
-        
+
         self.do_automatic_splitting()
         DeltaGraph.global_stack.pop()
 
@@ -354,17 +429,8 @@ class DeltaGraph:
         out_ports_dest = [port.destination
                           for node in self.nodes
                           for port in node.out_ports]
-        if len(set(in_ports_all)) != len(in_ports_all):
-            raise DeltaIOError(f"in_ports should be unique\n"
-                               f"graph={self}")
-        if len(set(out_ports_all)) != len(out_ports_all):
-            raise DeltaIOError(f"out_ports should be unique\n"
-                               f"graph={self}")
-        if len(set(out_ports_dest)) != len(out_ports_dest):
-            raise DeltaIOError(f"out_ports destianations should be unique\n"
-                               f"graph={self}")
 
-        # check port names
+        # port name uniqueness guarantees port object uniqueness
         in_ports_names = [port.name for port in in_ports_all]
         out_ports_names = [port.name for port in out_ports_all]
         out_ports_dest_names = [port.name for port in out_ports_dest]
@@ -634,6 +700,97 @@ class DeltaGraph:
         Layout -> Edge-weighted Spring Embedded Layout -> (none)
         """
         nx.write_gml(self.get_networkx_graph(**kwargs), path)
+
+    @classmethod
+    def from_capnp(cls,
+                   capnp_obj: Union[capnp._DynamicStructReader,
+                                    capnp._DynamicStructBuilder],
+                   lvl: int = logging.ERROR):
+        """Create and return a DeltaGraph based on deserialised .df file.
+
+        Parameters
+        ----------
+        capnp_obj : Union[capnp._DynamicStructReader, capnp._DynamicStructBuilder]
+            capnp data.
+        lvl : int, optional
+            lvl for logging on the created DeltaGraph object,
+            by default logging.ERROR.
+
+
+        Returns
+        -------
+        DeltaGraph
+        """
+        graph = cls(capnp_obj.name, lvl)
+
+        # Initialise all nodes with their bodies and in ports
+        for capnp_node in capnp_obj.nodes:
+
+            # Create body objects
+            bodies = []
+            for body_id in capnp_node.bodies:
+                capnp_body = capnp_obj.bodies[body_id]
+                which_body = capnp_body.which()
+                if "python" in which_body:
+                    body = dill.loads(capnp_body.python.dillImpl)
+                elif "interactive" in which_body:
+                    body = dill.loads(capnp_body.interactive.dillImpl)
+                else:
+                    raise ValueError("Body has invalid type. Not all bodies are"
+                                     " currently supported for deserialisation.")
+                bodies.append(body)
+
+            # Name ID stripping
+            name = '_'.join(capnp_node.name.split('_')[:-1])
+
+            # Create node object with bodies attached
+            node = PythonNode(graph, bodies, inputs=None,
+                              pos_in_nodes=[], kw_in_nodes={},
+                              outputs=None, name=name)
+
+            # Create and add InPorts and inputs
+            inputs = []
+            for capnp_in_port in capnp_node.inPorts:
+                port_type = dill.loads(capnp_in_port.type)
+                if capnp_in_port.optional:
+                    port_type = Optional(port_type)
+                inputs.append((capnp_in_port.name, port_type))
+                node.add_in_port(capnp_in_port.name, port_type)
+
+            node.inputs = OrderedDict(inputs)
+
+        # Create mapping between OutPorts and the already existing InPorts
+        port_dests = {}
+        for wire in capnp_obj.graph:
+            dest_node = capnp_obj.nodes[wire.destNode]
+            dest_index = dest_node.inPorts[wire.destInPort].name
+
+            # Find the dest port that has the correct index
+            dest_port = None
+            for port in graph.nodes[wire.destNode].in_ports:
+                if dest_index == port.index:
+                    dest_port = port
+                    break
+
+            src_port_indicies = (wire.srcNode, wire.srcOutPort)
+            port_dests[src_port_indicies] = dest_port
+
+        # Create and add OutPorts and outputs
+        for i, capnp_node in enumerate(capnp_obj.nodes):
+            outputs = []
+            node = graph.nodes[i]
+            for j, capnp_out_port in enumerate(capnp_node.outPorts):
+                port_type = dill.loads(capnp_out_port.type)
+                port_index = capnp_out_port.name
+                dest_port = port_dests[(i, j)]
+                outputs.append((port_index, port_type))
+                node.out_ports.append(OutPort(port_index,
+                                              port_type,
+                                              dest_port,
+                                              node))
+            node.outputs = OrderedDict(outputs)
+
+        return graph
 
     @classmethod
     def get_next_placeholder_name(cls) -> str:

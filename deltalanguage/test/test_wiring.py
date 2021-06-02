@@ -4,7 +4,7 @@ import unittest
 
 import deltalanguage as dl
 
-from deltalanguage.test._lib import terminate_non_const
+from deltalanguage.test._node_lib import terminate_non_const
 
 
 class NoOutputTest(unittest.TestCase):

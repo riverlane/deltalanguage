@@ -7,7 +7,7 @@ import unittest
 import deltalanguage as dl
 
 from deltalanguage.test.execution.base import TestExecutionBaseDL
-from deltalanguage.test._lib import get_graph_with_optional_queues
+from deltalanguage.test._graph_lib import getg_optional_queues
 
 
 class TestExecutionOptionalInputs(TestExecutionBaseDL):
@@ -16,7 +16,7 @@ class TestExecutionOptionalInputs(TestExecutionBaseDL):
         """Test graph with a node that has both optional and non-optional
         inputs.
         """
-        graph = get_graph_with_optional_queues()
+        graph = getg_optional_queues()
         self.check_executes_graph(graph, "saving 2\n")
 
 
