@@ -72,6 +72,7 @@ node('linux') {
                 cobertura autoUpdateHealth: false,
                 autoUpdateStability: false,
                 coberturaReportFile: 'coverage.xml',
+                conditionalCoverageTargets: '70, 0, 0',
                 failUnhealthy: false,
                 failUnstable: false,
                 lineCoverageTargets: '80, 0, 0',
@@ -84,7 +85,7 @@ node('linux') {
         }
     }
 
-    stage('Clean container') {
-        sh 'make clean-container'
+    stage('Stop container') {
+        sh 'make stop-container'
     }
 }

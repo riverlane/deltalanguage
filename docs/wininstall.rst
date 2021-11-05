@@ -6,7 +6,7 @@ We have tested installation of Deltalanguage (via Docker containers) using the f
 1. Download Docker for Windows 10-Pro/Enterprise:
    `Docker <https://docs.docker.com/docker-for-windows/install/>`_. 
    Follow the instructions, you might be prompted to install WSL or
-   to enable Virtualization on your BIOS.
+   to enable Virtualisation on your BIOS.
    Test your installation as recommended by the installer.
 
 2. Install git `Git <https://gitforwindows.org/>`_ and if you want a git

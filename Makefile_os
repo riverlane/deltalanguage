@@ -1,0 +1,49 @@
+# ----------------------------------------------------------------------------#
+# --------------- OS Specific Macros/Defs ------------------------------------#
+# ----------------------------------------------------------------------------#
+
+
+.PHONY: check-os
+check-os: ## Which OS is used?
+ifeq ($(OS),Windows_NT)
+	@echo "MAKEFILE: Windows is detected"
+else ifeq ($(shell uname -s),Linux)
+	@echo "MAKEFILE: Linux is detected"
+else ifeq ($(shell uname -s),Darwin)
+	@echo "MAKEFILE: Mac is detected"
+else
+	@echo "MAKEFILE: What is this beast?"
+endif
+
+
+ifeq ($(OS),Windows_NT)
+
+.PHONY: help
+help: ## List of main goals
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / \
+	{printf "%s - %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+USERNAME=$(shell echo %username%)
+USER_UID=1000
+USER_GID=100
+	
+PWD=$(shell echo %cd%)
+CONTAINERID=$(shell type container)
+RMCMD=del /f /q 
+
+else
+
+.PHONY: help
+help: ## List of main goals
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / \
+	{printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+USERNAME=$(shell whoami)
+USER_UID=$(shell id -u)
+USER_GID=$(shell id -g)
+
+PWD=$(shell pwd)
+CONTAINERID=$(shell cat container)
+RMCMD=rm -rf
+
+endif

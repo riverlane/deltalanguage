@@ -57,7 +57,7 @@ class Body(ABC):
 
     @property
     @abstractmethod
-    def as_serialized(self) -> str:
+    def as_serialised(self) -> str:
         """Serialisation of body as string.
 
         Returns
@@ -131,7 +131,7 @@ class PythonBody(Body):
         return "Py"
 
     @property
-    def as_serialized(self) -> str:
+    def as_serialised(self) -> str:
         """Serialisation of body as string.
 
         Returns
@@ -356,7 +356,7 @@ class PyMigenBody(PyMethodBody):
                 return ret
 
     @property
-    def as_serialized(self) -> str:
+    def as_serialised(self) -> str:
         """Serialisation of body as string.
 
         Returns

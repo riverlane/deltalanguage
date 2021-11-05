@@ -3,9 +3,9 @@ universal routines used by Deltasimulator and Deltaruntime.
 
 This submodule contains the following user-facing parts:
 
-- Serialization routines:
-  :py:func:`serialize_graph`
-  :py:func:`deserialize_graph`
+- Serialisation routines:
+  :py:func:`serialise_graph`
+  :py:func:`deserialise_graph`
 - Python Runtime Simulator :py:class:`DeltaPySimulator`
 
 - Universal exit strategy :py:exc:`DeltaRuntimeExit`
@@ -21,13 +21,13 @@ the top level module and can be used like this:
     print(dl.DeltaRuntimeExit)
 """
 
-from ._output import deserialize_graph, serialize_graph
+from ._output import deserialise_graph, serialise_graph
 from ._queues import ConstQueue, DeltaQueue
 from ._runtime import DeltaPySimulator, DeltaRuntimeExit, DeltaThread
 
 
 # user-facing classes
-__all__ = ["deserialize_graph",
-           "serialize_graph",
+__all__ = ["deserialise_graph",
+           "serialise_graph",
            "DeltaPySimulator",
            "DeltaRuntimeExit"]

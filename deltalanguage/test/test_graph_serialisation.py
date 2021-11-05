@@ -1,4 +1,4 @@
-"""Testing serialization of DeltaGraph and its componenents."""
+"""Testing serialisation of DeltaGraph and its componenents."""
 
 import glob
 import json
@@ -19,8 +19,8 @@ from deltalanguage.data_types import (DeltaTypeError,
                                       as_delta_type)
 from deltalanguage.lib import StateSaver
 from deltalanguage.runtime import (DeltaRuntimeExit,
-                                   deserialize_graph,
-                                   serialize_graph)
+                                   deserialise_graph,
+                                   serialise_graph)
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaMethodBlock,
                                   DeltaGraph,
@@ -33,10 +33,6 @@ from deltalanguage.wiring import (DeltaBlock,
                                   RealNode)
 from deltalanguage.wiring._node_classes.node_bodies import PyMigenBody
 from deltalanguage.wiring._node_classes.migen_node import MigenNodeTemplate
-
-from deltalanguage.lib.hal import HardwareAbstractionLayerNode
-from deltalanguage.lib.quantum_simulators import (ProjectqQuantumSimulator,
-                                                  QiskitQuantumSimulator)
 
 from deltalanguage.test._node_lib import (add_non_const,
                                           return_1_const,
@@ -152,7 +148,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         with DeltaGraph() as test_graph:
             self.func(2, 3)
 
-        _, prog = serialize_graph(test_graph)
+        _, prog = serialise_graph(test_graph)
 
         self.assertEqual("_".join(prog.nodes[2].name.split("_")[:-1]),
                          "add_print_exit")
@@ -173,7 +169,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         self.assertEqual(len(prog.nodes[2].outPorts), 0)
 
         self.assertEqual(prog.bodies[2].python.dillImpl,
-                         test_graph.nodes[2].body.as_serialized)
+                         test_graph.nodes[2].body.as_serialised)
 
         self.assertEqual(len(prog.graph), 2)
 
@@ -195,7 +191,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             self.func(2, 3)
             self.func(4, 5)
 
-        _, prog = serialize_graph(test_graph)
+        _, prog = serialise_graph(test_graph)
 
         self.assertEqual(len(prog.bodies), 5)
         self.assertEqual(prog.nodes[2].bodies[0], prog.nodes[5].bodies[0])
@@ -220,7 +216,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         n1.add_body(OpCacher().cached_add)
         n1.add_body(broken_adder)
 
-        _, prog = serialize_graph(test_graph)
+        _, prog = serialise_graph(test_graph)
 
         self.assertEqual(len(prog.nodes[2].bodies), 5)
 
@@ -231,7 +227,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             self.func(a, 4)
             self.func(a, 5)
 
-        _, prog = serialize_graph(test_graph)
+        _, prog = serialise_graph(test_graph)
 
         splitter_body = dill.loads(prog.bodies[-1].python.dillImpl)
         self.assertEqual(type(splitter_body), PyFuncBody)
@@ -253,52 +249,11 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         with DeltaGraph() as test_graph:
             a = add.call(a=2, b=3)
 
-        _, prog = serialize_graph(test_graph)
+        _, prog = serialise_graph(test_graph)
 
         self.assertEqual(prog.bodies[2].which(), 'interactive')
         interactive_body = prog.bodies[2].interactive.dillImpl
-        self.assertEqual(interactive_body, a.body.as_serialized)
-
-    def test_projectQ_serialisation(self):
-        """Test ProjectQ nodes serialization/deserialization.
-
-        ProjectQ can't be fully serialized, we need to exclude from dill the
-        engine (C++ libraries). This test is to guarantee that when we
-        deserialize everything works as expected.
-        """
-
-        with DeltaGraph() as test_graph:
-            HardwareAbstractionLayerNode(
-                ProjectqQuantumSimulator(register_size=2)).accept_command(
-                    hal_command=0x4000000)
-
-        data, _ = serialize_graph(test_graph)
-        g_capnp = deserialize_graph(data)
-
-        # Checking that we are investigating the right node.
-        self.assertEqual(g_capnp.nodes[1].name.split("_")[0], "accept")
-        body = g_capnp.bodies[1].python.dillImpl
-
-        node = dill.loads(body)
-        node.eval(hal_command=0x4000000)
-
-    def test_qiskit_serialisation(self):
-        """Test Qiskit nodes serialization/deserialization.
-        """
-
-        with DeltaGraph() as test_graph:
-            HardwareAbstractionLayerNode(
-                QiskitQuantumSimulator(register_size=2)
-            ).accept_command(hal_command=0x4000000)
-
-        data, _ = serialize_graph(test_graph)
-        g_capnp = deserialize_graph(data)
-
-        # Checking that we are investigating the right node.
-        self.assertEqual(g_capnp.nodes[1].name.split("_")[0], "accept")
-        body = g_capnp.bodies[1].python.dillImpl
-        node = dill.loads(body)
-        node.eval(hal_command=0x4000000)
+        self.assertEqual(interactive_body, a.body.as_serialised)
 
     def test_template_node_capnp(self):
         """Test serialisation of nodes with no body.
@@ -309,8 +264,8 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         with DeltaGraph() as test_graph:
             template.call(a=1, b=2)
 
-        data, _ = serialize_graph(test_graph)
-        g_capnp = deserialize_graph(data)
+        data, _ = serialise_graph(test_graph)
+        g_capnp = deserialise_graph(data)
 
         for n in g_capnp.nodes:
             if n.name.split("_")[1] == 'temp-test':
@@ -320,7 +275,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         self.assertEqual(len(node.bodies), 0)
 
     def test_serialisation(self):
-        """Serialize/deserialize a graph.
+        """Serialise/deserialise a graph.
 
         .. note::
             The content of the bodies depends on the environment, i.e. how
@@ -330,17 +285,17 @@ class PythonNodeSerialisationTest(unittest.TestCase):
         with DeltaGraph() as graph:
             self.func(40, 2)
 
-        data, _ = serialize_graph(graph)
+        data, _ = serialise_graph(graph)
         self.assertEqual(type(data), bytes)
-        g_capnp = deserialize_graph(data).to_dict()
+        g_capnp = deserialise_graph(data).to_dict()
         assert_capnp_content_types(self, g_capnp)
 
         with open(os.path.join(self.datapath, 'graph_capnp.json'),
                   'r') as file:
             self.assertEqual(g_capnp, json.load(file))
 
-    def test_migen_serialization(self):
-        """Serialize/deserialize a graph with a node with a PyMigenBody.
+    def test_migen_serialisation(self):
+        """Serialise/deserialise a graph with a node with a PyMigenBody.
 
         Notes
         -----
@@ -361,9 +316,9 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             s.save_and_exit(add_non_const(example_migen_out.out1,
                                           multiplier(example_migen_out.out2)))
 
-        data, _ = serialize_graph(graph)
+        data, _ = serialise_graph(graph)
         self.assertEqual(type(data), bytes)
-        g_capnp = deserialize_graph(data).to_dict()
+        g_capnp = deserialise_graph(data).to_dict()
         assert_capnp_content_types(self, g_capnp)
 
         with open(os.path.join(datapath, 'graph_with_migen_capnp.json'),
@@ -383,9 +338,9 @@ class PythonNodeSerialisationTest(unittest.TestCase):
 
         n1.add_body(simple_add_2)
 
-        data, _ = serialize_graph(graph)
+        data, _ = serialise_graph(graph)
         self.assertEqual(type(data), bytes)
-        g_capnp = deserialize_graph(data).to_dict()
+        g_capnp = deserialise_graph(data).to_dict()
         assert_capnp_content_types(self, g_capnp)
 
         with open(os.path.join(self.datapath, 'graph_multibody_capnp.json'),
@@ -399,7 +354,7 @@ class PythonNodeSerialisationTest(unittest.TestCase):
             s.save_and_exit(return_1_const())
 
         with self.assertRaises(DeltaTypeError):
-            serialize_graph(graph)
+            serialise_graph(graph)
 
 
 class FileSerialisationTest(unittest.TestCase):
@@ -413,7 +368,7 @@ class FileSerialisationTest(unittest.TestCase):
         self.graph = test_graph
 
     def assert_correct_file_serialisation(self, files):
-        _, prog = serialize_graph(self.graph, files=files)
+        _, prog = serialise_graph(self.graph, files=files)
         if len(files) == 0:
             self.assertEqual(prog.files, b'')
         else:
@@ -432,7 +387,7 @@ class FileSerialisationTest(unittest.TestCase):
                             self.assertEqual(content.read(), df_zip.read(file))
 
     def assert_correct_reqs_serialisation(self, reqs):
-        _, prog = serialize_graph(self.graph, requirements=reqs)
+        _, prog = serialise_graph(self.graph, requirements=reqs)
         reqs = set(reqs)
         self.assertEqual(len(prog.requirements), len(reqs))
         for requirement in reqs:

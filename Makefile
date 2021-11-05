@@ -10,11 +10,7 @@
 # --------------- DECLARATIONS -----------------------------------------------#
 
 
-ifeq ($(OS),Windows_NT)
-include Makefile.win
-else
-include Makefile.unix
-endif
+include Makefile_os
 
 .DEFAULT_GOAL := help
 
@@ -28,16 +24,8 @@ DBUILD=docker build . \
 	--build-arg USER_UID=${USER_UID} \
 	--build-arg USER_GID=${USER_GID}
 
-DRUN=docker run \
-	--interactive \
-	--rm \
-	--volume "${PWD}":/workdir \
-	--workdir /workdir \
-	--name=${CONTAINERNAME}
-
 DEXEC=docker exec \
-	--interactive  \
-	${CONTAINERID}
+	--interactive
 
 PYCODESTYLE=pycodestyle -v \
 	deltalanguage/ examples/ test/ >> pycodestyle.log || true
@@ -94,54 +82,60 @@ ifeq ($(FORDOCS), $(filter $(FORDOCS), docs dev-docs))
   $(eval $(DOCS_ARGS):;@:)
 endif
 
+
 # --------------- DOCKER STUFF -----------------------------------------------#
 
 
 .PHONY: build
-build: ./environment/Dockerfile ## Build the image
+build: ## Build the image
 	${DBUILD}
 
 .PHONY: build-nc
-build-nc: ./environment/Dockerfile ## Build the image from scratch
+build-nc: ## Build the image from scratch
 	${DBUILD} --no-cache
 
 container: ## Spin out the container
 	make build
-	${DRUN} \
+	docker run \
+	--interactive \
+	--rm \
+	--volume "${PWD}":/workdir \
+	--workdir /workdir \
+	--name=${CONTAINERNAME} \
 	--detach \
 	--cidfile=container \
+	--publish 5698:5698 \
 	${IMAGENAME} \
 	/bin/bash
 
-.PHONY: rshell
-rshell: container
-	docker exec --privileged -it ${CONTAINERID} /bin/bash
-
 .PHONY: shell
-shell: container
-	docker exec -it ${CONTAINERID} /bin/bash
+shell: container ## Attach Bash-shell to the container
+	${DEXEC} --tty ${CONTAINERID} /bin/bash
 
 .PHONY: notebook
-notebook: container ## Attach a Jupyter Notebook to a container
-	${DRUN} \
-	--publish 5698:5698 \
-	${IMAGENAME} \
+notebook: container ## Attach Jupyter Notebook to the container
+	${DEXEC} ${CONTAINERID} \
 	jupyter notebook \
 	--port 5698 \
 	--no-browser \
 	--ip=0.0.0.0
 
+.PHONY: stop-container
+stop-container: ## Stop and remove the container
+	$(RMCMD) container
+	docker stop ${CONTAINERNAME} || exit 0
+
 
 # --------------- DOCUMENTATION ----------------------------------------------#
 
-.ONESHELL:
+
 .PHONY: licenses
 licenses: container ## Generate license info
-	${DEXEC} bash -c "${LICENSES}"
+	${DEXEC} ${CONTAINERID} bash -c "${LICENSES}"
 
 .PHONY: docs
 docs: container ## Generate docs
-	${DEXEC} make -C docs $(DOCS_ARGS)
+	${DEXEC} ${CONTAINERID} make -C docs $(DOCS_ARGS)
 
 
 # --------------- TESTING ----------------------------------------------------#
@@ -152,23 +146,7 @@ test: pytest ## Run all the tests
 
 .PHONY: pytest
 pytest: container ## Run the test suite via pytest
-	${DEXEC} ${PYTEST}
-
-.PHONY: test-unit
-test-unit: container ## Run the test suite via unittest
-	${DEXEC} python -m unittest discover
-
-.PHONY: check-os
- check-os: ## Which OS is used?
- ifeq ($(OS),Windows_NT)
- 	@echo "MAKEFILE: Windows is detected"
- else ifeq ($(UNAME_S),Linux)
- 	@echo "MAKEFILE: Linux is detected"
- else ifeq ($(UNAME_S),Darwin)
- 	@echo "MAKEFILE: Mac is detected"
- else
- 	@echo "MAKEFILE: What is this beast?"
- endif
+	${DEXEC} ${CONTAINERID} ${PYTEST}
 
 
 # --------------- QA ---------------------------------------------------------#
@@ -176,11 +154,11 @@ test-unit: container ## Run the test suite via unittest
 
 .PHONY: pylint
 pylint: container ## Run code quality checker
-	${DEXEC} ${PYLINT}
+	${DEXEC} ${CONTAINERID} ${PYLINT}
 
 .PHONY: pycodestyle
 pycodestyle: container ## Run PEP8 checker
-	${DEXEC} ${PYCODESTYLE}
+	${DEXEC} ${CONTAINERID} ${PYCODESTYLE}
 
 
 # --------------- PACKAGING --------------------------------------------------#
@@ -188,38 +166,35 @@ pycodestyle: container ## Run PEP8 checker
 
 .PHONY: build-package
 build-package: dev-clean container ## Make the package
-	${DEXEC} ${MAKEPACKAGE}
-	${DEXEC} ${CHECKPACKAGE}
+	${DEXEC} ${CONTAINERID} ${MAKEPACKAGE}
+	${DEXEC} ${CONTAINERID} ${CHECKPACKAGE}
 
 .PHONY: test-upload-package
 test-upload-package: build-package ## Make and upload the package to test.pypi.org
-	${DEXEC} ${TESTUPLOADPACKAGE}
+	${DEXEC} ${CONTAINERID} ${TESTUPLOADPACKAGE}
 
 .PHONY: upload-package
 upload-package: build-package ## Make and upload the package to pypi.org
-	${DEXEC} ${UPLOADPACKAGE}
+	${DEXEC} ${CONTAINERID} ${UPLOADPACKAGE}
 
 .PHONY: test-package
 test-package: ## Make and run tests on the package
-	${DEXEC} ${TESTPACKAGE}
+	${DEXEC} ${CONTAINERID} ${TESTPACKAGE}
 
 
 # --------------- CLEANING ---------------------------------------------------#
-ARTIFACTS=.coverage coverage.xml testreport.xml *.vcd *.png \
-     *.txt licenses.confluence licenses.csv *.log dist *.egg-info .eggs \
-	 build printed_graph.df pylint.log pycodestyle.log 
+
+
+ARTIFACTS=.coverage .coverage.* *.xml *.vcd *.png \
+	*.txt licenses.confluence licenses.csv *.log dist *.egg-info .eggs \
+	build printed_graph.df pylint.log pycodestyle.log
 
 .PHONY: clean
-clean: dev-clean clean-container ## Clean everything
+clean: stop-container dev-clean ## Clean everything
 
 .PHONY: clean-artifacts
 clean-artifacts: ## Cleans all the artifacts
 	$(foreach var,$(ARTIFACTS),$(RMCMD) $(var);) 
- 
-.PHONY: clean-container
-clean-container: ## Stop and remove the container
-	docker stop ${CONTAINERNAME} || exit 0
-	$(RMCMD) container
 
 .PHONY: clean-docs
 clean-docs: ## Clean docs
@@ -238,7 +213,7 @@ else
 	find . -name "__pycache__" -type d -exec rm -rf {} \; || exit 0
 endif
 
-    
+
 # --------------- DEVELOPMENT ------------------------------------------------#
 
 
@@ -252,11 +227,6 @@ dev-test: dev-pytest ## See non-dev version
 dev-pytest: ## See non-dev version
 	${PYTEST}
 
-.PHONY: dev-test-unit
-dev-test-unit: ## See non-dev version
-	python -m unittest discover
-
-.ONESHELL:
 .PHONY: dev-licenses
 dev-licenses: ## See non-dev version
 	${LICENSES}

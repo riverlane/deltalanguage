@@ -173,7 +173,8 @@ class BaseDeltaType(ABC):
         bool
             True if the object can be packed as this type, otherwise False.
         """
-
+        pass
+        
     @property
     def pack_format(self):
         """Format for :py:func:`struct.pack` defined by
@@ -183,19 +184,7 @@ class BaseDeltaType(ABC):
         ------
         str
         """
-        if self._pack_format is None:
-            self.set_pack_format()
         return self._pack_format
-
-    @abstractmethod
-    def set_pack_format(self):
-        """Set :py:attr:`pack_format`.
-
-        .. todo::
-            This can be implemented via `@property.setter`.
-        """
-        pass
-
 
 class PrimitiveDeltaType(BaseDeltaType):
     """Primitive Deltaflow types, which have a direct mapping to primitive
@@ -302,9 +291,6 @@ class Top(BaseDeltaType):
     def is_packable(self, val):
         raise NotImplementedError
 
-    def set_pack_format(self):
-        raise NotImplementedError
-
 
 class Array(CompoundDeltaType):
     """Fixed-size collection of objects of the same type.
@@ -327,6 +313,7 @@ class Array(CompoundDeltaType):
             raise DeltaTypeError("Array type cannot be Top().")
         self.length = length
         self.size = self.list_of.size * self.length
+        self._pack_format = self.list_of.pack_format * self.length.val
 
     def __str__(self):
         return f"[{self.list_of} x {self.length}]"
@@ -406,10 +393,7 @@ class Array(CompoundDeltaType):
         elif len(val) == self.length.val:
             return all(self.list_of.is_packable(v) for v in val)
         else:
-            return False
-
-    def set_pack_format(self):
-        self._pack_format = self.list_of.pack_format * self.length.val
+            return False        
 
 
 class UInt(PrimitiveDeltaType):
@@ -426,6 +410,18 @@ class UInt(PrimitiveDeltaType):
             raise DeltaTypeError
         super().__init__()
         self.size = size
+
+        if self.size == Size(8):
+            self._pack_format = 'B'
+        elif self.size == Size(16):
+            self._pack_format = 'H'
+        elif self.size == Size(32):
+            self._pack_format = 'I'
+        elif self.size == Size(64):
+            self._pack_format = 'Q'
+        else:
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 8, 16, 32, 64')
 
     def __str__(self):
         return f"UInt{self.size}"
@@ -446,19 +442,6 @@ class UInt(PrimitiveDeltaType):
             raise NotImplementedError(f'Unsupported format: {self.size} - '
                                       'supported sizes are 8, 16, 32, 64')
 
-    def set_pack_format(self):
-        if self.size == Size(8):
-            self._pack_format = 'B'
-        elif self.size == Size(16):
-            self._pack_format = 'H'
-        elif self.size == Size(32):
-            self._pack_format = 'I'
-        elif self.size == Size(64):
-            self._pack_format = 'Q'
-        else:
-            raise NotImplementedError(f'Unsupported format: {self.size} - '
-                                      'supported sizes are 8, 16, 32, 64')
-
 
 class Int(PrimitiveDeltaType):
     """Signed integers with a given number of bits.
@@ -474,6 +457,18 @@ class Int(PrimitiveDeltaType):
             raise DeltaTypeError
         super().__init__()
         self.size = size
+
+        if self.size == Size(8):
+            self._pack_format = 'b'
+        elif self.size == Size(16):
+            self._pack_format = 'h'
+        elif self.size == Size(32):
+            self._pack_format = 'i'
+        elif self.size == Size(64):
+            self._pack_format = 'q'
+        else:
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 8, 16, 32, 64')
 
     def __str__(self):
         return f"Int{self.size}"
@@ -494,19 +489,6 @@ class Int(PrimitiveDeltaType):
             raise NotImplementedError(f'Unsupported format: {self.size} - '
                                       'supported sizes are 8, 16, 32, 64')
 
-    def set_pack_format(self):
-        if self.size == Size(8):
-            self._pack_format = 'b'
-        elif self.size == Size(16):
-            self._pack_format = 'h'
-        elif self.size == Size(32):
-            self._pack_format = 'i'
-        elif self.size == Size(64):
-            self._pack_format = 'q'
-        else:
-            raise NotImplementedError(f'Unsupported format: {self.size} - '
-                                      'supported sizes are 8, 16, 32, 64')
-
 
 class Bool(PrimitiveDeltaType):
     """Boolean 1-bit type."""
@@ -514,6 +496,7 @@ class Bool(PrimitiveDeltaType):
     def __init__(self):
         super().__init__()
         self.size = Size(1)
+        self._pack_format = '?'
 
     def __str__(self):
         return "Bool"
@@ -522,10 +505,7 @@ class Bool(PrimitiveDeltaType):
         return bool
 
     def as_numpy_type(self):
-        return np.bool_
-
-    def set_pack_format(self):
-        self._pack_format = '?'
+        return np.bool_   
 
     def pack(self, val):
         if val == True:
@@ -552,6 +532,7 @@ class Char(PrimitiveDeltaType):
     def __init__(self):
         super().__init__()
         self.size = Size(8)
+        self._pack_format = 'c'
 
     def __str__(self):
         return "Char8"
@@ -574,9 +555,6 @@ class Char(PrimitiveDeltaType):
     def unpack(self, val):
         return super().unpack(val.decode('ascii'))
 
-    def set_pack_format(self):
-        self._pack_format = 'c'
-
 
 class Str(Array):
     """Array of characters."""
@@ -585,6 +563,7 @@ class Str(Array):
         if not isinstance(length, Size):
             raise DeltaTypeError
         super().__init__(Char(), length)
+        self._pack_format = str(self.length) + 's'
 
     def __str__(self):
         return f"Str{self.size}"
@@ -633,9 +612,7 @@ class Str(Array):
             return True
         else:
             return False
-
-    def set_pack_format(self):
-        self._pack_format = str(self.length) + 's'
+        
 
 
 class Float(PrimitiveDeltaType):
@@ -650,6 +627,14 @@ class Float(PrimitiveDeltaType):
             raise DeltaTypeError
         super().__init__()
         self.size = size
+        
+        if self.size == Size(32):
+            self._pack_format = 'f'
+        elif self.size == Size(64):
+            self._pack_format = 'd'
+        else:
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 32, 64')
 
     def __str__(self):
         return f"Float{self.size}"
@@ -665,15 +650,7 @@ class Float(PrimitiveDeltaType):
         else:
             raise NotImplementedError(f'Unsupported format: {self.size} - '
                                       'supported sizes are 32, 64')
-
-    def set_pack_format(self):
-        if self.size == Size(32):
-            self._pack_format = 'f'
-        elif self.size == Size(64):
-            self._pack_format = 'd'
-        else:
-            raise NotImplementedError(f'Unsupported format: {self.size} - '
-                                      'supported sizes are 32, 64')
+        
 
 
 class Complex(PrimitiveDeltaType):
@@ -686,6 +663,13 @@ class Complex(PrimitiveDeltaType):
             raise DeltaTypeError
         super().__init__()
         self.size = size
+        if self.size == Size(64):
+            self._pack_format = 'ff'
+        elif self.size == Size(128):
+            self._pack_format = 'dd'
+        else:
+            raise NotImplementedError(f'Unsupported format: {self.size} - '
+                                      'supported sizes are 64, 128')
 
     def __str__(self):
         return f"Complex{self.size}"
@@ -701,15 +685,7 @@ class Complex(PrimitiveDeltaType):
         else:
             raise NotImplementedError(f'Unsupported format: {self.size} - '
                                       'supported sizes are 64, 128')
-
-    def set_pack_format(self):
-        if self.size == Size(64):
-            self._pack_format = 'ff'
-        elif self.size == Size(128):
-            self._pack_format = 'dd'
-        else:
-            raise NotImplementedError(f'Unsupported format: {self.size} - '
-                                      'supported sizes are 64, 128')
+        
 
     def pack(self, val):
         return self.bytes_to_bits(struct.pack(self.pack_format,
@@ -738,6 +714,7 @@ class Tuple(CompoundDeltaType):
             raise ValueError("You cannot have empty Tuple")
 
         self.size = sum((e.size for e in self.elems), Size(0))
+        self._pack_format = "".join((e.pack_format for e in self.elems))
 
     def __str__(self):
         return f"({', '.join(map(str, self.elems))})"
@@ -829,10 +806,7 @@ class Tuple(CompoundDeltaType):
                         "NumPy array object for Tuple has length != 1")
                 val = val[0]
             return all(elem.is_packable(v) for elem, v in zip(self.elems, val))
-        return False
-
-    def set_pack_format(self):
-        self._pack_format = "".join((e.pack_format for e in self.elems))
+        return False        
 
 
 class Record(CompoundDeltaType):
@@ -889,6 +863,8 @@ class Record(CompoundDeltaType):
 
         self.elems = tuple(elem_list)
         self.size = sum((e.size for (_, e) in self.elems), Size(0))
+
+        self._pack_format = "".join((e.pack_format for (_, e) in self.elems))
 
     def __str__(self):
         def record_inst_printer(field):
@@ -992,11 +968,7 @@ class Record(CompoundDeltaType):
                 return hasattr(val, name) and t.is_packable(getattr(val, name))
             return all(packable_attrs(name, t) for name, t in self.elems)
         else:
-            return False
-
-    def set_pack_format(self):
-        self._pack_format = "".join(
-            (e.pack_format for (_, e) in self.elems))
+            return False       
 
 
 class Union(CompoundDeltaType):
@@ -1045,6 +1017,8 @@ class Union(CompoundDeltaType):
         # 8 bits to encode meta data
         self.meta = UInt(Size(8))
         self.size = self.meta.size + max(e.size for e in self.elems)
+        # the data format is encoded in the 1-byte meta buffer
+        self._pack_format = ""
 
     def __str__(self):
         elems_str = ' | '.join(map(str, self.elems))
@@ -1146,10 +1120,6 @@ class Union(CompoundDeltaType):
             return False
         return any(elem.is_packable(val) for elem in self.elems)
 
-    def set_pack_format(self):
-        # the data format is encoded in the 1-byte meta buffer
-        pass
-
 
 class Raw(BaseDeltaType):
     """Wrapper for converting objects of one data type into raw bits.
@@ -1201,9 +1171,6 @@ class Raw(BaseDeltaType):
     def is_packable(self, val):
         return isinstance(val, int)
 
-    def set_pack_format(self):
-        self.base_type.set_pack_format()
-
     def pack(self, val):
         if not self.is_packable(val):
             raise DeltaTypeError(
@@ -1249,12 +1216,21 @@ class Raw(BaseDeltaType):
 
 
 class Optional:
-    """Wrapper class that is used to identify optional input for nodes.
+    """Wrapper class that is used at the graph creation stage to identify
+    optional inputs for nodes.
+    
+    Without this wrapper the input is treated as compulsory, thus the node's
+    body logic will be paused awaiting for data.
+    With this wrapper, the node's body logic will not be paused even if data
+    has not reached the node yet.
+    Please see our examples below with use cases.
+
 
     .. note::
         Only :py:class:`InPort<deltalanguage.wiring.InPort>` can be optional.
         :py:class:`OutPort<deltalanguage.wiring.OutPort>` does not have such
         property.
+
 
     Examples
     --------

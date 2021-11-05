@@ -30,7 +30,7 @@ def make_generator(val: typing.Union[object, typing.Iterable],
     ----------
     val : typing.Union[object, typing.Iterable]
         The output value(s) of the generator.
-        Its Deltaflow type is recognized automatically by
+        Its Deltaflow type is recognised automatically by
         :py:class:`delta_type<deltalanguage.data_types.delta_type>`.
         See ``reps`` for explanation.
     reps : int
@@ -39,7 +39,7 @@ def make_generator(val: typing.Union[object, typing.Iterable],
         Otherwise it is an integer, then ``val`` is sent out this number
         of times.
     as_delta_type : BaseDeltaType
-        If not ``None``, this type will overwrite the automatically recognized
+        If not ``None``, this type will overwrite the automatically recognised
         type from ``val``. For instance if you wish to send `Int16`, instead
         of `Int32`.
     verbose : bool

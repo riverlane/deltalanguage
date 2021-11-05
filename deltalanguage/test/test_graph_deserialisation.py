@@ -29,11 +29,11 @@ class GraphDeserialisationTest(unittest.TestCase):
         graph : DeltaGraph
             Graph under test
         """
-        _, program = dl.serialize_graph(graph)
+        _, program = dl.serialise_graph(graph)
         de_graph = dl.DeltaGraph.from_capnp(program)
         self.assertEqual(graph, de_graph)
 
-    def test_deserialize_graph_node_library(self):
+    def test_deserialise_graph_node_library(self):
         """Ensure that a selection of the graphs from the graph library
         meet the deserialisation check.
         """

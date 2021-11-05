@@ -127,7 +127,7 @@ class Void:
 
         >>> @dl.DeltaBlock()
         ... def foo(a: int) -> dl.Void:
-        ...     print('Hello Quantum World!')
+        ...     print('Hello World!')
 
     If the node may or may not send a message
     you need to create a channel by specifying the output type:

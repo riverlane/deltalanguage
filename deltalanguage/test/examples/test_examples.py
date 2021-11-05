@@ -53,37 +53,6 @@ class TestHardware(unittest.TestCase):
         self.assertEqual(errors, [], msg=file + " failed")
 
 
-class TestVQE(unittest.TestCase):
-    """Test examples/VQE."""
-
-    def test_main(self):
-        file = "examples/VQE/VQE_walkthrough.ipynb"
-        print('running ' + file)
-        _, errors = run_notebook(file)
-        self.assertEqual(errors, [], msg=file + " failed")
-
-
-class TestRabiDemo(unittest.TestCase):
-    """Test examples/rabi_demo."""
-
-    def test_main(self):
-        filename = "examples/rabi_demo/run_demo.py"
-        print('running ' + filename)
-        pipes = subprocess.Popen(['python', filename],
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-        _, errors = pipes.communicate()
-        for error in errors.decode("utf-8").split("\n"):
-            if error:
-                self.assertTrue(("INFO" in error) or ("DEBUG" in error), error)
-
-    def test_notebook(self):
-        filename = "examples/rabi_demo/rabi_oscillation_walkthrough.ipynb"
-        print('running ' + filename)
-        _, errors = run_notebook(filename)
-        self.assertEqual(errors, [], msg=filename + " failed")
-
-
 class TestMicromotion(unittest.TestCase):
     """Test examples/demos/micromotion."""
 

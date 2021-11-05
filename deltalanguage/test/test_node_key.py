@@ -9,7 +9,7 @@ import unittest
 from deltalanguage.data_types import DeltaIOError, Void
 from deltalanguage.runtime import (DeltaRuntimeExit,
                                    DeltaPySimulator,
-                                   serialize_graph)
+                                   serialise_graph)
 from deltalanguage.wiring import (DeltaBlock,
                                   DeltaGraph,
                                   DeltaMethodBlock,
@@ -76,7 +76,7 @@ class TestNodeKey(unittest.TestCase):
         with DeltaGraph() as test_graph:
             add_assert(a=4, b=5)
         with self.assertRaises(DeltaIOError):
-            _, _ = serialize_graph(test_graph)
+            _, _ = serialise_graph(test_graph)
 
 
 test_template1 = NodeTemplate(name="NodeKeyTestTemplate",

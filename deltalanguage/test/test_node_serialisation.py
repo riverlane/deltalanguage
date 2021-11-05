@@ -56,40 +56,40 @@ class NodeSerialisationTest(unittest.TestCase):
         node_env_func = graph.nodes[10]
 
         # const independent func
-        self.serialized_independent_const =\
-            node_independent_const.body.as_serialized
-        self.deserialized_node_independent_const = dill.loads(
-            self.serialized_independent_const
+        self.serialised_independent_const =\
+            node_independent_const.body.as_serialised
+        self.deserialised_node_independent_const = dill.loads(
+            self.serialised_independent_const
         )
 
         # non-const independent func with environment
-        self.serialized_env_func =\
-            node_env_func.body.as_serialized
+        self.serialised_env_func =\
+            node_env_func.body.as_serialised
 
         # non-const independent func
-        self.serialized_independent_func =\
-            node_independent_func.body.as_serialized
-        self.deserialized_node_independent_func = dill.loads(
-            self.serialized_independent_func
+        self.serialised_independent_func =\
+            node_independent_func.body.as_serialised
+        self.deserialised_node_independent_func = dill.loads(
+            self.serialised_independent_func
         )
 
         # method
-        self.serialized_method = node_method.body.as_serialized
-        self.deserialized_node_method = dill.loads(
-            self.serialized_method
+        self.serialised_method = node_method.body.as_serialised
+        self.deserialised_node_method = dill.loads(
+            self.serialised_method
         )
 
-    def test_deserialization(self):
+    def test_deserialisation(self):
         self.assertEqual(
-            type(self.deserialized_node_independent_const),
+            type(self.deserialised_node_independent_const),
             PyConstBody
         )
         self.assertEqual(
-            type(self.deserialized_node_independent_func),
+            type(self.deserialised_node_independent_func),
             PyFuncBody
         )
         self.assertEqual(
-            type(self.deserialized_node_method),
+            type(self.deserialised_node_method),
             PyMethodBody
         )
 
@@ -97,9 +97,9 @@ class NodeSerialisationTest(unittest.TestCase):
 
         # build up python script to run in separate environment
         python_string = "import dill\n"
-        python_string += "deserialized_node_body = "
-        python_string += f"dill.loads({self.serialized_independent_const})\n"
-        python_string += "print(deserialized_node_body.eval())"
+        python_string += "deserialised_node_body = "
+        python_string += f"dill.loads({self.serialised_independent_const})\n"
+        python_string += "print(deserialised_node_body.eval())"
 
         # begin python process in separate environment
         p = subprocess.run(
@@ -116,9 +116,9 @@ class NodeSerialisationTest(unittest.TestCase):
 
         # build up python script to run in separate environment
         python_string = "import dill\n"
-        python_string += "deserialized_node_body = "
-        python_string += f"dill.loads({self.serialized_independent_func})\n"
-        python_string += "print(deserialized_node_body.eval(5, 4))"
+        python_string += "deserialised_node_body = "
+        python_string += f"dill.loads({self.serialised_independent_func})\n"
+        python_string += "print(deserialised_node_body.eval(5, 4))"
 
         # begin python process in separate environment
         p = subprocess.run(
@@ -135,9 +135,9 @@ class NodeSerialisationTest(unittest.TestCase):
 
         # build up python script to run in separate environment
         python_string = "import dill\n"
-        python_string += "deserialized_node_body = "
-        python_string += f"dill.loads({self.serialized_env_func})\n"
-        python_string += "print(deserialized_node_body.eval(14, 21))"
+        python_string += "deserialised_node_body = "
+        python_string += f"dill.loads({self.serialised_env_func})\n"
+        python_string += "print(deserialised_node_body.eval(14, 21))"
 
         # begin python process in separate environment
         p = subprocess.run(
@@ -154,9 +154,9 @@ class NodeSerialisationTest(unittest.TestCase):
 
         # build up python script to run in separate environment
         python_string = "import dill\n"
-        python_string += "deserialized_node_body = "
-        python_string += f"dill.loads({self.serialized_method})\n"
-        python_string += "print(deserialized_node_body.eval(3))"
+        python_string += "deserialised_node_body = "
+        python_string += f"dill.loads({self.serialised_method})\n"
+        python_string += "print(deserialised_node_body.eval(3))"
 
         # begin python process in separate environment
         p = subprocess.run(
@@ -199,9 +199,9 @@ class NodeSerialisationTest(unittest.TestCase):
 
         python_string += textwrap.dedent(
             f"""
-            deserialized_node = dill.loads({self.serialized_independent_const})
+            deserialised_node = dill.loads({self.serialised_independent_const})
 
-            graph.nodes[2]._body = deserialized_node
+            graph.nodes[2]._body = deserialised_node
 
             rt = DeltaPySimulator(graph)
             rt.run()
@@ -249,9 +249,9 @@ class NodeSerialisationTest(unittest.TestCase):
 
         python_string += textwrap.dedent(
             f"""
-            deserialized_node = dill.loads({self.serialized_env_func})
+            deserialised_node = dill.loads({self.serialised_env_func})
 
-            graph.nodes[2]._body = deserialized_node
+            graph.nodes[2]._body = deserialised_node
 
             rt = DeltaPySimulator(graph)
             rt.run()
@@ -305,9 +305,9 @@ class NodeSerialisationTest(unittest.TestCase):
 
         python_string += textwrap.dedent(
             f"""
-            deserialized_node = dill.loads({self.serialized_method})
+            deserialised_node = dill.loads({self.serialised_method})
 
-            graph.nodes[1]._body = deserialized_node
+            graph.nodes[1]._body = deserialised_node
 
             rt = DeltaPySimulator(graph)
             rt.run()
@@ -328,12 +328,12 @@ class NodeSerialisationTest(unittest.TestCase):
 
 class StateSaverSerialisationTest(unittest.TestCase):
 
-    def test_serialize_state_saver(self):
+    def test_serialise_state_saver(self):
         """Serialise a state saver and load it in a new instance."""
         saver = StateSaver(t=int, verbose=True)
         with DeltaGraph():
             saver_node = saver.save(return_2_const())
-        saver_body = saver_node.body.as_serialized
+        saver_body = saver_node.body.as_serialised
         python_string = textwrap.dedent(
             f"""
             import dill

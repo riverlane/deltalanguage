@@ -1,17 +1,11 @@
-ifeq ($(OS),Windows_NT)
-include ../Makefile.win
-else
-include ../Makefile.unix
-endif
+include ../Makefile_os
 
 BUILDDIR=_build
 SPHINXBUILD=sphinx-build -v -n -a
 
 DOC_ARTIFACTS_TUTORIALS= *.py \
 	*.ipynb
-DOC_ARTIFACTS_EXAMPLES= hardware \
-	rabi_demo \
-	VQE 
+DOC_ARTIFACTS_EXAMPLES= hardware
 DOC_ARTIFACTS_MICROMOTION= micromotion.zip
      
 
@@ -43,11 +37,6 @@ pre-build:
 	cp ../examples/tutorials/*.ipynb tutorials/
 
 	cp -r ../examples/hardware examples/
-
-	cp -r ../examples/rabi_demo examples/
-	cd examples/rabi_demo/ && zip -r rabi_demo.zip *.py *.ipynb
-
-	cp -r ../examples/VQE examples/
 
 	cd ../examples/demos/micromotion/migen/ && zip -r micromotion.zip *
 	mv ../examples/demos/micromotion/migen/micromotion.zip examples/micromotion/

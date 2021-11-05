@@ -25,10 +25,6 @@ COPY ./environment/visualisation_requirements.txt /opt/
 RUN pip install --upgrade pip
 # Installing first pip-licenses so we can track what licenses/versions of packages
 RUN pip install -U pip-licenses
-# Hotfix for installing projectq https://github.com/ProjectQ-Framework/ProjectQ/issues/323
-# pip tries to install pybind11 after projectq is installed,
-# despite being one of projectq's dependencies
-RUN pip install --no-cache-dir pybind11
 RUN pip install --no-cache-dir -r /opt/dev_requirements.txt
 RUN pip install --no-cache-dir -r /opt/install_requirements.txt
 RUN pip install --no-cache-dir -r /opt/visualisation_requirements.txt

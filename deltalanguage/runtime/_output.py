@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from deltalanguage.wiring import DeltaGraph
 
 
-def serialize_graph(
+def serialise_graph(
     graph: DeltaGraph,
     name: str = None,
     files: List[str] = None,
@@ -84,14 +84,14 @@ def serialize_graph(
     for graph_node in graph.nodes:
         graph_node.capnp_wiring(nodes, wiring)
 
-    # resizable lists initialize only here
+    # resizable lists initialise only here
     bodies.finish()
     wiring.finish()
 
     return schema.to_bytes(), schema
 
 
-def deserialize_graph(
+def deserialise_graph(
     data: bytes
 ) -> Union[capnp._DynamicStructReader, capnp._DynamicStructBuilder]:
     """Converts bytecode to a complete graph representation of the Deltaflow

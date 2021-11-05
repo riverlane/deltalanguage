@@ -92,19 +92,22 @@ class DeltaPySimulator:
     """Python runtime simulator for running
     :py:class:`DeltaGraph<deltalanguage.wiring.DeltaGraph>`.
 
-    The main purpose of this simulator is debugging of the graph and basic
-    testing. Please note that this implementation is not
-    optimized for high performance, thus do not try to run big graphs in it,
-    instead use Deltasimulator package.
-
-    The advantage of this implementation is that you can debug nodes in
-    Python ecosystem without need to verilate Migen code and compile any
-    SystemC libraries.
-
-    At initialization it spins out an individual ``threading.Thread``
+    At initialisation it spins out an individual ``threading.Thread``
     for each node's body. Inputs and outputs to which are managed by
     corresponding input and output ports. The transfer of data is facilitated
     by channels implemented as :py:class:`DeltaQueue`.
+
+    The main purpose of this simulator is debugging of the graph and basic
+    testing. Please note that this implementation is not
+    optimised for high performance, thus do not try to run big graphs in it,
+    instead use the
+    `Deltasimulator <https://riverlane.github.io/deltasimulator>`_ package.
+
+    The advantage of this simulator is that you can debug nodes in
+    Python ecosystem without need to verilate Migen code and compile any
+    SystemC libraries, thus you case time on debugging.
+    Also you can use a native Python debugger to inspect individual
+    computing threads running nodes.
 
     Parameters
     ----------
@@ -121,7 +124,7 @@ class DeltaPySimulator:
     switchinterval : float
         Passed to `sys.setswitchinterval`, which
         sets the interpreter’s thread switch interval (in seconds).
-        This argument is provided for speed optimization of this simulator
+        This argument is provided for speed optimisation of this simulator
         implementation.
     queue_size : int
         This is a global parameter for all instances of :py:class:`DeltaQueue`
@@ -183,7 +186,7 @@ class DeltaPySimulator:
         self.msg_log = MessageLog(msg_lvl)
         self.set_excepthook()
 
-        # speed optimization
+        # speed optimisation
         if switchinterval is not None:
             sys.setswitchinterval(switchinterval)
         self.queue_size = queue_size

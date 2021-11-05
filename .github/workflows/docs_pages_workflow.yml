@@ -26,4 +26,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: "docs/build_docs.sh"
         shell: bash
-    

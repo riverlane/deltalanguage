@@ -89,6 +89,12 @@ class DeltaQueue(Queue):
             if not self._type.is_packable(item.msg):
                 raise TypeError(
                     f"Message {item.msg} cannot be packed into {self._type}")
+
+            item.msg = self._type.unpack(self._type.pack(item.msg))
+            if item.msg is None:
+                raise TypeError(
+                    f"Message {item.msg} was not packed into {self._type}")
+                    
             if timeout is None:
                 Queue.put(self, item, block, timeout=self._queue_interval)
             else:

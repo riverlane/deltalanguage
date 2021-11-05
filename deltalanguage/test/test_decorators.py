@@ -40,7 +40,7 @@ class DecoratorNoInputTypeTest(unittest.TestCase):
 
 class DecoratorSetTagsTest(unittest.TestCase):
     """API test: tags can be provided to decorators during nodes definition or
-    during the migen node initialization.
+    during the migen node initialisation.
     """
 
     def test_DeltaBlock(self):

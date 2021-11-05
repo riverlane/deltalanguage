@@ -12,7 +12,7 @@ which operations can be triggered on qubits.
 This makes Deltaflow portable across technologies.
 
 Deltalanguage is used by the Deltaflow-on-ARTIQ system, documentation
-for this system and all it's components can be found 
+for this system and all its components can be found 
 [here](https://riverlane.github.io/deltaflow-on-artiq). 
 
 ## Quick Links

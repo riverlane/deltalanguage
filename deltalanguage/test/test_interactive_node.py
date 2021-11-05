@@ -6,7 +6,7 @@ from deltalanguage.test._node_lib import add_interactive_once
 
 
 class InteractiveNodeGeneralTest(unittest.TestCase):
-    """Test how interactive nodes can be defined and initialized in the graph
+    """Test how interactive nodes can be defined and initialised in the graph
     context.
     """
 

@@ -91,7 +91,7 @@ class HwResetShaper(dl.MigenNodeTemplate):
         # Signal that generates a pulse of length NUM_CLOCKS
         self.shaper = migen.Signal(self.NUM_CLOCKS+1)
 
-        # When I receive a reset signal -> initialize the shaper to contain
+        # When I receive a reset signal -> initialise the shaper to contain
         # N '1's.
         # If I haven't received one just shift the value to the left
         # 01111 -> 00111. I will use the lowest bit for the reset_out signal

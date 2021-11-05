@@ -1,4 +1,4 @@
-"""Characterization test BaseDeltaType and its subclasses."""
+"""Characterisation test BaseDeltaType and its subclasses."""
 
 import random
 import typing
@@ -712,7 +712,6 @@ class UtilsTest(unittest.TestCase):
             as_delta_type(type(None))
 
         # primitive
-        self.assertNotEqual(as_delta_type(bool), UInt(Size(1)))
         self.assertEqual(as_delta_type(bool), Bool())
         self.assertEqual(as_delta_type(np.bool_), Bool())
         self.assertEqual(as_delta_type(int), Int(Size(32)))

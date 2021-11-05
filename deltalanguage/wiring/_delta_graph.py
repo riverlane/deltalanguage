@@ -393,7 +393,7 @@ class DeltaGraph:
                 - All non-optional inputs are provided. If an optional input is
                   not provided or output does not go anywhere then it is fine.
 
-            2. Check typing of wires, see the impl and characterization tests.
+            2. Check typing of wires, see the impl and characterisation tests.
 
         Parameters
         ----------

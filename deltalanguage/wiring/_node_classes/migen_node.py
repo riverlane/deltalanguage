@@ -2,6 +2,7 @@ from abc import abstractmethod
 import atexit
 import logging
 from collections import OrderedDict
+import math
 from typing import Callable, List, Type, Union
 
 import migen
@@ -179,7 +180,7 @@ class MigenNodeTemplate(BodyTemplate):
             _outputs[name] = type_
 
         _inputs = OrderedDict([(name, type_)
-                        for name, _, type_ in self._dut.in_ports])
+                              for name, _, type_ in self._dut.in_ports])
 
         NodeTemplate.merge_migenblock(node_template, self, _inputs, _outputs)
 

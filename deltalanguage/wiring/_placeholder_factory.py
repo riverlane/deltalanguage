@@ -4,11 +4,15 @@ from ._node_classes.real_nodes import as_node
 
 
 def placeholder_node_factory(*args, name=None, **kwargs) -> PlaceholderNode:
-    """Node factory for for :py:class:`PlaceholderNode`.
+    """Node factory for for :py:class:`PlaceholderNode`, that is used as a
+    temporary node placeholder during connection of nodes in a graph.
 
     The main use case of such nodes is allowing us to create cycles
     in :py:class:`DeltaGraph` by allowing data dependencies to be resolved
-    out of the order. The need for this step
+    out of the order.
+    In particular, a placeholder node is created for one of the circularly
+    connected nodes and later replaced by an instance of a real node.
+    Please see examples for use cases.
 
     Parameters
     ----------

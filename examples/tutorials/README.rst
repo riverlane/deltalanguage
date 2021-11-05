@@ -150,13 +150,13 @@ This section has an unsorted collection of tutorial on various topics
   `VizTracer <https://github.com/gaogaotiantian/viztracer>`_ can be used to
   produce performance reports like this one
   (:download:`viztracer_example.html`)
-  that visualize the multithreaded simulation of the graph.
+  that visualise the multithreaded simulation of the graph.
 
 .. TODO::
   Add a tutorial on node testing in a testbench graph.
   It means that a node of interest can be places in a new graph where inputs
   are generated via interactive nodes or helper nodes from primitives.
-  Then the node's outputs are gathered and used to analyse it's performance.
+  Then the node's outputs are gathered and used to analyse its performance.
   In a sense this is an analogue of unit testing for nodes.
 
 Deltaflow and FPGA
@@ -185,7 +185,7 @@ of Programmable Logic elements, organised in a regular matrix structure,
 and connected through reconfigurable connections.
 Each Logic element is composed 
 of at least a configurable Logic Gate (Look-Up-Tables) and a single bit 
-memorization element, called Flip-Flop
+memorisation element, called Flip-Flop
 (`I <https://en.wikipedia.org/wiki/Flip-flop_(electronics)#D_flip-flop>`_ and
 `II <https://learnabout-electronics.org/Digital/dig53.php>`_)
 
@@ -207,7 +207,7 @@ After the synthesis, the
 `Place-and-Root <https://en.wikipedia.org/wiki/Place_and_route>`_ 
 phase matches the elements in the netlist with physical resources on the FPGA, 
 optimising the location of logic elements and interconnections according 
-user specified optimization targets.
+user specified optimisation targets.
 
 There are few critical aspects to understand about VLSI and FPGA design:
 
@@ -221,9 +221,9 @@ free online documentation are provided.
 
 Synthesis tools can efficiently manage only
 `synchronous designs <https://en.wikipedia.org/wiki/Synchronous_circuit>`_, 
-with the state of memory elements being synchronized to a clock signal.
+with the state of memory elements being synchronised to a clock signal.
 Crossing between different clock domains is managed through dedicated
-re-synchronization logic. 
+re-synchronisation logic. 
 
 Memory elements (D-Flip-Flops and embedded RAM) are often referred as
 synchronous logic, as opposed to combinational logic, i.e.: logic gates.
@@ -252,7 +252,7 @@ the processing speed, cause the amount of time necessary to complete a given
 operation (latency) is given by the the number of required clock cycles, 
 multiplied by the clock period. 
 The STA tool often operates in conjunction to the Synthesis and Place and
-Route tool, to achieve user specified optimization targets (speed, area 
+Route tool, to achieve user specified optimisation targets (speed, area 
 or power dissipation).
 Meeting the timing constraints depend on several factors:
 
@@ -293,8 +293,8 @@ possible when the designer adopts a description level referred as
 RTL design can be learned in a reasonable amount of time, although full mastery
 requires more effort than normal software design. With sufficient practice, a 
 VLSI designer develops a natural understanding of what kind of HDL descriptions 
-can be properly synthesised with a certain optimization target or trade-off in 
-mind: maximum clock frequency, minimal resource optimization, power
+can be properly synthesised with a certain optimisation target or trade-off in 
+mind: maximum clock frequency, minimal resource optimisation, power
 consumption. 
 Code portability, scalability and design for testing should also be taken in 
 consideration.   
@@ -317,7 +317,7 @@ Describing programmable logic with Deltaflow
 Deltaflow allows to describe FPGA logic in python using a template language
 called `Migen <https://m-labs.hk/gateware/migen>`_.
 Migen code can be simulated, with the resulting timing diagrams exportable to
-a VCD file for visualization.
+a VCD file for visualisation.
 Migen code is translated into synthesizable verilog, for further simulation
 or synthesis.
 
@@ -347,11 +347,11 @@ the actual evaluation happens on either Deltasimulator or Deltaruntime.
 
 - The interface between them is platform agnostic and implemented via a pair of
   helper functions
-  :py:func:`serialize_graph<deltalanguage.runtime.serialize_graph>` and
-  :py:func:`deserialize_graph<deltalanguage.runtime.deserialize_graph>`.
+  :py:func:`serialise_graph<deltalanguage.runtime.serialise_graph>` and
+  :py:func:`deserialise_graph<deltalanguage.runtime.deserialise_graph>`.
   This idea is highlighted in this example :download:`serialisation_example.py`. 
 
 - Use :py:class:`NodeTemplate<deltalanguage.wiring.NodeTemplate>`
   to create nodes with no bodies, if the body can only be provided after
-  deserialization. 
+  deserialisation. 
   Please check out the examples section of this class.

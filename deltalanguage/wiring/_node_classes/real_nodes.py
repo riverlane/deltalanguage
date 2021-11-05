@@ -238,7 +238,7 @@ class RealNode(AbstractNode):
         elif len(self.outputs) == 0:
             raise AttributeError(
                 f"Cannot fetch {item} from {self.full_name}, as we don't "
-                f"have multiple outputs. Suggest using the node on it's own."
+                f"have multiple outputs. Suggest using the node on its own."
             )
         elif item == '__del__':
             raise AttributeError('Migen tries to get this attribute')
@@ -698,7 +698,7 @@ class PythonNode(RealNode):
 
         for i_bod, bod in enumerate(self.bodies):
 
-            body_impl = bod.as_serialized
+            body_impl = bod.as_serialised
 
             if isinstance(bod, PyMigenBody):
                 body_id = 'migen'

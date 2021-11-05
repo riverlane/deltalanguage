@@ -1,5 +1,7 @@
 import unittest
 
+import numpy as np
+
 import deltalanguage as dl
 from deltalanguage import DeltaRuntimeExit
 
@@ -93,13 +95,13 @@ class TestExecutionTypes(TestExecutionBaseDL):
 
         self.check_executes_graph(
             graph,
-            """\
+            f"""\
             saving (-128, -32768, -2147483648, -9223372036854775808)
             saving (127, 32767, 2147483647, 9223372036854775807)
             saving (0, 0, 0, 0)
             saving (255, 65535, 4294967295, 18446744073709551615)
-            saving (1.0000001, 1.000000000000001)
-            saving ((1.0000001+1.0000001j), (1.000000000000001+1.000000000000001j))
+            saving ({np.float32(1.0000001)}, 1.000000000000001)
+            saving (({np.float32(1.0000001)}+{np.float32(1.0000001)}j), (1.000000000000001+1.000000000000001j))
             saving (True, 'a')
             """
         )

@@ -40,6 +40,7 @@ from ._node_classes.node_bodies import (PyConstBody,
                                         PythonBody)
 from ._node_classes.placeholder_node import PlaceholderNode
 from ._node_classes.port_classes import InPort, OutPort
+from ._node_classes.protocol_adaptor import ProtocolAdaptor
 from ._node_classes.real_nodes import PythonNode, RealNode, as_node
 from ._body_templates import InteractiveBodyTemplate
 from ._node_templates import NodeTemplate
